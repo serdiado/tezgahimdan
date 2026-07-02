@@ -1,0 +1,78 @@
+# Rezervasyon Motoru — Mimari
+
+İlgili genel özet: [`../MIMARI.md`](../MIMARI.md#rezervasyon-kilidi-ve-kuyruk-mantığı)
+
+## Karar: Pesimistik satır kilidi (`SELECT ... FOR UPDATE`)
+
+Rezervasyon oluşturma, `prisma.$transaction` içinde önce ürün satırını `SELECT ... FOR UPDATE` ile kilitler. Sayım (kaç aktif/yedek var), karar (aktif/yedek/dolu) ve insert hep bu kilit altında yapılır. Aynı ürüne gelen tüm istekler kilitte sıraya girer; kapasite aşımı ya da çift sıra numarası fiziksel olarak imkânsız. Farklı ürünler birbirini hiç engellemez, kilit satır bazlı.
+
+## Neden optimistic (unique constraint + retry) değil
+
+- Retry döngüsü karmaşıklığı gerektirmiyor.
+- "Dolu mu" kararı için zaten güvenilir bir sayım şart — optimistic yaklaşımda bile bu sayım gerekir, yani karmaşıklığı azaltmıyor, sadece taşıyor.
+- Ölçek argümanı: yerel pazar uygulamasında bir ürüne aynı saniyede düşen istek sayısı en fazla bir avuç. Milisaniyelik kritik bölge için kilit maliyeti önemsiz.
+- READ COMMITTED izolasyon seviyesi yeterli, çünkü kilit zaten serileştirme görevini görüyor.
+
+## Kullanıcı bul-veya-oluştur neden transaction dışında
+
+Postgres'te transaction içindeki herhangi bir hata (unique constraint ihlali dahil) tüm transaction'ı iptal eder — "yakala, tekrar dene" deseni transaction içinde çalışmaz. Bu ayrıca kilit alma sırasını sabitler (önce kullanıcı satırı, sonra ürün satırı), döngüsel bekleme (deadlock) riskini yapısal olarak ortadan kaldırır.
+
+## Bilinen bir hata ve dersi (dev ortamına özgü)
+
+İlk test turunda, aynı telefonla iki paralel "ilk temas" isteği 500 döndürdü. Kök neden: `err instanceof Prisma.PrismaClientKnownRequestError` kontrolü, dev sunucusunda hot-reload sonrası bayat modül referansı yüzünden eşleşmiyordu (`globalThis`'teki Prisma singleton'ı eski modül örneğinin hata sınıflarını fırlatıyor, yeni import edilen sınıfla `instanceof` tutmuyor).
+
+Önemli: **veri hiç bozulmadı** — `psql` ile doğrulandı, yarışan telefonda tam 1 kullanıcı + 1 rezervasyon oluşmuştu. 500, sadece yüzeydeki yanlış hata koduydu; kilit görevini doğru yapmıştı.
+
+Düzeltme: `instanceof` yerine yapısal kontrol (`p2002Mi()`, `p2002Hedefi()` — `src/lib/prisma.ts`). Aynı mayın `MagazaOlusturForm`'da da vardı (hiç tetiklenmediği için görünmüyordu), o da düzeltildi. Düzeltme, sunucu yeniden başlatılmadan (bayat singleton koşulu ayaktayken) tekrar test edilerek kanıtlandı.
+
+## Test kanıtı — 8 paralel istek
+
+Stok=1 ürüne, aynı senkron blokta oluşturulup `Promise.all` ile ateşlenen 8 gerçek paralel istek, 8 farklı telefon:
+
+```
++905557770001 -> 201 (106ms) {"tip":"aktif","siraNo":1}
++905557770002 -> 201 (127ms) {"tip":"yedek","siraNo":1}
++905557770003 -> 201 (147ms) {"tip":"yedek","siraNo":2}
++905557770004 -> 201 (160ms) {"tip":"yedek","siraNo":3}
++905557770005 -> 201 (182ms) {"tip":"yedek","siraNo":4}
++905557770006 -> 409 (226ms) {"hata":"kapasite dolu"}
++905557770007 -> 201 (205ms) {"tip":"yedek","siraNo":5}
++905557770008 -> 409 (217ms) {"hata":"kapasite dolu"}
+```
+
+Sayım: aktif=1, yedek=5, dolu=2. Yedek sıra numaraları: [1,2,3,4,5], hepsi benzersiz.
+
+Not: 0006 reddedilip daha geç biten 0007'nin yedek#5 alması beklenen davranış — kilit alma sırası, isteğin gönderilme sırası değildir. Değişmez olan şey kapasitenin tam 6 olmasıdır (stok 1 + yedek 5).
+
+Diğer doğrulanan senaryolar:
+- **A — Tek istek:** aktif #1 ✓
+- **B — Aynı telefon, 2 paralel ilk-temas:** 1×201 + 1×409 "zaten var" (aynı rezerv kodu geri döndü) ✓
+- **D — Kapasite doluyken 9. istek:** 409 ✓
+- **E — Mevcut rezervasyonlu numara tekrar dener:** 409 + mevcut kodu geri döndü ✓ (partial unique index ile çakışma yok — kilit altındaki ön-kontrol dostça cevap veriyor, index hiç tetiklenmeden son savunma hattı olarak duruyor)
+
+## Bağımsız doğrulama (`psql`, API cevabına güvenilmedi)
+
+```
+tip   | adet | sira_nolar     toplam=6, benzersiz_kod=6, benzersiz_alici=6
+aktif |  1   | {1}            urun durum = doldu
+yedek |  5   | {1,2,3,4,5}
+```
+
+`pazarHaftasi` alanı İstanbul saat dilimine göre doğru sonraki Çarşamba'yı hesaplıyor. `DurumGecmisi` tablosuna 8 Rezervasyon + 1 Urun(doldu) audit kaydı düştü.
+
+## Kritik bağımlılık uyarısı
+
+Ürünü `doldu` durumuna çeviren tek yer bu akış. **Slot boşaltan her gelecek özellik** (Vazgeç, haftalık otomatik sıfırlama, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı — unutulursa ürün fiilen boşalmış olsa bile "Rezerve Et" butonu kapalı kalır.
+
+## Diğer tasarım kararları
+
+- **Ad güncellenmiyor:** Bilinen bir telefonla farklı adla rezervasyon yapılırsa mevcut kaydın adı korunur — doğrulama olmadan başkasının kaydını yeniden adlandırmaya izin vermemek için.
+- **Telefon normalizasyonu TR'ye özel:** `0555...`, `+90 555...`, `5551112233` hepsi `+90...`'a normalize edilir (aynı kişi iki kez kullanıcı olmasın diye). Yabancı numara ancak `+` ile girilirse kabul edilir. Başında 0 olmayan sabit hatlar reddedilir.
+- **Vitrin davranışı:** `doldu` ürünler artık listeden gizlenmiyor, sayfada "Sıra kapandı" ile disabled buton olarak görünüyor (önceden filtre onları gizliyordu).
+
+## İleride ele alınacaklar
+
+- `Rezervasyon(urunId, durum)` için indeks yok — küçük ölçekte önemsiz, büyüdükçe eklenmeli.
+- Satıcının kendi ürününe rezervasyon yapması engellenmiyor, kural tanımsız.
+- Stok sonradan düşürülürse mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir — ürün düzenleme akışı yazılırken ele alınacak.
+- Rate-limit yok (SMS fazına kadar bilinçli risk — bkz. genel `MIMARI.md`).
