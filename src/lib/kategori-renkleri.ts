@@ -1,3 +1,5 @@
+import { Gem, Shirt, Cookie, Sparkles, type LucideIcon } from "lucide-react";
+
 // Kategori etiketleri icin sabit, kucuk bir renk paleti. Marka rengi (primary,
 // bkz. globals.css) sadece ana CTA/aksiyonlar icin; kategoriler PLAN.md'nin
 // dedigi gibi kendi (serin tonlu da dahil) renklerini korur, bu yuzden burada
@@ -30,4 +32,18 @@ function basitHash(metin: string): number {
 
 export function kategoriRengiSec(kategoriId: string): KategoriRenk {
   return KATEGORI_PALETI[basitHash(kategoriId) % KATEGORI_PALETI.length];
+}
+
+// Kategoriler admin tarafindan sonradan eklenebildigi icin (bkz. PLAN.md SS2D)
+// sabit bir enum degil - bilinen tohum kategoriler (prisma/seed.js) icin
+// anlamli birer ikon, taninmayan/ileride eklenecek kategoriler icin genel bir
+// ikona (Sparkles) dususuz.
+const BILINEN_KATEGORI_IKONLARI: Record<string, LucideIcon> = {
+  Taki: Gem,
+  Orgu: Shirt,
+  Recel: Cookie,
+};
+
+export function kategoriIkonuSec(kategoriAdi: string): LucideIcon {
+  return BILINEN_KATEGORI_IKONLARI[kategoriAdi] ?? Sparkles;
 }
