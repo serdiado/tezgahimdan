@@ -47,9 +47,17 @@ enum KullaniciRolu {
 model Kullanici {
   id        String        @id @default(uuid())
   ad        String
-  telefon   String        @unique
+  telefon   String?       @unique
   rol       KullaniciRolu @default(alici)
   createdAt DateTime      @default(now())
+
+  // E-posta/Google girisi icin: ikisi de opsiyonel (telefon+SMS ile gelen kullanicida
+  // olmayabilir). sifreHash null ise hesap sadece Google ile acilmis demektir.
+  // emailVerified: Google dogruladiysa dolar; sifre ile kayitta bos kalir (dogrulama
+  // akisi yok), Google hesap eslestirmesinde bu alan guvenlik kontrolu olarak kullanilir.
+  email         String?   @unique
+  emailVerified DateTime?
+  sifreHash     String?
 
   magazalar      Magaza[]
   rezervasyonlar Rezervasyon[]
