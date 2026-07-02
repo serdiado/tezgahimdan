@@ -4,7 +4,10 @@ import { rezervasyonGeriAl } from "@/lib/rezervasyon";
 
 const RED_MESAJI: Record<string, string> = {
   urun_satildi: "Ürün tükendiği için güvenle geri alınamaz. Kaydınız admin'e iletildi.",
-  kapasite_dolu: "Kuyruk dolu olduğu için güvenle geri alınamaz. Kaydınız admin'e iletildi.",
+  // kapasite_dolu yaris kaynakli gecici olabilir (bkz. docs/MIMARI.md) - tekrar
+  // deneme ipucu veriyoruz.
+  kapasite_dolu:
+    "Kuyruk dolu olduğu için şu an geri alınamadı. Bir dakika sonra tekrar deneyebilirsiniz; sorun sürerse kaydınız admin'e iletildi.",
 };
 
 export async function POST(request: Request) {
