@@ -10,11 +10,11 @@ Yeni bir mimari karar alındığında (özellikle eşzamanlılık, veri bütünl
 
 ## Rezervasyon kilidi ve kuyruk mantığı
 
-Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yönetimi. Eşzamanlılık riski en yüksek bölüm — 8 paralel istekle test edildi.
+Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yönetimi. Eşzamanlılık riski en yüksek bölüm. Aynı kilit üç akışı da serileştirir: **rezervasyon oluştur** (8 paralel istekle test), **Vazgeç** (alıcı), **Satıldı/Gelmedi** (satıcı). Satıldı stok-tutarlı: her satış bir birim tüketir, kapasite `stok − satıldı` üzerinden hesaplanır (INVARIANT: `aktif ≤ stok − satıldı`, fazla-satış imkânsız).
 
 → Detay: [`docs/mimari/rezervasyon-motoru.md`](./mimari/rezervasyon-motoru.md)
 
-**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç ✓ yapıldı, haftalık sıfırlama, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı. Vazgeç aynı kilidi kullanır ve sıra numaralarını boşluksuz tutar — detay aynı dosyada.
+**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç ✓, Gelmedi ✓, haftalık sıfırlama, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı. Vazgeç/Gelmedi aynı kilidi kullanır ve sıra numaralarını boşluksuz tutar — detay aynı dosyada.
 
 ---
 

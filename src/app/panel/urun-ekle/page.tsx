@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
+import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaOlusturForm } from "./MagazaOlusturForm";
 import { UrunEkleForm } from "./UrunEkleForm";
 
@@ -17,33 +18,43 @@ export default async function UrunEklePage({
     redirect("/giris");
   }
 
+  let icerik;
   if (!yetkili) {
-    return (
-      <main>
-        <h1>Yetkisiz Erişim</h1>
-        <p>Bu sayfaya sadece satıcı hesapları erişebilir.</p>
-      </main>
+    icerik = (
+      <>
+        <h1 className="text-xl font-bold text-neutral-900">Yetkisiz Erişim</h1>
+        <p className="mt-1 text-neutral-600">Bu sayfaya sadece satıcı hesapları erişebilir.</p>
+      </>
     );
+  } else {
+    const magaza = await getOwnMagaza(session.user.id);
+    if (!magaza) {
+      icerik = (
+        <>
+          <h1 className="text-xl font-bold text-neutral-900">Önce Mağazanı Oluştur</h1>
+          {hata && <p className="mt-1 text-red-600">{hata}</p>}
+          <div className="mt-4">
+            <MagazaOlusturForm />
+          </div>
+        </>
+      );
+    } else {
+      const kategoriler = await prisma.kategori.findMany({ orderBy: { ad: "asc" } });
+      icerik = (
+        <>
+          <h1 className="text-xl font-bold text-neutral-900">Ürün Ekle — {magaza.ad}</h1>
+          <div className="mt-4">
+            <UrunEkleForm kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))} />
+          </div>
+        </>
+      );
+    }
   }
-
-  const magaza = await getOwnMagaza(session.user.id);
-
-  if (!magaza) {
-    return (
-      <main>
-        <h1>Önce Mağazanı Oluştur</h1>
-        {hata && <p style={{ color: "red" }}>{hata}</p>}
-        <MagazaOlusturForm />
-      </main>
-    );
-  }
-
-  const kategoriler = await prisma.kategori.findMany({ orderBy: { ad: "asc" } });
 
   return (
-    <main>
-      <h1>Ürün Ekle — {magaza.ad}</h1>
-      <UrunEkleForm kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))} />
-    </main>
+    <div className="min-h-screen bg-neutral-50">
+      <SiteHeader />
+      <main className="mx-auto max-w-2xl px-4 py-6">{icerik}</main>
+    </div>
   );
 }

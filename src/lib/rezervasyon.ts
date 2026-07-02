@@ -101,8 +101,17 @@ export async function rezervasyonOlustur(params: {
             };
           }
 
-          // Kapasiteyi sadece 'bekliyor' kayitlar isgal eder - iptal/gelmedi/
-          // satildi gecmis kayittir, slot acar (vazgec akisinin temeli).
+          // Kapasiteyi sadece 'bekliyor' kayitlar isgal eder - iptal/gelmedi
+          // gecmis kayittir, slot acar (vazgec/gelmedi akislarinin temeli).
+          // 'satildi' ise BIRIMI TUKETIR: her satis kalan satilabilir birimi
+          // (kalanBirim) 1 azaltir, yani aktif kapasitesi stokAdedi degil
+          // kalanBirim'dir (satildi=0 iken ikisi esit -> geriye uyumlu).
+          const satildiSayisi = await tx.rezervasyon.count({
+            where: { urunId: urun.id, durum: "satildi" },
+          });
+          const kalanBirim = urun.stokAdedi - satildiSayisi;
+          if (kalanBirim <= 0) return { tur: "satista-degil" };
+
           const aktifSayisi = await tx.rezervasyon.count({
             where: { urunId: urun.id, durum: "bekliyor", tip: "aktif" },
           });
@@ -112,9 +121,9 @@ export async function rezervasyonOlustur(params: {
 
           let tip: "aktif" | "yedek";
           let siraNo: number;
-          if (aktifSayisi < urun.stokAdedi) {
+          if (aktifSayisi < kalanBirim) {
             tip = "aktif";
-            siraNo = aktifSayisi + 1; // aktif icinde 1..stok
+            siraNo = aktifSayisi + 1; // aktif icinde 1..kalanBirim
           } else if (yedekSayisi < MAX_YEDEK) {
             tip = "yedek";
             siraNo = yedekSayisi + 1; // yedek kuyrugunda 1..5
@@ -144,9 +153,8 @@ export async function rezervasyonOlustur(params: {
           });
 
           // Son slot da dolduysa urunu 'doldu' yap - vitrin butonu kapanir.
-          // (Ileride vazgec/sifirlama slot bosaltinca 'sergide'ye geri
-          // cevrilmeli; bu esik tek yazma noktasi olarak burada.)
-          if (aktifSayisi + yedekSayisi + 1 >= urun.stokAdedi + MAX_YEDEK && urun.durum === "sergide") {
+          // Kapasite = kalanBirim + MAX_YEDEK (satildikca kalanBirim kucultur).
+          if (aktifSayisi + yedekSayisi + 1 >= kalanBirim + MAX_YEDEK && urun.durum === "sergide") {
             await tx.urun.update({ where: { id: urun.id }, data: { durum: "doldu" } });
             await tx.durumGecmisi.create({
               data: {
@@ -184,6 +192,61 @@ export async function rezervasyonOlustur(params: {
     }
   }
   throw new Error("rezerv kodu uretilemedi (art arda carpisma)");
+}
+
+// ---------------------------------------------------------------------------
+// Ortak slot-bosaltma yardimcilari
+// (transaction + urun kilidi CAGIRAN tarafindan tutulur; buradaki islemler o
+// kilit altinda calisir)
+// ---------------------------------------------------------------------------
+
+type TxKismi = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
+
+// Bir AKTIF slot'u serbest birakir. "Birim hala satilik" durumlarinda kullanilir
+// (vazgec, gelmedi) - satildi'da KULLANILMAZ (o birim tuketilir). Yedek#1 varsa
+// aktife yukseltir ve bosalan siraNo'yu devralir, kalan yedekler 1 kayar; yedek
+// yoksa ustteki aktifleri kaydirir. Yukselenin rezervKodu'nu doner.
+async function aktifSlotBosalt(
+  tx: TxKismi,
+  urunId: string,
+  bosalan: { siraNo: number },
+): Promise<string | null> {
+  const birinciYedek = await tx.rezervasyon.findFirst({
+    where: { urunId, durum: "bekliyor", tip: "yedek" },
+    orderBy: { siraNo: "asc" },
+  });
+  if (birinciYedek) {
+    await tx.rezervasyon.update({
+      where: { id: birinciYedek.id },
+      data: { tip: "aktif", siraNo: bosalan.siraNo },
+    });
+    await tx.rezervasyon.updateMany({
+      where: { urunId, durum: "bekliyor", tip: "yedek", siraNo: { gt: birinciYedek.siraNo } },
+      data: { siraNo: { decrement: 1 } },
+    });
+    await tx.durumGecmisi.create({
+      data: {
+        kullaniciId: birinciYedek.aliciId,
+        varlikTuru: "Rezervasyon",
+        varlikId: birinciYedek.id,
+        olay: `rezervasyon_yedekten_aktife:${bosalan.siraNo}`,
+      },
+    });
+    return birinciYedek.rezervKodu;
+  }
+  await tx.rezervasyon.updateMany({
+    where: { urunId, durum: "bekliyor", tip: "aktif", siraNo: { gt: bosalan.siraNo } },
+    data: { siraNo: { decrement: 1 } },
+  });
+  return null;
+}
+
+// Bir YEDEK slot'unu serbest birakir: ustteki yedekleri 1 kaydirir.
+async function yedekSlotBosalt(tx: TxKismi, urunId: string, bosalan: { siraNo: number }) {
+  await tx.rezervasyon.updateMany({
+    where: { urunId, durum: "bekliyor", tip: "yedek", siraNo: { gt: bosalan.siraNo } },
+    data: { siraNo: { decrement: 1 } },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -263,56 +326,9 @@ export async function rezervasyonVazgec(params: {
 
       let yukselenKodu: string | null = null;
       if (rez.tip === "aktif") {
-        const birinciYedek = await tx.rezervasyon.findFirst({
-          where: { urunId: rez.urunId, durum: "bekliyor", tip: "yedek" },
-          orderBy: { siraNo: "asc" },
-        });
-        if (birinciYedek) {
-          // Once yukselt (tip degisince asagidaki azaltmanin disinda kalir),
-          // sonra kalan yedekleri kaydir.
-          await tx.rezervasyon.update({
-            where: { id: birinciYedek.id },
-            data: { tip: "aktif", siraNo: rez.siraNo },
-          });
-          await tx.rezervasyon.updateMany({
-            where: {
-              urunId: rez.urunId,
-              durum: "bekliyor",
-              tip: "yedek",
-              siraNo: { gt: birinciYedek.siraNo },
-            },
-            data: { siraNo: { decrement: 1 } },
-          });
-          await tx.durumGecmisi.create({
-            data: {
-              kullaniciId: birinciYedek.aliciId,
-              varlikTuru: "Rezervasyon",
-              varlikId: birinciYedek.id,
-              olay: `rezervasyon_yedekten_aktife:${rez.siraNo}`,
-            },
-          });
-          yukselenKodu = birinciYedek.rezervKodu;
-        } else {
-          await tx.rezervasyon.updateMany({
-            where: {
-              urunId: rez.urunId,
-              durum: "bekliyor",
-              tip: "aktif",
-              siraNo: { gt: rez.siraNo },
-            },
-            data: { siraNo: { decrement: 1 } },
-          });
-        }
+        yukselenKodu = await aktifSlotBosalt(tx, rez.urunId, rez);
       } else {
-        await tx.rezervasyon.updateMany({
-          where: {
-            urunId: rez.urunId,
-            durum: "bekliyor",
-            tip: "yedek",
-            siraNo: { gt: rez.siraNo },
-          },
-          data: { siraNo: { decrement: 1 } },
-        });
+        await yedekSlotBosalt(tx, rez.urunId, rez);
       }
 
       // Kritik bagimlilik (docs/mimari/rezervasyon-motoru.md): iptal her zaman
@@ -330,6 +346,132 @@ export async function rezervasyonVazgec(params: {
       }
 
       return { tur: "iptal-edildi", yukselenKodu };
+    },
+    { maxWait: 5000, timeout: 15000 },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Satici tarafi: Satildi / Gelmedi
+// ---------------------------------------------------------------------------
+
+export type SonuclandirSonucu =
+  | { tur: "sonuclandi"; sonuc: "satildi" | "gelmedi"; yukselenKodu: string | null; urunTukendi: boolean }
+  | { tur: "yetkisiz" }
+  | { tur: "bulunamadi" }
+  | { tur: "islenemez"; sebep: string };
+
+// Satici, KENDI magazasinin bir urununun AKTIF hak sahibini sonuclandirir.
+// Ayni kilit stratejisi (urun satirinda FOR UPDATE) - vazgec/yeni-rezervasyon
+// ile ayni anda calissa bile kuyruk tutarli kalir.
+//
+//  - "gelmedi": alici gelmedi, hak duser. Birim HALA SATILIK -> yedek#1 aktife
+//    yukselir (aktifSlotBosalt), urun doldu idiyse sergide'ye doner. Guvenilirlik
+//    icin DurumGecmisi'ne aliciId ile 'rezervasyon_gelmedi' yazilir (PLAN SS3).
+//  - "satildi": alici urunu aldi, BIRIM TUKETILIR -> yedek YUKSELMEZ, ustteki
+//    aktifler kayar. Toplam satildi stokAdedi'ye ulasinca urun 'satildi' olur ve
+//    kalan tum bekleyenler iptal edilir (satilacak birim kalmadi).
+export async function rezervasyonSonuclandir(params: {
+  rezervId: string;
+  sonuc: "satildi" | "gelmedi";
+  saticiUserId: string;
+}): Promise<SonuclandirSonucu> {
+  const rezOn = await prisma.rezervasyon.findUnique({
+    where: { id: params.rezervId },
+    include: { urun: { select: { id: true, magaza: { select: { sahipId: true } } } } },
+  });
+  if (!rezOn) return { tur: "bulunamadi" };
+  // Yetki: rezervId istemciden gelir ama sadece kendi magazasinin urununu
+  // sonuclandirabilir - baska saticinin rezervId'sini ele gecirse bile reddedilir.
+  if (rezOn.urun.magaza.sahipId !== params.saticiUserId) return { tur: "yetkisiz" };
+
+  return prisma.$transaction(
+    async (tx): Promise<SonuclandirSonucu> => {
+      const kilitli = await tx.$queryRaw<
+        { id: string; stokAdedi: number; durum: string }[]
+      >`SELECT "id", "stokAdedi", "durum" FROM "Urun" WHERE "id" = ${rezOn.urunId} FOR UPDATE`;
+      const urun = kilitli[0];
+
+      const rez = await tx.rezervasyon.findUnique({ where: { id: params.rezervId } });
+      if (!rez || rez.durum !== "bekliyor") {
+        return { tur: "islenemez", sebep: `durum:${rez?.durum ?? "yok"}` };
+      }
+      // Sadece aktif hak sahibi satildi/gelmedi olabilir; yedek sirada bekliyor.
+      if (rez.tip !== "aktif") {
+        return { tur: "islenemez", sebep: "sadece aktif hak sahibi isaretlenebilir" };
+      }
+
+      await tx.rezervasyon.update({ where: { id: rez.id }, data: { durum: params.sonuc } });
+      await tx.durumGecmisi.create({
+        data: {
+          kullaniciId: rez.aliciId,
+          varlikTuru: "Rezervasyon",
+          varlikId: rez.id,
+          olay: `rezervasyon_${params.sonuc}:aktif:${rez.siraNo}`,
+        },
+      });
+
+      let yukselenKodu: string | null = null;
+      let urunTukendi = false;
+
+      if (params.sonuc === "gelmedi") {
+        // Birim hala satilik: yedek yukselir, doldu -> sergide.
+        yukselenKodu = await aktifSlotBosalt(tx, rez.urunId, rez);
+        if (urun?.durum === "doldu") {
+          await tx.urun.update({ where: { id: rez.urunId }, data: { durum: "sergide" } });
+          await tx.durumGecmisi.create({
+            data: {
+              kullaniciId: rez.aliciId,
+              varlikTuru: "Urun",
+              varlikId: rez.urunId,
+              olay: "urun_tekrar_sergide",
+            },
+          });
+        }
+      } else {
+        // satildi: birim tuketildi, yedek YUKSELMEZ; sadece ustteki aktifleri kaydir.
+        await tx.rezervasyon.updateMany({
+          where: { urunId: rez.urunId, durum: "bekliyor", tip: "aktif", siraNo: { gt: rez.siraNo } },
+          data: { siraNo: { decrement: 1 } },
+        });
+        const satildiSayisi = await tx.rezervasyon.count({
+          where: { urunId: rez.urunId, durum: "satildi" },
+        });
+        if (satildiSayisi >= (urun?.stokAdedi ?? 0)) {
+          urunTukendi = true;
+          const kalanlar = await tx.rezervasyon.findMany({
+            where: { urunId: rez.urunId, durum: "bekliyor" },
+            select: { id: true, aliciId: true },
+          });
+          if (kalanlar.length) {
+            await tx.rezervasyon.updateMany({
+              where: { urunId: rez.urunId, durum: "bekliyor" },
+              data: { durum: "iptal" },
+            });
+            for (const k of kalanlar) {
+              await tx.durumGecmisi.create({
+                data: {
+                  kullaniciId: k.aliciId,
+                  varlikTuru: "Rezervasyon",
+                  varlikId: k.id,
+                  olay: "rezervasyon_urun_tukendi",
+                },
+              });
+            }
+          }
+          await tx.urun.update({ where: { id: rez.urunId }, data: { durum: "satildi" } });
+          await tx.durumGecmisi.create({
+            data: {
+              kullaniciId: rez.aliciId,
+              varlikTuru: "Urun",
+              varlikId: rez.urunId,
+              olay: "urun_satildi",
+            },
+          });
+        }
+      }
+
+      return { tur: "sonuclandi", sonuc: params.sonuc, yukselenKodu, urunTukendi };
     },
     { maxWait: 5000, timeout: 15000 },
   );

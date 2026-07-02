@@ -81,6 +81,26 @@ Aynı kilit stratejisini kullanır: ürün satırında `FOR UPDATE` → oluştur
 
 **Test kanıtı:** Dolu üründe (1 aktif + 5 yedek) paralel [aktif vazgeçer + yeni telefon rezerve dener] yarışı 3 iterasyonda koşuldu; her iki geçerli sıralama da gözlendi (yeni istek ya reddedildi ya boşalan yedek#5'i aldı), hiçbir iterasyonda kapasite aşımı, çift aktif ya da çift (tip, sıraNo) oluşmadı — psql ile bağımsız doğrulandı. Yükselen her seferinde doğru kişiydi (eski yedek#1).
 
+## Satıcı tarafı: Satıldı / Gelmedi (`rezervasyonSonuclandir`)
+
+Satıcı, **kendi** mağazasının bir ürününün **aktif** hak sahibini sonuçlandırır. Aynı kilit (ürün satırında `FOR UPDATE`) → Vazgeç / yeni rezervasyon ile eşzamanlı çalışsa bile kuyruk tutarlı. Yetki: `rezervId` istemciden gelir ama fonksiyon `magaza.sahipId === saticiUserId` kontrolü yapar — başka satıcının `rezervId`'sini ele geçirse bile 403. Sadece `bekliyor` + `aktif` işaretlenebilir (yedek sırada bekliyor, sonuçlandırılamaz).
+
+**"Gelmedi"** — alıcı gelmedi, hak düşer. Birim **hâlâ satılık** → Vazgeç'in aktif dalıyla birebir aynı: `aktifSlotBosalt` yedek#1'i yükseltir, ürün `doldu` idiyse `sergide`'ye döner. Güvenilirlik için (PLAN §3) `rezervasyon_gelmedi` olayı **aliciId ile** loglanır → ileride "kim kaç kez gelmedi" sayılabilir.
+
+**"Satıldı"** — alıcı ürünü aldı, **birim tüketilir** (stok-tutarlı model, kullanıcı kararı). Vazgeç/Gelmedi'den farkı: yedek **yükselmez** (satılan birim gitti), sadece üstteki aktifler kayar. Bunun sonucu, `rezervasyonOlustur`'un kapasite hesabı da artık **`stokAdedi` değil `kalanBirim = stokAdedi − satildiSayisi`** üzerinden (satildi=0 iken ikisi eşit → geriye uyumlu). Toplam satıldı `stokAdedi`'ye ulaşınca ürün `satildi` olur ve kalan tüm bekleyenler `iptal` edilir (`rezervasyon_urun_tukendi`).
+
+> **Neden stok-tutarlı:** PLAN §3 stok>1'i (reçel: çok kavanoz) birinci sınıf senaryo sayıyor. "İlk satış ürünü kapatır" modeli, stok=3'te ilk satışta diğer 2 aktif hak sahibinin hakkını yakardı. Bu modelde her satış tam 1 birim tüketir, diğer aktifler bekler.
+
+**Değişmez (INVARIANT):** her üründe `aktif_sayisi ≤ stokAdedi − satildiSayisi`. Bu, fazla-satışın matematiksel imkânsızlığıdır ve psql ile her test ürününde doğrulandı.
+
+**Test kanıtı (7 ürün + 2 satıcı):**
+- Satıldı-tüketir (stok=1): aktif satıldı → ürün `satildi`, 5 yedek `iptal` (tükendi). ✓
+- Gelmedi-yükseltir (stok=1): yedek#1 aktife yükseldi, ürün `doldu→sergide`. ✓
+- Stok-tutarlı (stok=3): aktif#1 satıldı → 2 aktif + 5 yedek (yedek YÜKSELMEDİ), ürün `doldu` kaldı, yeni istek "dolu". ✓
+- Yetki: satıcı B, A'nın rezervasyonunu → **403**. ✓
+- **Yarış [aktif Gelmedi ‖ yeni rezervasyon] ×3:** üçünde de tutarlı — yeni istek ya reddedildi (kilidi önce aldı, kuyruk doluydu) ya da (ardışık kontrolde) gelmedi'nin boşalttığı yedek#5'i aldı. Hiçbir iterasyonda kapasite aşımı / çift aktif / çift (tip, sıraNo) yok.
+- **Yarış [aktif Gelmedi ‖ yedek#3 vazgeç]:** iki işlem commutative çıktı (aynı sonuç), kuyruk boşluksuz kaldı.
+
 ## Diğer tasarım kararları
 
 - **Ad güncellenmiyor:** Bilinen bir telefonla farklı adla rezervasyon yapılırsa mevcut kaydın adı korunur — doğrulama olmadan başkasının kaydını yeniden adlandırmaya izin vermemek için.
@@ -92,4 +112,6 @@ Aynı kilit stratejisini kullanır: ürün satırında `FOR UPDATE` → oluştur
 - `Rezervasyon(urunId, durum)` için indeks yok — küçük ölçekte önemsiz, büyüdükçe eklenmeli.
 - Satıcının kendi ürününe rezervasyon yapması engellenmiyor, kural tanımsız.
 - Stok sonradan düşürülürse mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir — ürün düzenleme akışı yazılırken ele alınacak.
+- **Satıldı/Gelmedi geri alınamaz** — yanlış işaretleme onaydan sonra düzeltilemez (admin müdahalesi gerekir). Şimdilik tek koruma inline onay.
+- **Otomatik haftalık sıfırlama henüz yok** — PLAN §3'teki "satıcının işaretlemediği aktifler otomatik Gelmedi olur" kuralı, bu manuel Gelmedi'nin scheduler versiyonu olacak. Aynı motor/kilit kullanılmalı.
 - Rate-limit yok (SMS fazına kadar bilinçli risk — bkz. genel `MIMARI.md`).
