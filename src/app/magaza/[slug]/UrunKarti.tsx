@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
+import { RezerveModal } from "./RezerveModal";
 
 const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
   sergide: { etiket: "Sergide", className: "bg-green-100 text-green-700" },
@@ -22,10 +26,14 @@ export type UrunKartiVeri = {
 };
 
 export function UrunKarti({ urun }: { urun: UrunKartiVeri }) {
+  const [modalAcik, setModalAcik] = useState(false);
   const renk = kategoriRengiSec(urun.kategori.id);
   const Ikon = kategoriIkonuSec(urun.kategori.ad);
   const fotograf = urun.fotograflar[0];
   const durumStil = DURUM_STIL[urun.durum] ?? { etiket: urun.durum, className: "bg-neutral-200 text-neutral-600" };
+  // Kapasite (stok+5) dolunca rezervasyon kapanir (PLAN.md SS3); 'doldu'
+  // durumu tam bu esikte, rezervasyon API'sinin icinde atomik olarak atanir.
+  const rezervasyonKapali = urun.durum !== "sergide";
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
@@ -51,11 +59,20 @@ export function UrunKarti({ urun }: { urun: UrunKartiVeri }) {
         </span>
         <button
           type="button"
-          className="mt-auto w-full rounded-md bg-primary-500 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-600"
+          disabled={rezervasyonKapali}
+          onClick={() => setModalAcik(true)}
+          className={`mt-auto w-full rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+            rezervasyonKapali
+              ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
+              : "bg-primary-500 text-white hover:bg-primary-600"
+          }`}
         >
-          Rezerve Et
+          {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
         </button>
       </div>
+      {modalAcik && (
+        <RezerveModal urunId={urun.id} urunBaslik={urun.baslik} onClose={() => setModalAcik(false)} />
+      )}
     </div>
   );
 }

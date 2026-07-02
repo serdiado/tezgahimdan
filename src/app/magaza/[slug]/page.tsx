@@ -17,8 +17,11 @@ export default async function MagazaSayfasi({
     notFound();
   }
 
+  // 'doldu' urunler de listelenir (buton kapali olarak) - kapasitesi dolan
+  // urun vitrinden kaybolmamali, alici dolu oldugunu gormeli. 'satildi' ve
+  // silinmis urunler gizli kalir.
   const urunler = await prisma.urun.findMany({
-    where: { magazaId: magaza.id, durum: "sergide", silindiMi: false },
+    where: { magazaId: magaza.id, durum: { in: ["sergide", "doldu"] }, silindiMi: false },
     include: { kategori: true },
     orderBy: { createdAt: "desc" },
   });

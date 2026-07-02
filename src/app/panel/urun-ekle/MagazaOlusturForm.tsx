@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
-import { Prisma } from "@/generated/prisma";
-import { prisma } from "@/lib/prisma";
+import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
 import { getSaticiSession } from "@/lib/yetki";
 import { varsayilanPazariGetirVeyaOlustur } from "@/lib/magaza";
 
@@ -43,12 +42,11 @@ async function magazaOlustur(formData: FormData) {
       },
     });
   } catch (err) {
-    // findUnique-sonra-create arasinda baska bir istek ayni slug'i veya (partial
-    // unique index sayesinde) ayni saticiya ikinci bir aktif magazayi
-    // olusturmus olabilir (TOCTOU). DB'nin kendisi engeller, biz sadece
-    // kullaniciya anlasilir bir mesaj gosteririz.
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      const hedef = String(err.meta?.target ?? "");
+    // Es zamanli istek ayni slug'i veya (partial unique index sayesinde) ayni
+    // saticiya ikinci bir aktif magazayi olusturmus olabilir (TOCTOU). DB'nin
+    // kendisi engeller, biz sadece kullaniciya anlasilir bir mesaj gosteririz.
+    if (p2002Mi(err)) {
+      const hedef = p2002Hedefi(err);
       if (hedef.includes("slug")) {
         redirect(`/panel/urun-ekle?hata=${encodeURIComponent("bu slug zaten kullaniliyor")}`);
       }
