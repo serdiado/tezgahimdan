@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# kullanici tarafindan yuklenen urun fotograflari (disk-lokal, ileride R2'ye tasinacak)
+/public/uploads

@@ -80,7 +80,9 @@ model Magaza {
   ad         String
   slug       String   @unique
   aciklama   String?
-  whatsappNo String
+  // Basit "magaza olustur" akisinda toplanmiyor (sadece ad+slug); sonradan
+  // magaza ayarlarindan doldurulur. Bos string yerine gercek NULL taniyoruz.
+  whatsappNo String?
   pazar      Pazar    @relation(fields: [pazarId], references: [id])
   pazarId    String
   silindiMi  Boolean  @default(false)
