@@ -185,3 +185,152 @@ export async function rezervasyonOlustur(params: {
   }
   throw new Error("rezerv kodu uretilemedi (art arda carpisma)");
 }
+
+// ---------------------------------------------------------------------------
+// Sorgula + Vazgec
+// ---------------------------------------------------------------------------
+
+// Kimlik: rezerv kodu + telefon IKISI birden eslesmeli; hangisinin yanlis
+// oldugu soylenmez (kod/telefon taramasini zorlastirmak icin tek cevap:
+// "bulunamadi").
+export async function rezervasyonSorgula(params: { rezervKodu: string; telefon: string }) {
+  const rez = await prisma.rezervasyon.findUnique({
+    where: { rezervKodu: params.rezervKodu },
+    include: {
+      alici: { select: { telefon: true } },
+      urun: { select: { baslik: true, magaza: { select: { ad: true } } } },
+    },
+  });
+  if (!rez || rez.alici.telefon !== params.telefon) return null;
+  return {
+    rezervKodu: rez.rezervKodu,
+    tip: rez.tip,
+    siraNo: rez.siraNo,
+    durum: rez.durum,
+    urunBaslik: rez.urun.baslik,
+    magazaAd: rez.urun.magaza.ad,
+  };
+}
+
+export type VazgecSonucu =
+  | { tur: "iptal-edildi"; yukselenKodu: string | null }
+  | { tur: "bulunamadi" }
+  | { tur: "islenemez"; durum: string };
+
+// Vazgec, rezervasyonOlustur ile AYNI kilidi (urun satirinda FOR UPDATE)
+// kullanir - iki akis ayni urunun kuyrugunu ayni anda degistiremez.
+//
+// Numaralandirma kurali (olusturma tarafindaki "sayim+1" atamasiyla uyum icin
+// bosluk birakilmaz):
+//  - aktif iptal + yedek varsa: yedek#1 aktif olur ve iptal edilenin
+//    siraNo'sunu devralir; kalan yedekler 1 azalir.
+//  - aktif iptal + yedek yoksa: iptal edilenin ustundeki aktifler 1 azalir.
+//  - yedek iptal: ustundeki yedekler 1 azalir.
+export async function rezervasyonVazgec(params: {
+  rezervKodu: string;
+  telefon: string;
+}): Promise<VazgecSonucu> {
+  const rezOn = await prisma.rezervasyon.findUnique({
+    where: { rezervKodu: params.rezervKodu },
+    include: { alici: { select: { telefon: true } } },
+  });
+  if (!rezOn || rezOn.alici.telefon !== params.telefon) return { tur: "bulunamadi" };
+
+  return prisma.$transaction(
+    async (tx): Promise<VazgecSonucu> => {
+      const kilitli = await tx.$queryRaw<
+        { id: string; durum: string }[]
+      >`SELECT "id", "durum" FROM "Urun" WHERE "id" = ${rezOn.urunId} FOR UPDATE`;
+      const urun = kilitli[0];
+
+      // Kilidi aldiktan sonra rezervasyonu TAZE oku: es zamanli bir vazgec
+      // onu coktan iptal etmis ya da bir yukselme tip/siraNo'sunu degistirmis
+      // olabilir.
+      const rez = await tx.rezervasyon.findUnique({ where: { rezervKodu: params.rezervKodu } });
+      if (!rez || rez.durum !== "bekliyor") {
+        return { tur: "islenemez", durum: rez?.durum ?? "yok" };
+      }
+
+      await tx.rezervasyon.update({ where: { id: rez.id }, data: { durum: "iptal" } });
+      await tx.durumGecmisi.create({
+        data: {
+          kullaniciId: rez.aliciId,
+          varlikTuru: "Rezervasyon",
+          varlikId: rez.id,
+          olay: `rezervasyon_iptal:${rez.tip}:${rez.siraNo}`,
+        },
+      });
+
+      let yukselenKodu: string | null = null;
+      if (rez.tip === "aktif") {
+        const birinciYedek = await tx.rezervasyon.findFirst({
+          where: { urunId: rez.urunId, durum: "bekliyor", tip: "yedek" },
+          orderBy: { siraNo: "asc" },
+        });
+        if (birinciYedek) {
+          // Once yukselt (tip degisince asagidaki azaltmanin disinda kalir),
+          // sonra kalan yedekleri kaydir.
+          await tx.rezervasyon.update({
+            where: { id: birinciYedek.id },
+            data: { tip: "aktif", siraNo: rez.siraNo },
+          });
+          await tx.rezervasyon.updateMany({
+            where: {
+              urunId: rez.urunId,
+              durum: "bekliyor",
+              tip: "yedek",
+              siraNo: { gt: birinciYedek.siraNo },
+            },
+            data: { siraNo: { decrement: 1 } },
+          });
+          await tx.durumGecmisi.create({
+            data: {
+              kullaniciId: birinciYedek.aliciId,
+              varlikTuru: "Rezervasyon",
+              varlikId: birinciYedek.id,
+              olay: `rezervasyon_yedekten_aktife:${rez.siraNo}`,
+            },
+          });
+          yukselenKodu = birinciYedek.rezervKodu;
+        } else {
+          await tx.rezervasyon.updateMany({
+            where: {
+              urunId: rez.urunId,
+              durum: "bekliyor",
+              tip: "aktif",
+              siraNo: { gt: rez.siraNo },
+            },
+            data: { siraNo: { decrement: 1 } },
+          });
+        }
+      } else {
+        await tx.rezervasyon.updateMany({
+          where: {
+            urunId: rez.urunId,
+            durum: "bekliyor",
+            tip: "yedek",
+            siraNo: { gt: rez.siraNo },
+          },
+          data: { siraNo: { decrement: 1 } },
+        });
+      }
+
+      // Kritik bagimlilik (docs/mimari/rezervasyon-motoru.md): iptal her zaman
+      // tam bir slot bosaltir; urun 'doldu' idiyse artik degildir.
+      if (urun?.durum === "doldu") {
+        await tx.urun.update({ where: { id: rez.urunId }, data: { durum: "sergide" } });
+        await tx.durumGecmisi.create({
+          data: {
+            kullaniciId: rez.aliciId,
+            varlikTuru: "Urun",
+            varlikId: rez.urunId,
+            olay: "urun_tekrar_sergide",
+          },
+        });
+      }
+
+      return { tur: "iptal-edildi", yukselenKodu };
+    },
+    { maxWait: 5000, timeout: 15000 },
+  );
+}

@@ -64,6 +64,23 @@ yedek |  5   | {1,2,3,4,5}
 
 Ürünü `doldu` durumuna çeviren tek yer bu akış. **Slot boşaltan her gelecek özellik** (Vazgeç, haftalık otomatik sıfırlama, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı — unutulursa ürün fiilen boşalmış olsa bile "Rezerve Et" butonu kapalı kalır.
 
+> **Durum:** Vazgeç akışı bu yükümlülüğü yerine getiriyor (aşağıdaki bölüm). Haftalık sıfırlama ve admin müdahalesi yazılırken aynı kural geçerli.
+
+## Vazgeç akışı (`rezervasyonVazgec`)
+
+Aynı kilit stratejisini kullanır: ürün satırında `FOR UPDATE` → oluşturma ve vazgeçme aynı ürünün kuyruğunu asla eşzamanlı değiştiremez. Kilit alındıktan sonra rezervasyon **taze** okunur (eşzamanlı bir vazgeç onu çoktan iptal etmiş ya da bir yükselme tip/sıra bilgisini değiştirmiş olabilir).
+
+**Kimlik doğrulama (üyelik öncesi):** rezerv kodu + telefon ikisi birden eşleşmeli; hangisinin yanlış olduğu söylenmez (tarama/enumerasyon zorlaştırma).
+
+**Numaralandırma kuralları** (oluşturma tarafındaki "sayım+1" atamasıyla uyum için boşluk bırakılmaz):
+- Aktif iptal + yedek varsa → yedek#1 aktif olur ve **iptal edilenin sıra numarasını devralır**; kalan yedekler 1 azalır.
+- Aktif iptal + yedek yoksa → iptal edilenin üstündeki aktifler 1 azalır.
+- Yedek iptal → üstündeki yedekler 1 azalır.
+
+İptal her zaman tam bir slot boşaltır → ürün `doldu` idiyse `sergide`'ye döner. Olaylar: `rezervasyon_iptal`, `rezervasyon_yedekten_aktife`, `urun_tekrar_sergide` (hepsi aynı transaction'da `DurumGecmisi`'ne).
+
+**Test kanıtı:** Dolu üründe (1 aktif + 5 yedek) paralel [aktif vazgeçer + yeni telefon rezerve dener] yarışı 3 iterasyonda koşuldu; her iki geçerli sıralama da gözlendi (yeni istek ya reddedildi ya boşalan yedek#5'i aldı), hiçbir iterasyonda kapasite aşımı, çift aktif ya da çift (tip, sıraNo) oluşmadı — psql ile bağımsız doğrulandı. Yükselen her seferinde doğru kişiydi (eski yedek#1).
+
 ## Diğer tasarım kararları
 
 - **Ad güncellenmiyor:** Bilinen bir telefonla farklı adla rezervasyon yapılırsa mevcut kaydın adı korunur — doğrulama olmadan başkasının kaydını yeniden adlandırmaya izin vermemek için.

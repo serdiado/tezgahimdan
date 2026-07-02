@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 type Sonuc =
@@ -80,6 +81,13 @@ export function RezerveModal({
             <p className="mt-2 text-xs text-neutral-500">
               Pazarda ürünü alırken bu kodu söyleyin.
             </p>
+            <p className="mt-2 text-xs text-neutral-500">
+              Rezervasyonunuzu görüntülemek veya vazgeçmek için{" "}
+              <Link href="/rezervasyonum" className="font-semibold text-primary-600 underline">
+                Rezervasyonum
+              </Link>{" "}
+              sayfasını kullanabilirsiniz.
+            </p>
             <button
               type="button"
               onClick={kapat}
@@ -120,7 +128,7 @@ export function RezerveModal({
                   onClick={onClose}
                   className="flex-1 rounded-md bg-neutral-100 px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-200"
                 >
-                  Vazgeç
+                  Kapat
                 </button>
                 <button
                   type="submit"

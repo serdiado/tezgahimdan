@@ -14,7 +14,7 @@ Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yön
 
 → Detay: [`docs/mimari/rezervasyon-motoru.md`](./mimari/rezervasyon-motoru.md)
 
-**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç, haftalık sıfırlama, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı.
+**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç ✓ yapıldı, haftalık sıfırlama, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı. Vazgeç aynı kilidi kullanır ve sıra numaralarını boşluksuz tutar — detay aynı dosyada.
 
 ---
 
@@ -22,5 +22,6 @@ Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yön
 
 - **Rate-limit yok:** SMS doğrulaması gelene kadar, sahte numaralarla kuyruk doldurulabilir. Deploy öncesi en azından IP bazlı limit değerlendirilmeli.
 - **Telefonla mevcut rezerv kodu ifşası:** Aynı telefonu tekrar giren biri, o numaranın mevcut kodunu görüyor. SMS doğrulamasıyla kendiliğinden kapanır.
+- **Yükselen yedeğe bildirim yok:** Yedekten aktife yükselen kişiye şu an bildirim gitmiyor — no-show riskini artırır, bildirim/SMS fazında ele alınacak.
 - **Satıcı kendi ürününe rezervasyon yapabiliyor:** Şu an engellenmiyor, kural tanımsız.
 - **Stok sonradan düşürülürse:** Mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir. Ürün düzenleme akışı yazılırken ele alınacak.
