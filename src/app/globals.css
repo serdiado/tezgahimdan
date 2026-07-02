@@ -5,6 +5,26 @@
   --foreground: #171717;
 }
 
+/*
+ * Marka rengi: mercan-pembe (PLAN.md SS0). Baz #F0517E'nin HSL karsiligi
+ * (H343 S84% L63%) alinip Tailwind'in kendi skalalarindaki gibi ayni tonda
+ * (H sabit, S/L kademeli) 50-900 uretildi; primary-500 tam olarak #F0517E'dir.
+ * Zemin/notr griler icin ayri bir skala tanimlamiyoruz - Tailwind'in kendi
+ * `neutral-*` paleti (grey, sicak/soguk tonu yok) projede zemin icin kullanilir.
+ */
+@theme {
+  --color-primary-50: #fef1f5;
+  --color-primary-100: #fde3ea;
+  --color-primary-200: #f9c3d2;
+  --color-primary-300: #f599b3;
+  --color-primary-400: #f27397;
+  --color-primary-500: #f0517e;
+  --color-primary-600: #e52a5f;
+  --color-primary-700: #c41c4c;
+  --color-primary-800: #a01c42;
+  --color-primary-900: #821c39;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
