@@ -476,3 +476,160 @@ export async function rezervasyonSonuclandir(params: {
     { maxWait: 5000, timeout: 15000 },
   );
 }
+
+// ---------------------------------------------------------------------------
+// Geri Al (satici yanlis isaretlemeyi geri alir)
+// ---------------------------------------------------------------------------
+
+export type GeriAlSebep = "kapasite_dolu" | "urun_satildi";
+
+export type GeriAlSonucu =
+  | { tur: "geri-alindi"; siraNo: number; dusenYedekKodu: string | null }
+  | { tur: "yetkisiz" }
+  | { tur: "bulunamadi" }
+  | { tur: "reddedildi"; sebep: GeriAlSebep }
+  | { tur: "islenemez"; sebep: string };
+
+// Bir 'satildi'/'gelmedi' kaydini tekrar 'bekliyor' yapip kisiyi ESKI sira
+// numarasina geri koyar. Ayni kilit (urun satirinda FOR UPDATE).
+//
+// Onemli sadelestirme: satildi/gelmedi SADECE aktif hak sahibine uygulanir
+// (rezervasyonSonuclandir guard'i), ve sonuclandirma kaydin tip/siraNo'suna
+// dokunmaz - yalnizca durum'u degistirir. Yani geri alinan kaydin eski tip'i
+// her zaman "aktif", eski siraNo'su da kaydin kendi alaninda; DurumGecmisi
+// okumaya gerek yok.
+//
+// Iki red durumu (kullanici karari):
+//  - urun_satildi: urun tukendiyse (durum='satildi') hicbir geri alma yapilmaz.
+//  - kapasite_dolu: geri alma bekleyeni +1 yapar; yeni kapasiteyi asarsa reddedilir.
+// Her red DurumGecmisi'ne "geri_alma_reddedildi:{rezervId}:{sebep}" olarak
+// yazilir (admin sonra ne oldugunu gorebilsin - admin paneli henuz yok).
+export async function rezervasyonGeriAl(params: {
+  rezervId: string;
+  saticiUserId: string;
+}): Promise<GeriAlSonucu> {
+  const rezOn = await prisma.rezervasyon.findUnique({
+    where: { id: params.rezervId },
+    include: { urun: { select: { id: true, magaza: { select: { sahipId: true } } } } },
+  });
+  if (!rezOn) return { tur: "bulunamadi" };
+  if (rezOn.urun.magaza.sahipId !== params.saticiUserId) return { tur: "yetkisiz" };
+
+  return prisma.$transaction(
+    async (tx): Promise<GeriAlSonucu> => {
+      const kilitli = await tx.$queryRaw<
+        { id: string; stokAdedi: number; durum: string }[]
+      >`SELECT "id", "stokAdedi", "durum" FROM "Urun" WHERE "id" = ${rezOn.urunId} FOR UPDATE`;
+      const urun = kilitli[0];
+
+      const rez = await tx.rezervasyon.findUnique({ where: { id: params.rezervId } });
+      // Sadece satildi/gelmedi geri alinabilir (iptal alicinin vazgecmesidir,
+      // bekliyor zaten aktif).
+      if (!rez || (rez.durum !== "satildi" && rez.durum !== "gelmedi")) {
+        return { tur: "islenemez", sebep: `durum:${rez?.durum ?? "yok"}` };
+      }
+
+      const redKaydi = async (sebep: GeriAlSebep) => {
+        await tx.durumGecmisi.create({
+          data: {
+            kullaniciId: rez.aliciId,
+            varlikTuru: "Rezervasyon",
+            varlikId: rez.id,
+            olay: `geri_alma_reddedildi:${rez.id}:${sebep}`,
+          },
+        });
+      };
+
+      // Red (urun_satildi): urun tukendiyse geri alma yok.
+      if (!urun || urun.durum === "satildi") {
+        await redKaydi("urun_satildi");
+        return { tur: "reddedildi", sebep: "urun_satildi" };
+      }
+
+      const geriAlinanSatildi = rez.durum === "satildi";
+      const satildiSayisi = await tx.rezervasyon.count({
+        where: { urunId: urun.id, durum: "satildi" },
+      });
+      // satildi geri alinirsa o birim tekrar satilik olur -> kalanBirim +1.
+      const yeniKalanBirim = urun.stokAdedi - (satildiSayisi - (geriAlinanSatildi ? 1 : 0));
+      const mevcutBekleyen = await tx.rezervasyon.count({
+        where: { urunId: urun.id, durum: "bekliyor" },
+      });
+
+      // Red (kapasite_dolu): geri alma bekleyeni +1 yapar; yeni kapasiteyi asamaz.
+      if (mevcutBekleyen + 1 > yeniKalanBirim + MAX_YEDEK) {
+        await redKaydi("kapasite_dolu");
+        return { tur: "reddedildi", sebep: "kapasite_dolu" };
+      }
+
+      const eskiSira = rez.siraNo;
+      // 1) Aktif kuyrugunda eskiSira ve sonrasi icin yer ac.
+      await tx.rezervasyon.updateMany({
+        where: { urunId: urun.id, durum: "bekliyor", tip: "aktif", siraNo: { gte: eskiSira } },
+        data: { siraNo: { increment: 1 } },
+      });
+      // 2) Kaydi eski aktif pozisyonuna geri koy.
+      await tx.rezervasyon.update({
+        where: { id: rez.id },
+        data: { durum: "bekliyor", tip: "aktif", siraNo: eskiSira },
+      });
+      await tx.durumGecmisi.create({
+        data: {
+          kullaniciId: rez.aliciId,
+          varlikTuru: "Rezervasyon",
+          varlikId: rez.id,
+          olay: `rezervasyon_geri_alindi:${rez.durum}:${eskiSira}`,
+        },
+      });
+
+      // 3) Aktif tasmasi: yeniKalanBirim'i asan aktif(ler) yedek kuyrugunun
+      //    basina iner (gelmedi geri almada en fazla 1; satildi geri almada
+      //    kalanBirim de +1 arttigi icin tasma olmaz). Dusen, eski onceligini
+      //    korur -> yedek#1.
+      let dusenYedekKodu: string | null = null;
+      const tasanlar = await tx.rezervasyon.findMany({
+        where: { urunId: urun.id, durum: "bekliyor", tip: "aktif", siraNo: { gt: yeniKalanBirim } },
+        orderBy: { siraNo: "asc" },
+      });
+      for (const t of tasanlar) {
+        await tx.rezervasyon.updateMany({
+          where: { urunId: urun.id, durum: "bekliyor", tip: "yedek" },
+          data: { siraNo: { increment: 1 } },
+        });
+        await tx.rezervasyon.update({ where: { id: t.id }, data: { tip: "yedek", siraNo: 1 } });
+        await tx.durumGecmisi.create({
+          data: {
+            kullaniciId: t.aliciId,
+            varlikTuru: "Rezervasyon",
+            varlikId: t.id,
+            olay: "rezervasyon_aktiften_yedege:1",
+          },
+        });
+        dusenYedekKodu = t.rezervKodu;
+      }
+
+      // 4) Urun durumu: geri alma sonrasi kapasiteye gore doldu/sergide.
+      const yeniBekleyen = mevcutBekleyen + 1;
+      const kapasite = yeniKalanBirim + MAX_YEDEK;
+      if (yeniBekleyen >= kapasite && urun.durum !== "doldu") {
+        await tx.urun.update({ where: { id: urun.id }, data: { durum: "doldu" } });
+        await tx.durumGecmisi.create({
+          data: { kullaniciId: rez.aliciId, varlikTuru: "Urun", varlikId: urun.id, olay: "urun_doldu" },
+        });
+      } else if (yeniBekleyen < kapasite && urun.durum === "doldu") {
+        await tx.urun.update({ where: { id: urun.id }, data: { durum: "sergide" } });
+        await tx.durumGecmisi.create({
+          data: {
+            kullaniciId: rez.aliciId,
+            varlikTuru: "Urun",
+            varlikId: urun.id,
+            olay: "urun_tekrar_sergide",
+          },
+        });
+      }
+
+      return { tur: "geri-alindi", siraNo: eskiSira, dusenYedekKodu };
+    },
+    { maxWait: 5000, timeout: 15000 },
+  );
+}

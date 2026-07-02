@@ -12,6 +12,14 @@ type Rezervasyon = {
   aliciTelefon: string | null;
 };
 
+type SonuclananRezervasyon = {
+  id: string;
+  durum: string;
+  rezervKodu: string;
+  aliciAd: string;
+  aliciTelefon: string | null;
+};
+
 type Urun = {
   id: string;
   baslik: string;
@@ -19,6 +27,7 @@ type Urun = {
   stokAdedi: number;
   satildiSayisi: number;
   kuyruk: Rezervasyon[];
+  sonuclananlar: SonuclananRezervasyon[];
 };
 
 const URUN_DURUM_ETIKETI: Record<string, string> = {
@@ -27,11 +36,38 @@ const URUN_DURUM_ETIKETI: Record<string, string> = {
   satildi: "Satıldı",
 };
 
+// Sonuclanan rezervasyon durumlari icin etiket + renk.
+const SONUC_STIL: Record<string, { etiket: string; className: string }> = {
+  satildi: { etiket: "Satıldı", className: "bg-green-100 text-green-700" },
+  gelmedi: { etiket: "Gelmedi", className: "bg-amber-100 text-amber-700" },
+  iptal: { etiket: "İptal", className: "bg-neutral-200 text-neutral-600" },
+};
+
 export function KuyrukKarti({ urun }: { urun: Urun }) {
   const router = useRouter();
   const [onay, setOnay] = useState<{ rezervId: string; sonuc: "satildi" | "gelmedi" } | null>(null);
   const [bekleyenId, setBekleyenId] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
+  const [geriAlOnay, setGeriAlOnay] = useState<string | null>(null);
+  const [geriAlBekleyen, setGeriAlBekleyen] = useState<string | null>(null);
+
+  async function geriAl(rezervId: string) {
+    setHata(null);
+    setGeriAlBekleyen(rezervId);
+    const res = await fetch("/api/panel/rezervasyon-geri-al", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rezervId }),
+    });
+    setGeriAlBekleyen(null);
+    setGeriAlOnay(null);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setHata(data.hata ?? "geri alınamadı");
+      return;
+    }
+    router.refresh();
+  }
 
   async function sonuclandir(rezervId: string, sonuc: "satildi" | "gelmedi") {
     setHata(null);
@@ -145,6 +181,65 @@ export function KuyrukKarti({ urun }: { urun: Urun }) {
               </ul>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sonuclananlar: "hicbir kayit silinmez" ilkesi geregi ekranda kalir.
+          Bu bolumde Satildi/Gelmedi butonu YOK (kayit zaten sonuclandi). */}
+      {urun.sonuclananlar.length > 0 && (
+        <div className="mt-4 border-t border-neutral-100 pt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">Sonuçlananlar</p>
+          <ul className="mt-1 space-y-1">
+            {urun.sonuclananlar.map((r) => {
+              const stil = SONUC_STIL[r.durum] ?? {
+                etiket: r.durum,
+                className: "bg-neutral-200 text-neutral-600",
+              };
+              const geriAlinabilir = r.durum === "satildi" || r.durum === "gelmedi";
+              return (
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-center gap-2 rounded-lg bg-neutral-50 p-2 text-sm"
+                >
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${stil.className}`}>
+                    {stil.etiket}
+                  </span>
+                  <span className="text-neutral-700">{r.aliciAd}</span>
+                  <span className="text-neutral-500">{r.aliciTelefon}</span>
+                  <span className="font-mono text-xs text-neutral-400">{r.rezervKodu}</span>
+                  {geriAlinabilir &&
+                    (geriAlOnay === r.id ? (
+                      <span className="ml-auto flex items-center gap-1">
+                        <span className="text-xs text-neutral-600">Geri alınsın mı?</span>
+                        <button
+                          type="button"
+                          onClick={() => geriAl(r.id)}
+                          disabled={geriAlBekleyen === r.id}
+                          className="rounded-md bg-primary-600 px-2 py-1 text-xs font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+                        >
+                          Evet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGeriAlOnay(null)}
+                          className="rounded-md bg-neutral-200 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-300"
+                        >
+                          Hayır
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setGeriAlOnay(r.id)}
+                        className="ml-auto rounded-md border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-600 hover:bg-neutral-100"
+                      >
+                        Geri Al
+                      </button>
+                    ))}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
       {hata && <p className="mt-2 text-sm text-red-600">{hata}</p>}
