@@ -1,0 +1,167 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum HaftaGunu {
+  Pazartesi
+  Sali
+  Carsamba
+  Persembe
+  Cuma
+  Cumartesi
+  // Model adiyla (Pazar/market) karismasin diye "PazarGunu" (Sunday).
+  PazarGunu
+}
+
+model Pazar {
+  id             String    @id @default(uuid())
+  ad             String
+  bolge          String
+  sifirlamaGunu  HaftaGunu
+  sifirlamaSaati DateTime  @db.Time
+  saatDilimi     String    @default("Europe/Istanbul")
+  aktifMi        Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+
+  magazalar Magaza[]
+}
+
+// PLAN.md SS7: "pazar_sorumlusu" rolu ileride eklenecek, simdilik kapsam disi.
+enum KullaniciRolu {
+  satici
+  alici
+  admin
+}
+
+model Kullanici {
+  id        String        @id @default(uuid())
+  ad        String
+  telefon   String        @unique
+  rol       KullaniciRolu @default(alici)
+  createdAt DateTime      @default(now())
+
+  magazalar      Magaza[]
+  rezervasyonlar Rezervasyon[]
+  durumGecmisi   DurumGecmisi[]
+  sikayetler     Sikayet[]
+}
+
+model Kategori {
+  id        String   @id @default(uuid())
+  ad        String
+  createdAt DateTime @default(now())
+
+  urunler Urun[]
+}
+
+model Magaza {
+  id         String   @id @default(uuid())
+  sahip      Kullanici @relation(fields: [sahipId], references: [id])
+  sahipId    String
+  ad         String
+  slug       String   @unique
+  aciklama   String?
+  whatsappNo String
+  pazar      Pazar    @relation(fields: [pazarId], references: [id])
+  pazarId    String
+  silindiMi  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  urunler    Urun[]
+  sikayetler Sikayet[]
+}
+
+enum UrunDurumu {
+  sergide
+  doldu
+  satildi
+}
+
+model Urun {
+  id          String     @id @default(uuid())
+  magaza      Magaza     @relation(fields: [magazaId], references: [id])
+  magazaId    String
+  kategori    Kategori   @relation(fields: [kategoriId], references: [id])
+  kategoriId  String
+  baslik      String
+  aciklama    String?
+  fiyat       Decimal    @db.Decimal(10, 2)
+  stokAdedi   Int        @default(1)
+  fotograflar String[]   @default([])
+  durum       UrunDurumu @default(sergide)
+  silindiMi   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  rezervasyonlar Rezervasyon[]
+  sikayetler     Sikayet[]
+}
+
+enum RezervasyonTipi {
+  aktif
+  yedek
+}
+
+enum RezervasyonDurumu {
+  bekliyor
+  satildi
+  gelmedi
+  iptal
+}
+
+model Rezervasyon {
+  id           String             @id @default(uuid())
+  urun         Urun               @relation(fields: [urunId], references: [id])
+  urunId       String
+  alici        Kullanici          @relation(fields: [aliciId], references: [id])
+  aliciId      String
+  tip          RezervasyonTipi
+  siraNo       Int
+  durum        RezervasyonDurumu  @default(bekliyor)
+  rezervKodu   String             @unique
+  pazarHaftasi DateTime           @db.Date
+  createdAt    DateTime           @default(now())
+}
+
+// Genel amacli audit/istatistik log'u; tek bir tabloya baglanmaz (varlikTuru + varlikId ile
+// Urun/Magaza/Rezervasyon vb. herhangi bir kaydi isaret edebilir).
+model DurumGecmisi {
+  id          String     @id @default(uuid())
+  kullanici   Kullanici? @relation(fields: [kullaniciId], references: [id])
+  kullaniciId String?
+  varlikTuru  String
+  varlikId    String
+  olay        String
+  createdAt   DateTime   @default(now())
+}
+
+enum SikayetDurumu {
+  bekliyor
+  inceleniyor
+  cozuldu
+  reddedildi
+}
+
+// hedefUrunId / hedefMagazaId: tam olarak biri dolu olmali (uygulama katmaninda kontrol edilir).
+model Sikayet {
+  id            String        @id @default(uuid())
+  sikayetci     Kullanici     @relation(fields: [sikayetciId], references: [id])
+  sikayetciId   String
+  hedefUrun     Urun?         @relation(fields: [hedefUrunId], references: [id])
+  hedefUrunId   String?
+  hedefMagaza   Magaza?       @relation(fields: [hedefMagazaId], references: [id])
+  hedefMagazaId String?
+  sebep         String
+  durum         SikayetDurumu @default(bekliyor)
+  createdAt     DateTime      @default(now())
+}
