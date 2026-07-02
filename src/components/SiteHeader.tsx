@@ -8,7 +8,9 @@ import { auth, signOut } from "@/auth";
 export async function SiteHeader() {
   const session = await auth();
   const girisli = !!session?.user;
-  const panelliRol = session?.user?.rol === "satici" || session?.user?.rol === "admin";
+  // /panel satici panelidir (PLAN SS4: /panel=satici, /admin=ayri). Admin'e
+  // "Panelim" gosterilmez; admin islevleri ileride ayri /admin panelinde.
+  const satici = session?.user?.rol === "satici";
 
   return (
     <div className="border-b border-neutral-200 bg-white">
@@ -19,7 +21,7 @@ export async function SiteHeader() {
         <nav className="flex items-center gap-4 text-sm font-medium">
           {girisli ? (
             <>
-              {panelliRol && (
+              {satici && (
                 <Link href="/panel" className="text-neutral-700 hover:text-primary-600">
                   Panelim
                 </Link>
