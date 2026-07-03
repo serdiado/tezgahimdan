@@ -9,23 +9,32 @@ const inputClass =
 export default async function GirisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
+
+  // Redirect-back (KP-1): girissiz "Rezerve Et"e basan kullanici buraya ?next=...
+  // ile gelir; giris/kayit sonrasi ayni urune doner. Acik yonlendirme (open
+  // redirect) korumasi: yalniz uygulama-ici mutlak yol kabul edilir.
+  const guvenliNext =
+    typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : null;
+  const hedef = guvenliNext ?? "/giris-sonrasi";
+  const nextQ = guvenliNext ? `&next=${encodeURIComponent(guvenliNext)}` : "";
+  const kayitHref = guvenliNext ? `/kayit-ol?next=${encodeURIComponent(guvenliNext)}` : "/kayit-ol";
 
   async function girisYap(formData: FormData) {
     "use server";
     try {
-      // Rol bazli yonlendirme icin ara rotaya gonderiyoruz: giris aninda rol
-      // henuz elimizde yok, /giris-sonrasi session'dan okuyup dagitiyor.
+      // next varsa dogrudan oraya; yoksa rol bazli dagitim icin ara rotaya
+      // (/giris-sonrasi session'dan rolu okuyup yonlendirir).
       await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
-        redirectTo: "/giris-sonrasi",
+        redirectTo: hedef,
       });
     } catch (err) {
       if (err instanceof AuthError) {
-        redirect(`/giris?error=${err.type}`);
+        redirect(`/giris?error=${err.type}${nextQ}`);
       }
       throw err;
     }
@@ -33,7 +42,7 @@ export default async function GirisPage({
 
   async function googleIleGiris() {
     "use server";
-    await signIn("google", { redirectTo: "/giris-sonrasi" });
+    await signIn("google", { redirectTo: hedef });
   }
 
   return (
@@ -106,7 +115,7 @@ export default async function GirisPage({
 
         <p className="mt-6 text-center text-sm text-neutral-500">
           Hesabın yok mu?{" "}
-          <Link href="/kayit-ol" className="font-semibold text-primary-600 hover:underline">
+          <Link href={kayitHref} className="font-semibold text-primary-600 hover:underline">
             Kayıt ol
           </Link>
         </p>

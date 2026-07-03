@@ -23,31 +23,6 @@ function rezervKoduUret(): string {
   return `TZ-${govde}`;
 }
 
-// Telefon = kimlik. Ayni telefon tekrar geldiginde mevcut kayit kullanilir; ad
-// GUNCELLENMEZ (telefon dogrulamasi olmadigi icin, numarayi yazan herkesin
-// baskasinin kaydini yeniden adlandirmasina izin vermiyoruz).
-//
-// Bilerek transaction DISINDA: Postgres'te transaction icindeki herhangi bir
-// hata (P2002 dahil) tum transaction'i iptal eder; buradaki yakala-tekrar-bul
-// deseni bir transaction icinde calisamazdi. Disarida olmasi ayrica urun
-// kilidinin tutulma suresini kisaltir ve kilit sirasini tekduze yapar
-// (once kullanici, sonra urun) - deadlock dongusu kurulamaz.
-async function aliciBulVeyaOlustur(ad: string, telefon: string) {
-  const mevcut = await prisma.kullanici.findUnique({ where: { telefon } });
-  if (mevcut) return mevcut;
-  try {
-    return await prisma.kullanici.create({ data: { ad, telefon, rol: "alici" } });
-  } catch (err) {
-    // Ayni telefonla es zamanli iki ilk-istek: kaybeden P2002 alir, kazananin
-    // kaydini kullanir.
-    if (p2002Mi(err)) {
-      const yarisSonrasi = await prisma.kullanici.findUnique({ where: { telefon } });
-      if (yarisSonrasi) return yarisSonrasi;
-    }
-    throw err;
-  }
-}
-
 // Kilit stratejisi: urun satirinda SELECT ... FOR UPDATE. Ayni urune gelen tum
 // rezervasyon denemeleri bu kilitte tam siraya girer; sayim + karar + insert
 // kilit altinda oldugu icin kapasite asimi veya cift siraNo olusamaz. Farkli
@@ -55,10 +30,12 @@ async function aliciBulVeyaOlustur(ad: string, telefon: string) {
 // nedeni: retry dongusu yok, "dolu" karari icin zaten guvenilir sayim gerekir
 // ve urun basina es zamanli istek sayisi bu uygulamada kucuk - milisaniyelik
 // kritik bolge icin pesimistik kilit en denetlenebilir cozum.
+// KP-1 (uyelik zorunlulugu): alici artik telefonla degil, giris yapmis kullanici
+// kimligiyle (aliciId = session.user.id) gelir. Kimlik cozumleme (kullanici bul/
+// olustur, telefon kaydi) API katmaninda yapilir; motor yalniz aliciId alir.
 export async function rezervasyonOlustur(params: {
   urunId: string;
-  ad: string;
-  telefon: string;
+  aliciId: string;
 }): Promise<RezervasyonSonucu> {
   // Hizli 404 + pazar bilgisi (kilide girmeden okunabilir; pazar tanimi
   // rezervasyon aninda degismez).
@@ -73,8 +50,6 @@ export async function rezervasyonOlustur(params: {
   // ve nadir; kilit oncesi on-kontrol yeterli - satildiMi/silindiMi ile ayni desen.)
   if (urunOn.magaza.gizliMi) return { tur: "magaza-gizli" };
   const pazarHaftasi = sonrakiSifirlamaTarihi(urunOn.magaza.pazar);
-
-  const alici = await aliciBulVeyaOlustur(params.ad, params.telefon);
 
   // rezervKodu carpismasi (32^6 ihtimalde) tum transaction'i iptal ettirir;
   // yeni kodla bastan denemek guvenli (islem henuz hicbir sey yazmamistir).
@@ -96,7 +71,7 @@ export async function rezervasyonOlustur(params: {
           // hatti olarak duruyor; kilit altinda oldugumuz icin normalde
           // hic tetiklenmez.
           const zaten = await tx.rezervasyon.findFirst({
-            where: { urunId: urun.id, aliciId: alici.id, durum: "bekliyor" },
+            where: { urunId: urun.id, aliciId: params.aliciId, durum: "bekliyor" },
           });
           if (zaten) {
             return {
@@ -140,7 +115,7 @@ export async function rezervasyonOlustur(params: {
           const rezervasyon = await tx.rezervasyon.create({
             data: {
               urunId: urun.id,
-              aliciId: alici.id,
+              aliciId: params.aliciId,
               tip,
               siraNo,
               rezervKodu,
@@ -153,7 +128,7 @@ export async function rezervasyonOlustur(params: {
           // PLAN.md SS5: onemli degisiklikler DurumGecmisi'ne loglanir.
           await tx.durumGecmisi.create({
             data: {
-              kullaniciId: alici.id,
+              kullaniciId: params.aliciId,
               varlikTuru: "Rezervasyon",
               varlikId: rezervasyon.id,
               olay: `rezervasyon_olusturuldu:${tip}:${siraNo}`,
@@ -166,7 +141,7 @@ export async function rezervasyonOlustur(params: {
             await tx.urun.update({ where: { id: urun.id }, data: { durum: "doldu" } });
             await tx.durumGecmisi.create({
               data: {
-                kullaniciId: alici.id,
+                kullaniciId: params.aliciId,
                 varlikTuru: "Urun",
                 varlikId: urun.id,
                 olay: "urun_doldu",
@@ -185,7 +160,7 @@ export async function rezervasyonOlustur(params: {
         // Partial index tetiklendi (teoride kilit bunu engeller; yine de
         // dostca cevaba cevir).
         const mevcutRez = await prisma.rezervasyon.findFirst({
-          where: { urunId: params.urunId, aliciId: alici.id, durum: "bekliyor" },
+          where: { urunId: params.urunId, aliciId: params.aliciId, durum: "bekliyor" },
         });
         if (mevcutRez) {
           return {
@@ -263,28 +238,6 @@ async function yedekSlotBosalt(tx: TxKismi, urunId: string, bosalan: { siraNo: n
 // Sorgula + Vazgec
 // ---------------------------------------------------------------------------
 
-// Kimlik: rezerv kodu + telefon IKISI birden eslesmeli; hangisinin yanlis
-// oldugu soylenmez (kod/telefon taramasini zorlastirmak icin tek cevap:
-// "bulunamadi").
-export async function rezervasyonSorgula(params: { rezervKodu: string; telefon: string }) {
-  const rez = await prisma.rezervasyon.findUnique({
-    where: { rezervKodu: params.rezervKodu },
-    include: {
-      alici: { select: { telefon: true } },
-      urun: { select: { baslik: true, magaza: { select: { ad: true } } } },
-    },
-  });
-  if (!rez || rez.alici.telefon !== params.telefon) return null;
-  return {
-    rezervKodu: rez.rezervKodu,
-    tip: rez.tip,
-    siraNo: rez.siraNo,
-    durum: rez.durum,
-    urunBaslik: rez.urun.baslik,
-    magazaAd: rez.urun.magaza.ad,
-  };
-}
-
 export type VazgecSonucu =
   | { tur: "iptal-edildi"; yukselenKodu: string | null }
   | { tur: "bulunamadi" }
@@ -293,6 +246,11 @@ export type VazgecSonucu =
 // Vazgec, rezervasyonOlustur ile AYNI kilidi (urun satirinda FOR UPDATE)
 // kullanir - iki akis ayni urunun kuyrugunu ayni anda degistiremez.
 //
+// KP-1: kimlik dogrulama artik (kod + telefon) degil, giris yapmis kullanicinin
+// KENDI rezervasyonu olmasi. rezervId istemciden gelir ama rezervasyon aliciId'si
+// session'daki kullaniciyla eslesmezse "bulunamadi" (baskasinin rezervasyonuna
+// dokunulamaz, kayit varligini sizdirmayiz).
+//
 // Numaralandirma kurali (olusturma tarafindaki "sayim+1" atamasiyla uyum icin
 // bosluk birakilmaz):
 //  - aktif iptal + yedek varsa: yedek#1 aktif olur ve iptal edilenin
@@ -300,14 +258,14 @@ export type VazgecSonucu =
 //  - aktif iptal + yedek yoksa: iptal edilenin ustundeki aktifler 1 azalir.
 //  - yedek iptal: ustundeki yedekler 1 azalir.
 export async function rezervasyonVazgec(params: {
-  rezervKodu: string;
-  telefon: string;
+  rezervId: string;
+  aliciId: string;
 }): Promise<VazgecSonucu> {
   const rezOn = await prisma.rezervasyon.findUnique({
-    where: { rezervKodu: params.rezervKodu },
-    include: { alici: { select: { telefon: true } } },
+    where: { id: params.rezervId },
+    select: { id: true, urunId: true, aliciId: true },
   });
-  if (!rezOn || rezOn.alici.telefon !== params.telefon) return { tur: "bulunamadi" };
+  if (!rezOn || rezOn.aliciId !== params.aliciId) return { tur: "bulunamadi" };
 
   return prisma.$transaction(
     async (tx): Promise<VazgecSonucu> => {
@@ -319,7 +277,7 @@ export async function rezervasyonVazgec(params: {
       // Kilidi aldiktan sonra rezervasyonu TAZE oku: es zamanli bir vazgec
       // onu coktan iptal etmis ya da bir yukselme tip/siraNo'sunu degistirmis
       // olabilir.
-      const rez = await tx.rezervasyon.findUnique({ where: { rezervKodu: params.rezervKodu } });
+      const rez = await tx.rezervasyon.findUnique({ where: { id: params.rezervId } });
       if (!rez || rez.durum !== "bekliyor") {
         return { tur: "islenemez", durum: rez?.durum ?? "yok" };
       }

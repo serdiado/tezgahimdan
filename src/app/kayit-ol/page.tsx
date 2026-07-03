@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const inputClass =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
 
 export default function KayitOlPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Redirect-back (KP-1): girissiz "Rezerve Et"ten gelen next'i giris sonrasina
+  // tasi. Acik yonlendirme korumasi: yalniz uygulama-ici mutlak yol.
+  const nextHam = searchParams.get("next");
+  const guvenliNext =
+    nextHam && nextHam.startsWith("/") && !nextHam.startsWith("//") ? nextHam : null;
+  const girisHref = guvenliNext ? `/giris?next=${encodeURIComponent(guvenliNext)}` : "/giris";
   const [hata, setHata] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
 
@@ -30,7 +37,7 @@ export default function KayitOlPage() {
       setHata(data.hata ?? "kayit basarisiz");
       return;
     }
-    router.push("/giris");
+    router.push(girisHref);
   }
 
   return (
@@ -72,7 +79,7 @@ export default function KayitOlPage() {
 
         <p className="mt-6 text-center text-sm text-neutral-500">
           Zaten hesabın var mı?{" "}
-          <Link href="/giris" className="font-semibold text-primary-600 hover:underline">
+          <Link href={girisHref} className="font-semibold text-primary-600 hover:underline">
             Giriş yap
           </Link>
         </p>

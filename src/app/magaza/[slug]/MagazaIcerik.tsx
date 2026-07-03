@@ -4,7 +4,15 @@ import { useMemo, useState } from "react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { UrunKarti, type UrunKartiVeri } from "./UrunKarti";
 
-export function MagazaIcerik({ urunler }: { urunler: UrunKartiVeri[] }) {
+export function MagazaIcerik({
+  urunler,
+  girisli,
+  kullaniciTelefonVar,
+}: {
+  urunler: UrunKartiVeri[];
+  girisli: boolean;
+  kullaniciTelefonVar: boolean;
+}) {
   const [secilenKategoriId, setSecilenKategoriId] = useState<string | null>(null);
 
   // Chip satiri icin, bu magazadaki urunlerde gercekten var olan kategorileri
@@ -64,7 +72,12 @@ export function MagazaIcerik({ urunler }: { urunler: UrunKartiVeri[] }) {
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {gorunenUrunler.map((urun) => (
-            <UrunKarti key={urun.id} urun={urun} />
+            <UrunKarti
+              key={urun.id}
+              urun={urun}
+              girisli={girisli}
+              kullaniciTelefonVar={kullaniciTelefonVar}
+            />
           ))}
         </div>
       )}

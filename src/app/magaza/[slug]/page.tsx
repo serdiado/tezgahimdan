@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getMagazaBySlug } from "@/lib/magaza";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -15,6 +16,20 @@ export default async function MagazaSayfasi({
 
   if (!magaza) {
     notFound();
+  }
+
+  // KP-1: vitrin girissiz herkese acik (kesif serbest); yalniz "Rezerve Et" giris
+  // ister. Kartlara giris durumu + kullanicinin kayitli telefonu olup olmadigi
+  // gecilir (telefon yoksa ilk rezervasyonda bir kerelik istenecek).
+  const session = await auth();
+  const girisli = !!session?.user?.id;
+  let kullaniciTelefonVar = false;
+  if (session?.user?.id) {
+    const kullanici = await prisma.kullanici.findUnique({
+      where: { id: session.user.id },
+      select: { telefon: true },
+    });
+    kullaniciTelefonVar = !!kullanici?.telefon;
   }
 
   // 'doldu' urunler de listelenir (buton kapali olarak) - kapasitesi dolan
@@ -41,6 +56,8 @@ export default async function MagazaSayfasi({
         </div>
 
         <MagazaIcerik
+          girisli={girisli}
+          kullaniciTelefonVar={kullaniciTelefonVar}
           urunler={urunler.map((urun) => ({
             id: urun.id,
             baslik: urun.baslik,

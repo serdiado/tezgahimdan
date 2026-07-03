@@ -13,9 +13,9 @@ Rezervasyon oluşturma, `prisma.$transaction` içinde önce ürün satırını `
 - Ölçek argümanı: yerel pazar uygulamasında bir ürüne aynı saniyede düşen istek sayısı en fazla bir avuç. Milisaniyelik kritik bölge için kilit maliyeti önemsiz.
 - READ COMMITTED izolasyon seviyesi yeterli, çünkü kilit zaten serileştirme görevini görüyor.
 
-## Kullanıcı bul-veya-oluştur neden transaction dışında
+## Kimlik çözümleme neden ürün kilidinin dışında
 
-Postgres'te transaction içindeki herhangi bir hata (unique constraint ihlali dahil) tüm transaction'ı iptal eder — "yakala, tekrar dene" deseni transaction içinde çalışmaz. Bu ayrıca kilit alma sırasını sabitler (önce kullanıcı satırı, sonra ürün satırı), döngüsel bekleme (deadlock) riskini yapısal olarak ortadan kaldırır.
+KP-1 öncesi burada telefon bazlı "kullanıcıyı bul-veya-oluştur" yapılıyordu. KP-1 ile kimlik artık oturumdan gelir (`aliciId = session.user.id`) ve varsa telefon kaydı **API katmanında, ürün kilidinden önce** yapılır. Bu noktaların kilit dışında olması kilit alma sırasını sabitler (önce kullanıcı/telefon yazımı, sonra ürün satırı `FOR UPDATE`), döngüsel bekleme (deadlock) riskini yapısal olarak ortadan kaldırır. Postgres'te transaction içindeki herhangi bir hata (unique ihlali dahil) tüm transaction'ı iptal ettiği için, telefon benzersizlik çakışması gibi durumlar da bilinçli olarak kilit dışında, kendi başına ele alınır.
 
 ## Bilinen bir hata ve dersi (dev ortamına özgü)
 
@@ -70,7 +70,7 @@ yedek |  5   | {1,2,3,4,5}
 
 Aynı kilit stratejisini kullanır: ürün satırında `FOR UPDATE` → oluşturma ve vazgeçme aynı ürünün kuyruğunu asla eşzamanlı değiştiremez. Kilit alındıktan sonra rezervasyon **taze** okunur (eşzamanlı bir vazgeç onu çoktan iptal etmiş ya da bir yükselme tip/sıra bilgisini değiştirmiş olabilir).
 
-**Kimlik doğrulama (üyelik öncesi):** rezerv kodu + telefon ikisi birden eşleşmeli; hangisinin yanlış olduğu söylenmez (tarama/enumerasyon zorlaştırma).
+**Kimlik doğrulama (KP-1):** giriş yapmış kullanıcının **kendi** rezervasyonu olmalı — `rezervId` istemciden gelir ama `aliciId === session.user.id` kontrol edilir; eşleşmezse "bulunamadı" (başkasının rezervasyonunun varlığı sızdırılmaz). (KP-1 öncesi: rezerv kodu + telefon eşleşmesi.)
 
 **Numaralandırma kuralları** (oluşturma tarafındaki "sayım+1" atamasıyla uyum için boşluk bırakılmaz):
 - Aktif iptal + yedek varsa → yedek#1 aktif olur ve **iptal edilenin sıra numarasını devralır**; kalan yedekler 1 azalır.
@@ -132,9 +132,21 @@ Otomatik haftalık sıfırlama (kapanışta kuyruk temizleme, no-show cezası, c
 
 **Bu dosyayla köprü:** Sıfırlamanın no-show cezası `Rezervasyon.aktifOlmaZamani` alanına dayanır; bu alan **buradaki** akışlarda set edilir — oluşturmada aktif atanınca, `aktifSlotBosalt` yükseltince, `rezervasyonGeriAl` geri koyunca. Bu üç noktadan biri değişirse sıfırlama ceza eşiği bozulur.
 
+## Üyelik zorunluluğu (KP-1)
+
+**Karar:** Rezervasyon (ve Vazgeç) için **giriş zorunlu**. Vitrin/ürün keşfi girişsiz açık kalır (kutsal kural — keşif serbest); yalnızca "Rezerve Et" eylemi kimlik ister. Girişsiz kullanıcı `?next=<ürün>` ile login'e yönlenir, işlem sonrası aynı ürüne döner (redirect-back; ürün kartı `?rezerveEt=<id>` ile modalı otomatik açar).
+
+**Gerekçe:** KP-1 öncesi rezervasyon yalnız telefon+ad ile yapılıyordu; kimse doğrulanmadığı için **rastgele numaralarla sahte rezervasyon** üretilip kuyruk şişirilebilirdi (MIMARI.md'deki bilinen kısıt). Üyelik her rezervasyonu bir hesaba bağlar ve telefonla kod-arama (enumerasyon/ifşa) yüzeyini kapatır.
+
+**Kimlik:** `aliciId = session.user.id`. Rezervasyon formunda **ad/telefon alanı yok**. Telefon `Kullanici.telefon`'da tutulur; boşsa ilk rezervasyonda bir kerelik istenir (`telefonNormallestir` ile normalize), doluysa hiç sorulmaz. `Kullanici.telefon` **@unique** (init'ten beri; nullable → çok NULL serbest ama aynı numara iki hesaba bağlanamaz) — çakışmada API 409 döner. **Ek migration gerekmedi** (kısıt zaten mevcuttu).
+
+**Motor etkilenmedi:** `rezervasyonOlustur` artık `{ urunId, aliciId }` alır (eskiden `{ urunId, ad, telefon }`); kimlik çözümleme motordan API katmanına taşındı. Kilit + sayım + tip/sıra ataması + `doldu` geçişi + P2002-retry **birebir aynı**. 8-paralel eşzamanlılık testi KP-1 sonrası yeniden koşuldu (8 farklı giriş yapmış kullanıcı, stok=1 → 1 aktif + 5 yedek + 2 dolu; INVARIANT korundu).
+
+**Kaldırılanlar:** `/api/rezervasyon/sorgula` (kod+telefon arama) ve `rezervasyonSorgula`. `/rezervasyonum` artık girişli kullanıcının kendi rezervasyon listesidir (Kullanıcı Paneli ilk ekranı); rezerv kodu hâlâ görünür (satıcıyla WhatsApp referansı) ama arama girdisi değil.
+
 ## Diğer tasarım kararları
 
-- **Ad güncellenmiyor:** Bilinen bir telefonla farklı adla rezervasyon yapılırsa mevcut kaydın adı korunur — doğrulama olmadan başkasının kaydını yeniden adlandırmaya izin vermemek için.
+- **Ad güncellenmiyor (KP-1 ile konusuz):** KP-1 öncesi rezervasyon adı formdan gelirdi; artık ad hesaptan (kayıt) gelir, rezervasyon formunda ad alanı yoktur. Eski kural (bilinen telefonla farklı ad → mevcut ad korunur) artık uygulanmaz.
 - **Telefon normalizasyonu TR'ye özel:** `0555...`, `+90 555...`, `5551112233` hepsi `+90...`'a normalize edilir (aynı kişi iki kez kullanıcı olmasın diye). Yabancı numara ancak `+` ile girilirse kabul edilir. Başında 0 olmayan sabit hatlar reddedilir.
 - **Vitrin davranışı:** `doldu` ürünler artık listeden gizlenmiyor, sayfada "Sıra kapandı" ile disabled buton olarak görünüyor (önceden filtre onları gizliyordu).
 
@@ -144,4 +156,4 @@ Otomatik haftalık sıfırlama (kapanışta kuyruk temizleme, no-show cezası, c
 - Satıcının kendi ürününe rezervasyon yapması engellenmiyor, kural tanımsız.
 - Stok sonradan düşürülürse mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir — ürün düzenleme akışı yazılırken ele alınacak.
 - **Satıldı/Gelmedi geri alınamaz** — yanlış işaretleme onaydan sonra düzeltilemez (admin müdahalesi gerekir). Şimdilik tek koruma inline onay.
-- Rate-limit yok (SMS fazına kadar bilinçli risk — bkz. genel `MIMARI.md`).
+- Rate-limit yok (SMS fazına kadar bilinçli risk — bkz. genel `MIMARI.md`). KP-1 (üyelik zorunluluğu) sahte-numarayla kitle rezervasyonu riskini büyük ölçüde azalttı (rezervasyon için hesap gerekir); yine de hesap başına / IP bazlı rate-limit ileride değerlendirilmeli.

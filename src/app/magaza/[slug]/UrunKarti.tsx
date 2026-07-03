@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { RezerveModal } from "./RezerveModal";
 
@@ -25,8 +26,24 @@ export type UrunKartiVeri = {
   kategori: { id: string; ad: string };
 };
 
-export function UrunKarti({ urun }: { urun: UrunKartiVeri }) {
-  const [modalAcik, setModalAcik] = useState(false);
+export function UrunKarti({
+  urun,
+  girisli,
+  kullaniciTelefonVar,
+}: {
+  urun: UrunKartiVeri;
+  girisli: boolean;
+  kullaniciTelefonVar: boolean;
+}) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  // Redirect-back: /giris'ten ?rezerveEt=<id> ile donuldugunde modal ACIK baslar
+  // (kullanici niyetini kaybetmesin). setState-in-effect yerine ilk render'da
+  // hesaplanir; yalniz sergideki urun + girisli kullanici icin.
+  const [modalAcik, setModalAcik] = useState(
+    () => girisli && urun.durum === "sergide" && searchParams.get("rezerveEt") === urun.id,
+  );
   const renk = kategoriRengiSec(urun.kategori.id);
   const Ikon = kategoriIkonuSec(urun.kategori.ad);
   const fotograf = urun.fotograflar[0];
@@ -34,6 +51,16 @@ export function UrunKarti({ urun }: { urun: UrunKartiVeri }) {
   // Kapasite (stok+5) dolunca rezervasyon kapanir (PLAN.md SS3); 'doldu'
   // durumu tam bu esikte, rezervasyon API'sinin icinde atomik olarak atanir.
   const rezervasyonKapali = urun.durum !== "sergide";
+
+  function rezerveTikla() {
+    if (!girisli) {
+      // KP-1: girissiz kullanici once login'e; sonra ayni urune doner.
+      const next = `${pathname}?rezerveEt=${urun.id}`;
+      router.push(`/giris?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    setModalAcik(true);
+  }
 
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
@@ -60,7 +87,7 @@ export function UrunKarti({ urun }: { urun: UrunKartiVeri }) {
         <button
           type="button"
           disabled={rezervasyonKapali}
-          onClick={() => setModalAcik(true)}
+          onClick={rezerveTikla}
           className={`mt-auto w-full rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
             rezervasyonKapali
               ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
@@ -71,7 +98,12 @@ export function UrunKarti({ urun }: { urun: UrunKartiVeri }) {
         </button>
       </div>
       {modalAcik && (
-        <RezerveModal urunId={urun.id} urunBaslik={urun.baslik} onClose={() => setModalAcik(false)} />
+        <RezerveModal
+          urunId={urun.id}
+          urunBaslik={urun.baslik}
+          kullaniciTelefonVar={kullaniciTelefonVar}
+          onClose={() => setModalAcik(false)}
+        />
       )}
     </div>
   );

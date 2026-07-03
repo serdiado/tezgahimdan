@@ -47,8 +47,8 @@ eklenmeli (bugün yalnız `getMagazaBySlug` filtreliyor).
 
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
-- **Rate-limit yok:** SMS doğrulaması gelene kadar, sahte numaralarla kuyruk doldurulabilir. Deploy öncesi en azından IP bazlı limit değerlendirilmeli.
-- **Telefonla mevcut rezerv kodu ifşası:** Aynı telefonu tekrar giren biri, o numaranın mevcut kodunu görüyor. SMS doğrulamasıyla kendiliğinden kapanır.
+- **Rate-limit yok:** Deploy öncesi en azından IP bazlı limit değerlendirilmeli. (KP-1 üyelik zorunluluğuyla sahte-numarayla kitle rezervasyonu riski büyük ölçüde azaldı — rezervasyon için hesap gerekir; yine de rate-limit tamamen ikame etmez.)
+- **~~Telefonla mevcut rezerv kodu ifşası~~ (KP-1 ile kapandı):** Kod+telefon arama (`/api/rezervasyon/sorgula`) kaldırıldı; kullanıcı yalnız giriş yapıp kendi rezervasyonlarını görür.
 - **Yükselen yedeğe bildirim yok:** Yedekten aktife yükselen kişiye şu an bildirim gitmiyor — no-show riskini artırır, bildirim/SMS fazında ele alınacak.
 - **Satıcı kendi ürününe rezervasyon yapabiliyor:** Şu an engellenmiyor, kural tanımsız.
 - **Stok sonradan düşürülürse:** Mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir. Ürün düzenleme akışı yazılırken ele alınacak.
