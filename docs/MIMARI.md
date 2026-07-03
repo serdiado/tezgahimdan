@@ -8,13 +8,21 @@ Yeni bir mimari karar alındığında (özellikle eşzamanlılık, veri bütünl
 
 ---
 
-## Rezervasyon kilidi ve kuyruk mantığı
+## Rezervasyon motoru (kilit + kuyruk + kullanıcı/satıcı akışları)
 
-Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yönetimi. Eşzamanlılık riski en yüksek bölüm. Aynı kilit **beş** akışı da serileştirir: **rezervasyon oluştur** (8 paralel istekle test), **Vazgeç** (alıcı), **Satıldı/Gelmedi** (satıcı), **Geri Al** (satıcı yanlış işaretlemeyi geri alır) ve **haftalık sıfırlama** (otomatik). Satıldı stok-tutarlı: her satış bir birim tüketir, kapasite `stok − satıldı` üzerinden hesaplanır (INVARIANT: `aktif ≤ stok − satıldı`, fazla-satış imkânsız). Geri Al iki durumda reddedilir (`urun_satildi` / `kapasite_dolu`), red nedeni `DurumGecmisi`'ne yazılır. Haftalık sıfırlama (harici cron + korumalı API) kapanışta kuyruğu temizler; no-show cezası pazar **başlangıç** eşiğine göre (`aktifOlmaZamani < baslangicAni`), idempotent (`PazarSifirlama` tablosu + durum-bazlı).
+Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yönetimi. Eşzamanlılık riski en yüksek bölüm. Aynı kilit dört akışı serileştirir: **rezervasyon oluştur** (8 paralel istekle test), **Vazgeç** (alıcı), **Satıldı/Gelmedi** (satıcı), **Geri Al** (satıcı yanlış işaretlemeyi geri alır). Satıldı stok-tutarlı: her satış bir birim tüketir, kapasite `stok − satıldı` üzerinden (INVARIANT: `aktif ≤ stok − satıldı`, fazla-satış imkânsız). Geri Al iki durumda reddedilir (`urun_satildi` / `kapasite_dolu`), red nedeni `DurumGecmisi`'ne yazılır.
 
 → Detay: [`docs/mimari/rezervasyon-motoru.md`](./mimari/rezervasyon-motoru.md)
 
-**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç ✓, Gelmedi ✓, haftalık sıfırlama ✓, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı. Vazgeç/Gelmedi aynı kilidi kullanır ve sıra numaralarını boşluksuz tutar — detay aynı dosyada.
+**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç ✓, Gelmedi ✓, haftalık sıfırlama ✓, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı.
+
+---
+
+## Haftalık sıfırlama (otomatik)
+
+Pazar kapanışında o pazarın bekleyen kuyruğunu **tamamen temizler** (rezervasyon motoruyla **aynı** `FOR UPDATE` kilidi, ama davranış ayrı — motor yükseltir, sıfırlama temizler). No-show cezası pazar **başlangıç** eşiğine göre: `aktifOlmaZamani < pazarBaslangicAni` olan (başlangıçta zaten aktif) + satılmamış → `gelmedi`; sonradan yükselen + yedekler → cezasız `iptal`; `satildi` dokunulmaz. Harici cron + korumalı API (`/api/cron/pazar-sifirlama`), duruma-bakan (restart'ta kaçmaz), idempotent (`PazarSifirlama` tablosu + durum-bazlı). No-show olayları puan sistemine `rezervasyon_gelmedi:otomatik:%` formatında hazır.
+
+→ Detay: [`docs/mimari/haftalik-sifirlama.md`](./mimari/haftalik-sifirlama.md)
 
 ---
 
