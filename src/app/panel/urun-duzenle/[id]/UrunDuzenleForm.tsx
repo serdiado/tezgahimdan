@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { X } from "lucide-react";
-import { MAX_FOTOGRAF } from "@/lib/urun-sabitleri";
+import { FotografSecici, type FotoOge } from "@/components/FotografSecici";
 
 export type UrunDuzenleVeri = {
   id: string;
@@ -16,6 +14,8 @@ export type UrunDuzenleVeri = {
   fotograflar: string[];
 };
 
+type SiraOge = { tur: "mevcut"; yol: string } | { tur: "yeni"; index: number };
+
 export function UrunDuzenleForm({
   urun,
   kategoriler,
@@ -26,38 +26,38 @@ export function UrunDuzenleForm({
   minStok: number;
 }) {
   const router = useRouter();
-  const [kalanFotograflar, setKalanFotograflar] = useState<string[]>(urun.fotograflar);
+  const [fotolar, setFotolar] = useState<FotoOge[]>([]);
+  const [fotoIsleniyor, setFotoIsleniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
 
-  function fotografKaldir(yol: string) {
-    setKalanFotograflar((onceki) => onceki.filter((f) => f !== yol));
-  }
-
-  async function submit(formData: FormData) {
+  async function gonder(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
     setHata(null);
-
-    const yeniFotograflar = formData
-      .getAll("fotograflar")
-      .filter((f) => f instanceof File && f.size > 0);
-    const toplamFotograf = kalanFotograflar.length + yeniFotograflar.length;
-    if (toplamFotograf < 1) {
+    if (fotolar.length < 1) {
       setHata("en az 1 fotoğraf kalmalı");
       return;
     }
-    if (toplamFotograf > MAX_FOTOGRAF) {
-      setHata(`en fazla ${MAX_FOTOGRAF} fotoğraf olabilir`);
-      return;
-    }
 
-    formData.set("id", urun.id);
-    formData.set("kalanFotograflar", JSON.stringify(kalanFotograflar));
+    // Metin alanlarini formdan al; fotograflar + siralama'yi FotografSecici
+    // durumundan kur. "siralama" nihai foto sirasini (mevcut/yeni interleave) tasir.
+    const fd = new FormData(e.currentTarget);
+    fd.set("id", urun.id);
+    const siralama: SiraOge[] = [];
+    let yeniIndex = 0;
+    for (const oge of fotolar) {
+      if (oge.tur === "mevcut") {
+        siralama.push({ tur: "mevcut", yol: oge.yol });
+      } else {
+        fd.append("fotograflar", oge.file);
+        siralama.push({ tur: "yeni", index: yeniIndex });
+        yeniIndex++;
+      }
+    }
+    fd.set("siralama", JSON.stringify(siralama));
 
     setGonderiliyor(true);
-    const res = await fetch("/api/panel/urun-duzenle", {
-      method: "POST",
-      body: formData,
-    });
+    const res = await fetch("/api/panel/urun-duzenle", { method: "POST", body: fd });
     setGonderiliyor(false);
 
     if (!res.ok) {
@@ -70,47 +70,21 @@ export function UrunDuzenleForm({
     router.refresh();
   }
 
+  const inputClass =
+    "mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
+
   return (
-    <form action={submit} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">
-          Fotoğraflar (1-{MAX_FOTOGRAF} adet)
-        </label>
-        {kalanFotograflar.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {kalanFotograflar.map((yol) => (
-              <div key={yol} className="relative h-20 w-20 overflow-hidden rounded-lg bg-neutral-100">
-                <Image src={yol} alt="" fill className="object-cover" sizes="80px" />
-                <button
-                  type="button"
-                  onClick={() => fotografKaldir(yol)}
-                  className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white"
-                  aria-label="Fotoğrafı kaldır"
-                >
-                  <X className="h-3 w-3" strokeWidth={3} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-        <input
-          name="fotograflar"
-          type="file"
-          accept="image/*"
-          multiple
-          className="mt-2 block w-full text-sm"
-        />
-      </div>
+    <form onSubmit={gonder} className="space-y-5">
+      <FotografSecici
+        baslangicMevcut={urun.fotograflar}
+        onDegisim={setFotolar}
+        onIsleniyorDegisti={setFotoIsleniyor}
+      />
 
       <div>
         <label className="block text-sm font-medium text-neutral-700">
           Kategori
-          <select
-            name="kategoriId"
-            required
-            defaultValue={urun.kategoriId}
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          >
+          <select name="kategoriId" required defaultValue={urun.kategoriId} className={inputClass}>
             {kategoriler.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.ad}
@@ -123,23 +97,18 @@ export function UrunDuzenleForm({
       <div>
         <label className="block text-sm font-medium text-neutral-700">
           Başlık
-          <input
-            name="baslik"
-            type="text"
-            required
-            defaultValue={urun.baslik}
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          />
+          <input name="baslik" type="text" required defaultValue={urun.baslik} className={inputClass} />
         </label>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-neutral-700">
-          Açıklama (opsiyonel)
+          Açıklama <span className="font-normal text-neutral-400">(opsiyonel)</span>
           <textarea
             name="aciklama"
+            rows={3}
             defaultValue={urun.aciklama ?? ""}
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className={inputClass}
           />
         </label>
       </div>
@@ -153,8 +122,9 @@ export function UrunDuzenleForm({
             step="0.01"
             min="0.01"
             required
+            inputMode="decimal"
             defaultValue={urun.fiyat}
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className={inputClass}
           />
         </label>
       </div>
@@ -168,8 +138,9 @@ export function UrunDuzenleForm({
             step="1"
             min={minStok || 1}
             required
+            inputMode="numeric"
             defaultValue={urun.stokAdedi}
-            className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className={inputClass}
           />
         </label>
         {minStok > 0 && (
@@ -179,14 +150,15 @@ export function UrunDuzenleForm({
         )}
       </div>
 
+      {hata && <p className="text-sm text-red-600">{hata}</p>}
+
       <button
         type="submit"
-        disabled={gonderiliyor}
-        className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+        disabled={gonderiliyor || fotoIsleniyor}
+        className="w-full rounded-md bg-primary-600 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        Kaydet
+        {fotoIsleniyor ? "Fotoğraflar hazırlanıyor…" : gonderiliyor ? "Kaydediliyor…" : "Kaydet"}
       </button>
-      {hata && <p className="text-sm text-red-600">{hata}</p>}
     </form>
   );
 }

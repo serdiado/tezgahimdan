@@ -86,6 +86,7 @@ export default async function UrunlerimPage({
                     fotograf: urun.fotograflar[0] ?? null,
                     bekleyenSayisi: urun.rezervasyonlar.length,
                     silindiMi: urun.silindiMi,
+                    magazaSlug: magaza.slug,
                   }}
                 />
               ))}

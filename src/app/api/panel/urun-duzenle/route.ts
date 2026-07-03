@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   const aciklama = typeof aciklamaRaw === "string" && aciklamaRaw.trim() ? aciklamaRaw.trim() : null;
   const fiyatRaw = formData.get("fiyat");
   const stokRaw = formData.get("stokAdedi");
-  const kalanFotograflarRaw = formData.get("kalanFotograflar");
+  const siralamaRaw = formData.get("siralama");
   const yeniDosyalar = formData.getAll("fotograflar").filter((f): f is File => f instanceof File && f.size > 0);
 
   if (typeof kategoriId !== "string" || !kategoriId) {
@@ -64,22 +64,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: "stok adedi en az 1 olmali" }, { status: 400 });
   }
 
-  // Istemcinin "kalanFotograflar" listesine guvenilmez - mevcut urunun
-  // fotograflar dizisiyle kesisimi alinir, uydurma yol enjekte edilemez.
-  let kalanFotograflar: string[] = [];
+  // Nihai foto sirasi istemciden "siralama" token dizisiyle gelir: her oge ya
+  // {tur:"mevcut", yol} (var olan foto) ya {tur:"yeni", index} (bu istekte yuklenen
+  // dosyanin sirasi). Guvenlik: "mevcut" yollar mevcutUrun.fotograflar ile
+  // dogrulanir (uydurma yol enjekte edilemez), "yeni" index'ler yeniDosyalar
+  // sinirinda tutulur. Kapak = nihai dizinin ilk elemani.
+  type SiraOge = { tur: "mevcut"; yol: string } | { tur: "yeni"; index: number };
+  let siralama: SiraOge[] = [];
   try {
-    const parsed = typeof kalanFotograflarRaw === "string" ? JSON.parse(kalanFotograflarRaw) : [];
+    const parsed = typeof siralamaRaw === "string" ? JSON.parse(siralamaRaw) : [];
     if (Array.isArray(parsed)) {
-      kalanFotograflar = parsed.filter(
-        (f): f is string => typeof f === "string" && mevcutUrun.fotograflar.includes(f),
+      siralama = parsed.filter(
+        (t): t is SiraOge =>
+          !!t &&
+          ((t.tur === "mevcut" &&
+            typeof t.yol === "string" &&
+            mevcutUrun.fotograflar.includes(t.yol)) ||
+            (t.tur === "yeni" &&
+              Number.isInteger(t.index) &&
+              t.index >= 0 &&
+              t.index < yeniDosyalar.length)),
       );
     }
   } catch {
-    // gecersiz JSON -> hicbir fotograf korunmamis say, asagidaki sayim kontrolu yakalar.
+    // gecersiz JSON -> bos say; asagidaki sayim kontrolu yakalar.
   }
 
-  const toplamFotograf = kalanFotograflar.length + yeniDosyalar.length;
-  if (toplamFotograf < 1 || toplamFotograf > MAX_FOTOGRAF) {
+  if (siralama.length < 1 || siralama.length > MAX_FOTOGRAF) {
     return NextResponse.json(
       { hata: `en az 1, en fazla ${MAX_FOTOGRAF} fotograf olmali` },
       { status: 400 },
@@ -123,8 +134,15 @@ export async function POST(request: Request) {
     yazilanYollar.push(`/uploads/urunler/${dosyaAdi}`);
   }
 
-  const yeniFotograflar = [...kalanFotograflar, ...yazilanYollar];
-  const kaldirilanFotograflar = mevcutUrun.fotograflar.filter((f) => !kalanFotograflar.includes(f));
+  // Nihai dizi: siralama sirasinda "mevcut" yollar + "yeni" yazilan yollar (index
+  // hizali; yazilanYollar, yeniDosyalar ile ayni sirada). Kapak = [0].
+  const yeniFotograflar = siralama.map((t) =>
+    t.tur === "mevcut" ? t.yol : yazilanYollar[t.index],
+  );
+  const kaldirilanFotograflar = mevcutUrun.fotograflar.filter((f) => !yeniFotograflar.includes(f));
+  // Bu istekte yazilip nihai diziye girmeyen (siralamada gecmeyen) dosyalar yetim
+  // kalmasin.
+  const kullanilmayanYeni = yazilanYollar.filter((y) => !yeniFotograflar.includes(y));
 
   try {
     // Ayni kilit stratejisi (urun satirinda FOR UPDATE) rezervasyon motoruyla
@@ -180,9 +198,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Basarili guncelleme sonrasi artik kullanilmayan eski fotograflari sil.
+    // Basarili guncelleme sonrasi artik kullanilmayan eski fotolari + siralamada
+    // yer almayan yeni yazilan dosyalari sil.
     await Promise.all(
-      kaldirilanFotograflar.map((yol) =>
+      [...kaldirilanFotograflar, ...kullanilmayanYeni].map((yol) =>
         unlink(path.join(process.cwd(), "public", yol)).catch(() => undefined),
       ),
     );

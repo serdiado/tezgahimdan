@@ -44,7 +44,10 @@ export default async function UrunEklePage({
         <>
           <h1 className="text-xl font-bold text-neutral-900">Ürün Ekle — {magaza.ad}</h1>
           <div className="mt-4">
-            <UrunEkleForm kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))} />
+            <UrunEkleForm
+              kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))}
+              magazaSlug={magaza.slug}
+            />
           </div>
         </>
       );

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { PaylasButonlari } from "@/components/PaylasButonlari";
 
 const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
   sergide: { etiket: "Sergide", className: "bg-green-100 text-green-700" },
@@ -24,6 +25,7 @@ export type UrunPanelVeri = {
   fotograf: string | null;
   bekleyenSayisi: number;
   silindiMi: boolean;
+  magazaSlug: string;
 };
 
 export function UrunKartiPanel({ urun }: { urun: UrunPanelVeri }) {
@@ -153,6 +155,16 @@ export function UrunKartiPanel({ urun }: { urun: UrunPanelVeri }) {
             </button>
           )}
         </div>
+        {!urun.silindiMi && (
+          <div className="mt-2">
+            <PaylasButonlari
+              baslik={urun.baslik}
+              fiyat={urun.fiyat}
+              urunLink={`/magaza/${urun.magazaSlug}?urun=${urun.id}`}
+              kapakFotoUrl={urun.fotograf}
+            />
+          </div>
+        )}
         {hata && <p className="text-xs text-red-600">{hata}</p>}
       </div>
     </div>

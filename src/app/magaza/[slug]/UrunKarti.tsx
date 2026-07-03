@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
@@ -55,6 +55,19 @@ export function UrunKarti({
   // durumu tam bu esikte, rezervasyon API'sinin icinde atomik olarak atanir.
   const rezervasyonKapali = urun.durum !== "sergide";
 
+  // Paylasilan link (?urun=<id>) ile gelen ziyaretci bu urune kaydirilir ve kisa
+  // sure vurgulanir. Ilk render'da vurgu acik baslar (setState-in-effect yerine),
+  // scroll effect'te yapilir, vurgu ~2.5sn sonra timer'da kapanir.
+  const hedefUrun = searchParams.get("urun") === urun.id;
+  const [vurgulu, setVurgulu] = useState(hedefUrun);
+  const kartRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!hedefUrun) return;
+    kartRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const zaman = setTimeout(() => setVurgulu(false), 2500);
+    return () => clearTimeout(zaman);
+  }, [hedefUrun]);
+
   function rezerveTikla() {
     if (!girisli) {
       // KP-1: girissiz kullanici once login'e; sonra ayni urune doner.
@@ -66,7 +79,13 @@ export function UrunKarti({
   }
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+    <div
+      ref={kartRef}
+      id={`urun-${urun.id}`}
+      className={`flex scroll-mt-24 flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow duration-200 hover:shadow-md ${
+        vurgulu ? "ring-2 ring-primary-500 ring-offset-2" : ""
+      }`}
+    >
       <div className={`relative aspect-square w-full ${fotograf ? "bg-neutral-100" : renk.bg}`}>
         {fotograf ? (
           <Image src={fotograf} alt={urun.baslik} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
