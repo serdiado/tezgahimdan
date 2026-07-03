@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { createElement, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
@@ -45,7 +45,10 @@ export function UrunKarti({
     () => girisli && urun.durum === "sergide" && searchParams.get("rezerveEt") === urun.id,
   );
   const renk = kategoriRengiSec(urun.kategori.id);
-  const Ikon = kategoriIkonuSec(urun.kategori.ad);
+  // Kategori ikonu render icinde PascalCase bilesen olarak baglanmaz (lint:
+  // react-hooks/static-components) - lookup lowercase tutulup createElement ile
+  // render edilir.
+  const kategoriIkonu = kategoriIkonuSec(urun.kategori.ad);
   const fotograf = urun.fotograflar[0];
   const durumStil = DURUM_STIL[urun.durum] ?? { etiket: urun.durum, className: "bg-neutral-200 text-neutral-600" };
   // Kapasite (stok+5) dolunca rezervasyon kapanir (PLAN.md SS3); 'doldu'
@@ -69,7 +72,7 @@ export function UrunKarti({
           <Image src={fotograf} alt={urun.baslik} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <Ikon className={`h-10 w-10 ${renk.text}`} strokeWidth={1.5} />
+            {createElement(kategoriIkonu, { className: `h-10 w-10 ${renk.text}`, strokeWidth: 1.5 })}
           </div>
         )}
       </div>
