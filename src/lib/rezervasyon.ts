@@ -1,6 +1,6 @@
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
-import { sonrakiSifirlamaTarihi } from "@/lib/pazar-haftasi";
+import { pazarBaslangicAni, pazarKapanisAni, sonrakiSifirlamaTarihi } from "@/lib/pazar-haftasi";
 
 // PLAN.md SS3: stok kadar aktif hak sahibi + arkasinda en fazla 5 yedek;
 // toplam (stok + MAX_YEDEK) dolunca rezervasyon kapanir.
@@ -139,6 +139,8 @@ export async function rezervasyonOlustur(params: {
               siraNo,
               rezervKodu,
               pazarHaftasi,
+              // aktif atandiysa sifirlama cezasi icin "aktife gecis ani" kaydedilir.
+              aktifOlmaZamani: tip === "aktif" ? new Date() : null,
             },
           });
 
@@ -218,7 +220,9 @@ async function aktifSlotBosalt(
   if (birinciYedek) {
     await tx.rezervasyon.update({
       where: { id: birinciYedek.id },
-      data: { tip: "aktif", siraNo: bosalan.siraNo },
+      // Yedekten aktife yukseliyor -> aktife gecis ani guncellenir (sifirlama
+      // cezasi bu ani pazar baslangiciyla karsilastirir).
+      data: { tip: "aktif", siraNo: bosalan.siraNo, aktifOlmaZamani: new Date() },
     });
     await tx.rezervasyon.updateMany({
       where: { urunId, durum: "bekliyor", tip: "yedek", siraNo: { gt: birinciYedek.siraNo } },
@@ -568,10 +572,11 @@ export async function rezervasyonGeriAl(params: {
         where: { urunId: urun.id, durum: "bekliyor", tip: "aktif", siraNo: { gte: eskiSira } },
         data: { siraNo: { increment: 1 } },
       });
-      // 2) Kaydi eski aktif pozisyonuna geri koy.
+      // 2) Kaydi eski aktif pozisyonuna geri koy. Geri alma da bir "aktife
+      //    gecis"tir -> aktifOlmaZamani guncellenir.
       await tx.rezervasyon.update({
         where: { id: rez.id },
-        data: { durum: "bekliyor", tip: "aktif", siraNo: eskiSira },
+        data: { durum: "bekliyor", tip: "aktif", siraNo: eskiSira, aktifOlmaZamani: new Date() },
       });
       await tx.durumGecmisi.create({
         data: {
@@ -632,4 +637,132 @@ export async function rezervasyonGeriAl(params: {
     },
     { maxWait: 5000, timeout: 15000 },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Haftalik sifirlama (otomatik, harici cron tetikler)
+// ---------------------------------------------------------------------------
+
+function isoHafta(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+// Tek bir urunun kuyrugunu (kilit altinda) sifirlar. Kapanis vakti gecmis
+// bekleyen kayitlar temizlenir:
+//  - Pazar BASLANGICINDA aktif olan (aktifOlmaZamani < baslangicAni) ve hala
+//    bekleyen -> gelmedi (no-show cezasi, DurumGecmisi'ne otomatik formatta).
+//  - Sonradan yukselen aktifler + tum yedekler -> iptal (cezasiz).
+//  - Temizlenen herkese bildirim izi (bildirimKanali; gonderim YOK, Faz 2).
+//  - satildi/gelmedi/iptal olanlara DOKUNULMAZ (sorgu sadece durum=bekliyor).
+async function urunSifirla(urunId: string, now: Date): Promise<number> {
+  return prisma.$transaction(
+    async (tx): Promise<number> => {
+      const kilitli = await tx.$queryRaw<
+        { id: string; durum: string }[]
+      >`SELECT "id", "durum" FROM "Urun" WHERE "id" = ${urunId} FOR UPDATE`;
+      const urun = kilitli[0];
+      if (!urun) return 0;
+
+      const urunTam = await tx.urun.findUnique({
+        where: { id: urunId },
+        select: { magaza: { select: { pazar: true } } },
+      });
+      const pazar = urunTam?.magaza.pazar;
+      if (!pazar) return 0;
+
+      const kuyruk = await tx.rezervasyon.findMany({
+        where: { urunId, durum: "bekliyor" },
+        select: { id: true, tip: true, aliciId: true, pazarHaftasi: true, aktifOlmaZamani: true },
+      });
+
+      let etkilenen = 0;
+      const haftaSayilari = new Map<string, number>();
+      for (const rez of kuyruk) {
+        // Bu haftanin kapanisi henuz gelmedi ise atla (gelecek hafta kaydi).
+        if (now < pazarKapanisAni(pazar, rez.pazarHaftasi)) continue;
+
+        const baslangic = pazarBaslangicAni(pazar, rez.pazarHaftasi);
+        // No-show cezasi SADECE pazar baslangicinda zaten aktif olana.
+        const noShow =
+          rez.tip === "aktif" && rez.aktifOlmaZamani != null && rez.aktifOlmaZamani < baslangic;
+        const hafta = isoHafta(rez.pazarHaftasi);
+
+        await tx.rezervasyon.update({
+          where: { id: rez.id },
+          data: { durum: noShow ? "gelmedi" : "iptal", bildirimKanali: "whatsapp" },
+        });
+        await tx.durumGecmisi.create({
+          data: {
+            kullaniciId: rez.aliciId,
+            varlikTuru: "Rezervasyon",
+            varlikId: rez.id,
+            // Puan sistemi (sonraki adim) 'rezervasyon_gelmedi:otomatik:%' ile
+            // no-show'lari sayar. Cezasiz temizlik ayri olay - ceza degil.
+            olay: noShow
+              ? `rezervasyon_gelmedi:otomatik:${hafta}`
+              : `rezervasyon_sifirlama_iptal:${hafta}`,
+          },
+        });
+        etkilenen++;
+        haftaSayilari.set(hafta, (haftaSayilari.get(hafta) ?? 0) + 1);
+      }
+
+      if (etkilenen === 0) return 0;
+
+      // Kuyruk temizlendi -> urun tekrar satisa acik (satildi/tukenmis degilse).
+      if (urun.durum !== "satildi" && urun.durum !== "sergide") {
+        await tx.urun.update({ where: { id: urunId }, data: { durum: "sergide" } });
+        await tx.durumGecmisi.create({
+          data: { varlikTuru: "Urun", varlikId: urunId, olay: "urun_tekrar_sergide" },
+        });
+      }
+
+      // PazarSifirlama upsert (atomik ON CONFLICT) - idempotency + audit.
+      for (const [hafta, sayi] of haftaSayilari) {
+        await tx.$executeRaw`
+          INSERT INTO "PazarSifirlama" ("id", "pazarId", "pazarHaftasi", "calismaZamani", "etkilenenSayi")
+          VALUES (${randomUUID()}, ${pazar.id}, ${new Date(hafta)}::date, ${now}, ${sayi})
+          ON CONFLICT ("pazarId", "pazarHaftasi")
+          DO UPDATE SET "etkilenenSayi" = "PazarSifirlama"."etkilenenSayi" + ${sayi}`;
+      }
+
+      return etkilenen;
+    },
+    { maxWait: 5000, timeout: 15000 },
+  );
+}
+
+// Cron tarafindan cagrilir. ZAMANA degil DURUMA bakar: kapanis vakti gecmis VE
+// hala bekleyen kuyrugu olan urunleri sifirlar (catch-up: restart'ta kaçmaz).
+// Idempotent: ikinci cagride bekleyen kalmadigi icin no-op. Her urun ayri
+// transaction + FOR UPDATE (kisa kilit, kismi basari toleransi).
+export async function pazarlariSifirla(
+  now: Date = new Date(),
+): Promise<{ islenenUrun: number; toplamEtkilenen: number }> {
+  const bekleyenler = await prisma.rezervasyon.findMany({
+    where: { durum: "bekliyor" },
+    select: {
+      urunId: true,
+      pazarHaftasi: true,
+      urun: { select: { magaza: { select: { pazar: true } } } },
+    },
+  });
+
+  const sifirlanacak = new Set<string>();
+  for (const r of bekleyenler) {
+    if (now >= pazarKapanisAni(r.urun.magaza.pazar, r.pazarHaftasi)) {
+      sifirlanacak.add(r.urunId);
+    }
+  }
+
+  let islenenUrun = 0;
+  let toplamEtkilenen = 0;
+  for (const urunId of sifirlanacak) {
+    const etkilenen = await urunSifirla(urunId, now);
+    if (etkilenen > 0) {
+      islenenUrun++;
+      toplamEtkilenen += etkilenen;
+    }
+  }
+  return { islenenUrun, toplamEtkilenen };
 }

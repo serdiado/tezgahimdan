@@ -11,7 +11,11 @@ async function main() {
   let pazar = await prisma.pazar.findFirst({ where: { ad: VARSAYILAN_PAZAR.ad } });
   if (!pazar) {
     pazar = await prisma.pazar.create({
-      data: { ...VARSAYILAN_PAZAR, sifirlamaSaati: new Date(VARSAYILAN_PAZAR.sifirlamaSaati) },
+      data: {
+        ...VARSAYILAN_PAZAR,
+        baslangicSaati: new Date(VARSAYILAN_PAZAR.baslangicSaati),
+        sifirlamaSaati: new Date(VARSAYILAN_PAZAR.sifirlamaSaati),
+      },
     });
     console.log("Olusturuldu: Pazar ->", pazar.ad);
   } else {

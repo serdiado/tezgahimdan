@@ -53,3 +53,72 @@ export function sonrakiSifirlamaTarihi(
   // kendisi cozer.
   return new Date(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day) + kalanGun));
 }
+
+// Bir saat diliminin verilen andaki UTC ofsetini (dakika) dondurur. "shortOffset"
+// DST dahil dogru ofseti verir (Turkiye 2016'dan beri sabit +3, ama genel calisir).
+function tzOffsetDakika(saatDilimi: string, an: Date): number {
+  const parcalar = new Intl.DateTimeFormat("en-US", {
+    timeZone: saatDilimi,
+    timeZoneName: "shortOffset",
+  }).formatToParts(an);
+  const tz = parcalar.find((x) => x.type === "timeZoneName")?.value ?? "GMT+0";
+  const m = tz.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+  if (!m) return 0;
+  const isaret = m[1] === "-" ? -1 : 1;
+  return isaret * (Number(m[2]) * 60 + Number(m[3] ?? 0));
+}
+
+// Bir saat dilimindeki yerel gun+saati UTC ana cevirir. yerel = UTC + offset
+// oldugu icin UTC = yerelGibiUTC - offset. (DST'siz bolgelerde kesin.)
+function yerelAniUTC(
+  saatDilimi: string,
+  yil: number,
+  ay0: number,
+  gun: number,
+  saat: number,
+  dakika: number,
+): Date {
+  const yerelGibiUTC = Date.UTC(yil, ay0, gun, saat, dakika);
+  const offset = tzOffsetDakika(saatDilimi, new Date(yerelGibiUTC));
+  return new Date(yerelGibiUTC - offset * 60000);
+}
+
+type PazarZaman = {
+  baslangicGunu: string;
+  baslangicSaati: Date;
+  sifirlamaGunu: string;
+  sifirlamaSaati: Date;
+  saatDilimi: string;
+};
+
+// pazarHaftasi: kapanis gununun tarihi (UTC geceyarisi, o pazarin Istanbul
+// takvim gununu temsil eder). Kapanis/sifirlama ani = o gun + sifirlamaSaati.
+export function pazarKapanisAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
+  return yerelAniUTC(
+    pazar.saatDilimi || "Europe/Istanbul",
+    pazarHaftasi.getUTCFullYear(),
+    pazarHaftasi.getUTCMonth(),
+    pazarHaftasi.getUTCDate(),
+    pazar.sifirlamaSaati.getUTCHours(),
+    pazar.sifirlamaSaati.getUTCMinutes(),
+  );
+}
+
+// Baslangic (ceza esigi) ani = ayni hafta icinde, kapanis gununden GERIYE
+// baslangicGunu + baslangicSaati. Ceza yalnizca bu andan ONCE aktif olanlara.
+export function pazarBaslangicAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
+  const kapanisIdx = GUN_INDEKSI[pazar.sifirlamaGunu];
+  const baslangicIdx = GUN_INDEKSI[pazar.baslangicGunu];
+  if (kapanisIdx === undefined || baslangicIdx === undefined) {
+    throw new Error(`taninmayan gun: ${pazar.sifirlamaGunu} / ${pazar.baslangicGunu}`);
+  }
+  const gunFarki = (kapanisIdx - baslangicIdx + 7) % 7; // baslangic kapanistan kac gun once
+  return yerelAniUTC(
+    pazar.saatDilimi || "Europe/Istanbul",
+    pazarHaftasi.getUTCFullYear(),
+    pazarHaftasi.getUTCMonth(),
+    pazarHaftasi.getUTCDate() - gunFarki,
+    pazar.baslangicSaati.getUTCHours(),
+    pazar.baslangicSaati.getUTCMinutes(),
+  );
+}

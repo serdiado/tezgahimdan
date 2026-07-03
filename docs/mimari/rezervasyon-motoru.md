@@ -126,6 +126,48 @@ Her red `DurumGecmisi`'ne **`geri_alma_reddedildi:{rezervId}:{sebep}`** olarak y
 - **Yarış [geri al ‖ yeni rezervasyon] ×3:** her iterasyonda tam biri kabul biri red — bekleyen **her zaman 6** (kapasite), asla aşılmadı; iki sıralama da gözlendi. psql ile bağımsız doğrulandı (çift pozisyon yok, INVARIANT 9/9 OK). ✓
 - **Yarış [geri al ‖ yedek vazgeç]:** commutative, kuyruk boşluksuz. ✓
 
+## Haftalık Sıfırlama (`pazarlariSifirla`) — otomatik, harici cron tetikler
+
+Pazarın kapanış anı geçince o pazara ait ürünlerin bekleyen kuyruğu **tamamen temizlenir** (sıra taşıma yok; ürün sonraki hafta sıfırdan). Bu, manuel Gelmedi'nin toplu hali **değildir** — o yükseltir, bu temizler.
+
+### İki farklı zaman (kritik)
+- **Başlangıç anı** (`Pazar.baslangicGunu`+`baslangicSaati`): ceza eşiği — "kim cezalı" belirler.
+- **Kapanış/sıfırlama anı** (`Pazar.sifirlamaGunu`+`sifirlamaSaati`): kuyruğu temizler + cezaları yazar + bildirim izi bırakır.
+- İkisi `pazar-haftasi.ts`'te `pazarBaslangicAni` / `pazarKapanisAni` ile hesaplanır (Europe/Istanbul; `timeZoneName:"shortOffset"` ile genel TZ, Türkiye sabit +3).
+
+### "Başlangıçta aktif miydi" — kapanışta kuyruktan okunamaz
+Kapanış anındaki kuyruk, başlangıç ile kapanış arası değiştiği için (satışlar, gelmediler, yükselmeler) "kim başlangıçta aktifti"yi taşımaz. Çözüm: **`Rezervasyon.aktifOlmaZamani`** — kayıt aktife her geçtiğinde (oluşturmada aktif atanma / `aktifSlotBosalt` yükselme / `rezervasyonGeriAl`) kaydedilir. Kural saf karşılaştırma:
+
+```
+no-show  ⟺  tip='aktif' AND durum='bekliyor' AND aktifOlmaZamani < pazarBaslangicAni
+```
+
+Ayrı bir başlangıç cron fazı gerekmez — bilgi rezervasyonda taşınır, tek kapanış işi yeter.
+
+### Kimlere ne olur (kapanışta, hâlâ `bekliyor` olanlar)
+- **Başlangıçta aktif + satılmamış** → `gelmedi` + no-show cezası. Audit: **`rezervasyon_gelmedi:otomatik:{pazarHaftasi}`** (aliciId ile) — puan sistemi (sonraki adım) bunu `...gelmedi:otomatik:%` ile sayar.
+- **Sonradan yükselen aktif + tüm yedekler** → `iptal` (cezasız). Audit: `rezervasyon_sifirlama_iptal:{hafta}` (ceza değil, sadece iz).
+- **`satildi`/`gelmedi`/`iptal`** (zaten sonuçlanmış) → **dokunulmaz** (sorgu yalnızca `durum='bekliyor'`). Manuel gelmedi → çift ceza olmaz.
+- Temizlenen **herkese** (satın almış hariç) bildirim izi: `bildirimKanali='whatsapp'`, `bildirimGonderildi=false`. **Gönderim yok** (Faz 2: "ürün tekrar açıldı, öncelikli davet").
+- Kuyruk boşalınca ürün `satildi` değilse → `sergide`.
+
+### Tetikleme + idempotency
+- **Harici cron** (Docker/VPS, ~5 dk) → `POST /api/cron/pazar-sifirlama`, `Authorization: Bearer $CRON_SECRET`. Deploy'da cron servisi eklenecek (dev'de manuel curl ile test edildi).
+- **Zamana değil duruma bakar:** kapanış vakti geçmiş VE hâlâ bekleyen kuyruğu olan ürünleri işler → **restart'ta kaçmaz** (catch-up).
+- **İki katman idempotency:** (1) her ürün ayrı transaction + `FOR UPDATE` + "hâlâ bekliyor mu" — çift tetikleme no-op; (2) `PazarSifirlama` tablosu `(pazarId, pazarHaftasi)` unique, atomik `ON CONFLICT` upsert — açık "bu hafta yapıldı mı" takibi + audit (`etkilenenSayi`).
+
+### İtiraz
+Her otomatik ceza `DurumGecmisi`'nde admin-okunabilir (`rezervasyon_gelmedi:otomatik:%`). İtirazı çözme eylemi (admin geri alma) **bu adımda kodlanmadı** — admin paneli adımına bırakıldı.
+
+### Test kanıtı (7 rezervasyon, izole test pazarı, psql doğrulandı)
+- (a) başlangıçta aktif+satılmamış → `gelmedi`+ceza ✓
+- (b) başlangıçtan sonra yükselen → cezasız `iptal` ✓
+- (c) `satildi` → dokunulmadı ✓
+- yedekler → cezasız `iptal` + bildirim izi ✓
+- (d) idempotency: ikinci tetikleme `{islenenUrun:0}`, `etkilenenSayi` sabit, çift ceza yok ✓
+- (e) farklı hafta (gelecek `pazarHaftasi`) + farklı pazar (kapanışı gelmemiş) → dokunulmadı ✓
+- TZ: başlangıç eşiği 06:00Z (=Istanbul 09:00) doğru; 05:00Z cezalı / 12:00Z cezasız net ayrıştı ✓
+
 ## Diğer tasarım kararları
 
 - **Ad güncellenmiyor:** Bilinen bir telefonla farklı adla rezervasyon yapılırsa mevcut kaydın adı korunur — doğrulama olmadan başkasının kaydını yeniden adlandırmaya izin vermemek için.
@@ -138,5 +180,5 @@ Her red `DurumGecmisi`'ne **`geri_alma_reddedildi:{rezervId}:{sebep}`** olarak y
 - Satıcının kendi ürününe rezervasyon yapması engellenmiyor, kural tanımsız.
 - Stok sonradan düşürülürse mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir — ürün düzenleme akışı yazılırken ele alınacak.
 - **Satıldı/Gelmedi geri alınamaz** — yanlış işaretleme onaydan sonra düzeltilemez (admin müdahalesi gerekir). Şimdilik tek koruma inline onay.
-- **Otomatik haftalık sıfırlama henüz yok** — PLAN §3'teki "satıcının işaretlemediği aktifler otomatik Gelmedi olur" kuralı, bu manuel Gelmedi'nin scheduler versiyonu olacak. Aynı motor/kilit kullanılmalı.
+- **Otomatik haftalık sıfırlama ✓ yapıldı** (yukarıda "Haftalık Sıfırlama" bölümü). Manuel Gelmedi'nin toplu hali değil — kuyruğu temizler. Puan/güvenilirlik sistemi henüz yok; no-show'lar `rezervasyon_gelmedi:otomatik:%` formatında sayılmaya hazır. Deploy'da harici cron servisi eklenecek.
 - Rate-limit yok (SMS fazına kadar bilinçli risk — bkz. genel `MIMARI.md`).

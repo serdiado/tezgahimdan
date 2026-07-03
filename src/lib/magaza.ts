@@ -5,6 +5,8 @@ import varsayilanPazarJson from "../../prisma/varsayilan-pazar.json";
 const varsayilanPazar = varsayilanPazarJson as unknown as {
   ad: string;
   bolge: string;
+  baslangicGunu: Prisma.PazarCreateInput["baslangicGunu"];
+  baslangicSaati: string;
   sifirlamaGunu: Prisma.PazarCreateInput["sifirlamaGunu"];
   sifirlamaSaati: string;
 };
@@ -27,6 +29,10 @@ export async function varsayilanPazariGetirVeyaOlustur() {
   const mevcut = await prisma.pazar.findFirst({ where: { ad: varsayilanPazar.ad } });
   if (mevcut) return mevcut;
   return prisma.pazar.create({
-    data: { ...varsayilanPazar, sifirlamaSaati: new Date(varsayilanPazar.sifirlamaSaati) },
+    data: {
+      ...varsayilanPazar,
+      baslangicSaati: new Date(varsayilanPazar.baslangicSaati),
+      sifirlamaSaati: new Date(varsayilanPazar.sifirlamaSaati),
+    },
   });
 }

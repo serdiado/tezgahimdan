@@ -28,13 +28,31 @@ model Pazar {
   id             String    @id @default(uuid())
   ad             String
   bolge          String
+  // baslangic*: pazarin acilis (ceza esigi) ani. sifirlama*: kapanis/sifirlama ani.
+  // Ikisi FARKLI an: baslangic "kim cezali"yi, kapanis kuyrugu temizlemeyi belirler.
+  baslangicGunu  HaftaGunu @default(Carsamba)
+  baslangicSaati DateTime  @default(dbgenerated("'09:00:00'::time")) @db.Time
   sifirlamaGunu  HaftaGunu
   sifirlamaSaati DateTime  @db.Time
   saatDilimi     String    @default("Europe/Istanbul")
   aktifMi        Boolean   @default(true)
   createdAt      DateTime  @default(now())
 
-  magazalar Magaza[]
+  magazalar    Magaza[]
+  sifirlamalar PazarSifirlama[]
+}
+
+// Idempotency + audit: her (pazar, pazarHaftasi) icin bir sifirlama calismasi kaydi.
+// Unique (pazarId, pazarHaftasi) - "bu hafta yapildi mi" takibi.
+model PazarSifirlama {
+  id            String   @id @default(uuid())
+  pazar         Pazar    @relation(fields: [pazarId], references: [id])
+  pazarId       String
+  pazarHaftasi  DateTime @db.Date
+  calismaZamani DateTime @default(now())
+  etkilenenSayi Int      @default(0)
+
+  @@unique([pazarId, pazarHaftasi])
 }
 
 // PLAN.md SS7: "pazar_sorumlusu" rolu ileride eklenecek, simdilik kapsam disi.
@@ -140,7 +158,15 @@ model Rezervasyon {
   durum        RezervasyonDurumu  @default(bekliyor)
   rezervKodu   String             @unique
   pazarHaftasi DateTime           @db.Date
-  createdAt    DateTime           @default(now())
+  // Kayit aktife her gectiginde (olusturmada aktif atanma / yedekten yukselme /
+  // geri alma) set edilir. Sifirlama cezasi: aktifOlmaZamani < pazarBaslangicAni
+  // olan (yani pazar baslangicinda zaten aktif olan) ve hala bekleyenler no-show.
+  aktifOlmaZamani DateTime?
+  // Sifirlamada temizlenen kuyruga birakilan iz (gonderim YOK, Faz 2). Urun
+  // tekrar acilinca eski uyelere "oncelikli davet" bildirimi icin.
+  bildirimGonderildi Boolean @default(false)
+  bildirimKanali     String?
+  createdAt          DateTime @default(now())
 }
 
 // Genel amacli audit/istatistik log'u; tek bir tabloya baglanmaz (varlikTuru + varlikId ile
