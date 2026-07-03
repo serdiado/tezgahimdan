@@ -26,6 +26,25 @@ Pazar kapanışında o pazarın bekleyen kuyruğunu **tamamen temizler** (rezerv
 
 ---
 
+## Satıcı onboarding (self-servis + moderasyon)
+
+"Mağaza Aç" ile bir kişi **anında** satıcı olur (admin onayı yok): `magazaAc()` tek
+transaction'da mağazayı açar + `alici→satici` terfi eder + `DurumGecmisi`'ne
+`magaza_olusturuldu` izi bırakır. Kalite denetimi sonradan **`gizliMi`** bayrağıyla:
+admin mağazayı vitrinsen gizler. `gizliMi`, `silindiMi`'den **ayrı** tutulur — çünkü
+`silindiMi` hem `getOwnMagaza`'yı filtreler (satıcı erişimini keser) hem de
+tek-aktif-mağaza unique index'i yüzünden gizlenen satıcının ikinci mağaza açmasına yol
+açardı. `gizliMi` ayrıca yeni rezervasyonu da kapatır (mevcut bekleyenlere dokunmadan).
+Rol JWT'de bayat kalabildiği için (aynı oturumda terfi) yetki `getSaticiSession` içinde
+**DB'den** okunur.
+
+→ Detay: [`docs/mimari/satici-onboarding.md`](./mimari/satici-onboarding.md)
+
+**İleri referans:** Ana Sayfa çok-mağaza vitrini kurulunca `gizliMi` filtresi oraya da
+eklenmeli (bugün yalnız `getMagazaBySlug` filtreliyor).
+
+---
+
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
 - **Rate-limit yok:** SMS doğrulaması gelene kadar, sahte numaralarla kuyruk doldurulabilir. Deploy öncesi en azından IP bazlı limit değerlendirilmeli.

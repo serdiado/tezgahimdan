@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma";
-import { prisma } from "@/lib/prisma";
+import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
+import { SLUG_REGEX } from "@/lib/slug";
 import varsayilanPazarJson from "../../prisma/varsayilan-pazar.json";
 
 const varsayilanPazar = varsayilanPazarJson as unknown as {
@@ -18,9 +19,86 @@ export function getOwnMagaza(userId: string) {
 // Vitrin (herkese acik) magaza sayfasi icin - slug tekil oldugu icin en fazla 1
 // sonuc bekleriz, ama findUnique tek basina ek (silindiMi) filtresi almadigindan
 // findFirst kullaniyoruz. Hero bandinda pazar bilgisini gosterebilmek icin
-// pazar iliskisini de dahil ediyoruz.
+// pazar iliskisini de dahil ediyoruz. gizliMi: admin moderasyonuyla vitrinsen
+// gizlenen magaza herkese acik sayfada gorunmez (sahibi panelden erisebilir).
 export function getMagazaBySlug(slug: string) {
-  return prisma.magaza.findFirst({ where: { slug, silindiMi: false }, include: { pazar: true } });
+  return prisma.magaza.findFirst({
+    where: { slug, silindiMi: false, gizliMi: false },
+    include: { pazar: true },
+  });
+}
+
+export type MagazaAcSonucu =
+  | { tur: "acildi"; magaza: { id: string; slug: string } }
+  | { tur: "gecersiz-ad" }
+  | { tur: "gecersiz-slug" }
+  | { tur: "slug-alinmis" }
+  | { tur: "zaten-magaza-var" };
+
+// Self-servis onboarding'in kalbi: magazayi olusturur VE (kullanici hala alici ise)
+// ayni transaction'da rolu satici'ya terfi eder + DurumGecmisi'ne iz birakir. Admin
+// onayi YOK - herkes aninda satici olur (moderasyon sonradan magaza.gizliMi ile).
+//
+// Tek noktada tutulmasinin nedeni: hem yeni onboarding sihirbazi hem de urun-ekle
+// icindeki "once magaza olustur" dali ayni yolu kullansin, terfi/iz mantigi kopya
+// olmasin. P2002 (slug carpismasi ya da WHERE silindiMi=false partial unique index
+// ile ikinci aktif magaza) yakalanir; cagiran taraf sonuca gore UX'i secer.
+export async function magazaAc(params: {
+  userId: string;
+  ad: string;
+  slug: string;
+  whatsappNo?: string | null;
+}): Promise<MagazaAcSonucu> {
+  const ad = params.ad.trim();
+  const slug = params.slug.trim().toLowerCase();
+  if (!ad) return { tur: "gecersiz-ad" };
+  if (!SLUG_REGEX.test(slug)) return { tur: "gecersiz-slug" };
+
+  const pazar = await varsayilanPazariGetirVeyaOlustur();
+
+  try {
+    return await prisma.$transaction(async (tx): Promise<MagazaAcSonucu> => {
+      const magaza = await tx.magaza.create({
+        data: {
+          sahipId: params.userId,
+          ad,
+          slug,
+          whatsappNo: params.whatsappNo ?? null,
+          pazarId: pazar.id,
+        },
+      });
+
+      // Kullanici hala alici ise satici'ya terfi et (admin ise dokunma). Terfi
+      // sadece "kendi magazasini acan" kisi icin - baskasinin rolunu degistirmez.
+      await tx.kullanici.updateMany({
+        where: { id: params.userId, rol: "alici" },
+        data: { rol: "satici" },
+      });
+
+      // Admin izi: yeni magaza acilislari DurumGecmisi'ne duser; admin paneli
+      // gelince "yeni acilan magazalar" listelenip gerekirse gizliMi ile frenlenir.
+      await tx.durumGecmisi.create({
+        data: {
+          kullaniciId: params.userId,
+          varlikTuru: "Magaza",
+          varlikId: magaza.id,
+          olay: "magaza_olusturuldu",
+        },
+      });
+
+      return { tur: "acildi", magaza: { id: magaza.id, slug: magaza.slug } };
+    });
+  } catch (err) {
+    // Es zamanli istek ayni slug'i ya da (partial unique index sayesinde) ayni
+    // saticiya ikinci aktif magazayi olusturmus olabilir (TOCTOU). DB engeller,
+    // biz dostca cevaba ceviririz.
+    if (p2002Mi(err)) {
+      const hedef = p2002Hedefi(err);
+      if (hedef.includes("slug")) return { tur: "slug-alinmis" };
+      return { tur: "zaten-magaza-var" };
+    }
+    throw err;
+  }
 }
 
 // Henuz bir Pazar yonetim ekrani yok (bkz. prisma/seed.js); ayni varsayilan pazar

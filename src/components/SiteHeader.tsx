@@ -1,16 +1,15 @@
 import Link from "next/link";
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
+import { getSaticiSession } from "@/lib/yetki";
 
 // Vitrin + panel sayfalarinda ust bar. Sol: marka (ana sayfaya link). Sag:
-// oturum durumuna gore navigasyon - giris yapmis satici/admin icin "Panelim" +
-// "Cikis Yap", giris yapmamis icin "Giris". auth() server-side calisir, bu
-// yuzden SiteHeader async server component.
+// oturum durumuna gore navigasyon - giris yapmis satici icin "Panelim", satici
+// olmayan giris yapmis kullaniciya "Magaza Ac" (self-servis onboarding), giris
+// yapmamis icin "Giris". getSaticiSession rolu DB'den okur (JWT bayat olsa da
+// dogru) - boylece bir kullanici magaza acip satici olunca header hemen guncellenir.
 export async function SiteHeader() {
-  const session = await auth();
+  const { session, yetkili: satici } = await getSaticiSession();
   const girisli = !!session?.user;
-  // /panel satici panelidir (PLAN SS4: /panel=satici, /admin=ayri). Admin'e
-  // "Panelim" gosterilmez; admin islevleri ileride ayri /admin panelinde.
-  const satici = session?.user?.rol === "satici";
 
   return (
     <div className="border-b border-neutral-200 bg-white">
@@ -21,9 +20,16 @@ export async function SiteHeader() {
         <nav className="flex items-center gap-4 text-sm font-medium">
           {girisli ? (
             <>
-              {satici && (
+              {satici ? (
                 <Link href="/panel" className="text-neutral-700 hover:text-primary-600">
                   Panelim
+                </Link>
+              ) : (
+                <Link
+                  href="/panel/magaza-ac"
+                  className="rounded-md bg-primary-600 px-3 py-1.5 font-semibold text-white hover:bg-primary-700"
+                >
+                  Mağaza Aç
                 </Link>
               )}
               <form

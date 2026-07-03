@@ -104,6 +104,12 @@ model Magaza {
   pazar      Pazar    @relation(fields: [pazarId], references: [id])
   pazarId    String
   silindiMi  Boolean  @default(false)
+  // Admin moderasyon bayragi: magaza vitrinsen GIZLENIR ama sahibinin erisimi ve
+  // tek-aktif-magaza kisiti bozulmaz (silindiMi'den ayri tutulmasinin nedeni:
+  // silindiMi getOwnMagaza'yi da filtreler ve WHERE silindiMi=false unique index'i
+  // yuzunden gizlenen satici ikinci magaza acabilirdi). Self-servis onboarding'in
+  // "fren pedali": herkes aninda satici olur, admin gerekirse tek bayrakla gizler.
+  gizliMi    Boolean  @default(false)
   createdAt  DateTime @default(now())
 
   urunler    Urun[]

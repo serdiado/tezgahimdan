@@ -11,6 +11,7 @@ export type RezervasyonSonucu =
   | { tur: "zaten-var"; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string }
   | { tur: "dolu" }
   | { tur: "urun-yok" }
+  | { tur: "magaza-gizli" }
   | { tur: "satista-degil" };
 
 // 0/O, 1/I gibi karistirilabilir karakterler yok - kod pazarda sozlu soylenecek.
@@ -63,9 +64,14 @@ export async function rezervasyonOlustur(params: {
   // rezervasyon aninda degismez).
   const urunOn = await prisma.urun.findUnique({
     where: { id: params.urunId },
-    select: { id: true, silindiMi: true, magaza: { select: { pazar: true } } },
+    select: { id: true, silindiMi: true, magaza: { select: { gizliMi: true, pazar: true } } },
   });
   if (!urunOn || urunOn.silindiMi) return { tur: "urun-yok" };
+  // Admin bir magazayi vitrinsen gizlediyse (moderasyon) yeni rezervasyon
+  // ALINMAZ. Mevcut bekleyen rezervasyonlara dokunulmaz - onlar satici panelinden
+  // normal sonuclanir; sadece yeni giris kapanir. (gizliMi degisimi admin kaynakli
+  // ve nadir; kilit oncesi on-kontrol yeterli - satildiMi/silindiMi ile ayni desen.)
+  if (urunOn.magaza.gizliMi) return { tur: "magaza-gizli" };
   const pazarHaftasi = sonrakiSifirlamaTarihi(urunOn.magaza.pazar);
 
   const alici = await aliciBulVeyaOlustur(params.ad, params.telefon);

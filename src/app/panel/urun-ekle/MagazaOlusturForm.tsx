@@ -1,17 +1,18 @@
 import { redirect } from "next/navigation";
-import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
 import { getSaticiSession } from "@/lib/yetki";
-import { varsayilanPazariGetirVeyaOlustur } from "@/lib/magaza";
+import { magazaAc } from "@/lib/magaza";
 
-const SLUG_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-
+// Bu form, zaten satici olan ama (ornegin magazasini kaldirmis) bir kullanicinin
+// /panel/urun-ekle icinde magazasini yeniden olusturdugu yerdir. Asil onboarding
+// (alici -> satici) /panel/magaza-ac sihirbazidir. Ikisi de ayni magazaAc() lib
+// fonksiyonunu kullanir - terfi/iz/kilit mantigi tek yerde.
 async function magazaOlustur(formData: FormData) {
   "use server";
 
-  // Sayfa zaten kontrol etti ama bu bir Server Action - dogrudan cagrilabilir,
-  // bu yuzden yetki kontrolunu burada da tekrarliyoruz.
+  // Bu yol satici geciti arkasinda (urun-ekle sayfasi yetkili kontrolu yapar), ama
+  // Server Action dogrudan cagrilabilir - yetkiyi burada da tekrarliyoruz.
   const { session, yetkili } = await getSaticiSession();
-  if (!yetkili || !session) {
+  if (!yetkili || !session?.user?.id) {
     redirect("/giris");
   }
 
@@ -24,38 +25,23 @@ async function magazaOlustur(formData: FormData) {
   if (!ad || !slug) {
     redirect(`/panel/urun-ekle?hata=${encodeURIComponent("ad ve slug zorunlu")}`);
   }
-  if (!SLUG_REGEX.test(slug)) {
-    redirect(
-      `/panel/urun-ekle?hata=${encodeURIComponent("slug sadece kucuk harf, rakam ve tire icerebilir")}`,
-    );
+
+  const sonuc = await magazaAc({ userId: session.user.id, ad, slug });
+  // redirect() throw eder (never doner) - her dal akisi burada bitirir.
+  switch (sonuc.tur) {
+    case "acildi":
+      return redirect("/panel/urun-ekle");
+    case "gecersiz-ad":
+      return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("ad zorunlu")}`);
+    case "gecersiz-slug":
+      return redirect(
+        `/panel/urun-ekle?hata=${encodeURIComponent("slug sadece kucuk harf, rakam ve tire icerebilir")}`,
+      );
+    case "slug-alinmis":
+      return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("bu slug zaten kullaniliyor")}`);
+    case "zaten-magaza-var":
+      return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("zaten bir magazan var")}`);
   }
-
-  const pazar = await varsayilanPazariGetirVeyaOlustur();
-
-  try {
-    await prisma.magaza.create({
-      data: {
-        sahipId: session.user.id,
-        ad,
-        slug,
-        pazarId: pazar.id,
-      },
-    });
-  } catch (err) {
-    // Es zamanli istek ayni slug'i veya (partial unique index sayesinde) ayni
-    // saticiya ikinci bir aktif magazayi olusturmus olabilir (TOCTOU). DB'nin
-    // kendisi engeller, biz sadece kullaniciya anlasilir bir mesaj gosteririz.
-    if (p2002Mi(err)) {
-      const hedef = p2002Hedefi(err);
-      if (hedef.includes("slug")) {
-        redirect(`/panel/urun-ekle?hata=${encodeURIComponent("bu slug zaten kullaniliyor")}`);
-      }
-      redirect(`/panel/urun-ekle?hata=${encodeURIComponent("zaten bir magazan var")}`);
-    }
-    throw err;
-  }
-
-  redirect("/panel/urun-ekle");
 }
 
 export function MagazaOlusturForm() {

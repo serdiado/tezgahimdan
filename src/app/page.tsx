@@ -1,8 +1,14 @@
 import Image from "next/image";
+import { SiteHeader } from "@/components/SiteHeader";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
+    <>
+      {/* Ana sayfa henuz create-next-app stub'i; asil Ana Sayfa isi ileride ayri
+          yapilacak. SiteHeader burada CTA'nin (Magaza Ac / Panelim) kok domainden
+          de erisilebilmesi icin eklendi - stub icerigine dokunulmadi. */}
+      <SiteHeader />
+      <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
       <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
         <Image
           className="dark:invert"
@@ -60,6 +66,7 @@ export default function Home() {
           </a>
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }
