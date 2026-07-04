@@ -10,7 +10,7 @@ import varsayilanPazar from "../../../../prisma/varsayilan-pazar.json";
 export default async function MagazaAcPage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect("/giris");
+    redirect("/giris?next=%2Fpanel%2Fmagaza-ac");
   }
 
   const mevcut = await getOwnMagaza(session.user.id);

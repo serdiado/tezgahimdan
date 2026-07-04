@@ -122,3 +122,43 @@ export function pazarBaslangicAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
     pazar.baslangicSaati.getUTCMinutes(),
   );
 }
+
+// Verilen anin, pazarin saat diliminde hangi haftanin gunune denk geldigini
+// (GUN_INDEKSI olcegiyle) dondurur - Ana Sayfa "bugun pazar gunu mu" kontrolu icin.
+function yerelGunIndeksi(saatDilimi: string, simdi: Date): number {
+  const gun = new Intl.DateTimeFormat("en-US", {
+    timeZone: saatDilimi || "Europe/Istanbul",
+    weekday: "short",
+  }).format(simdi);
+  return INTL_GUNLER.indexOf(gun);
+}
+
+export type PazarRitim = {
+  // Hafta-penceresi anlaminda "rezervasyon kuyrugu hala acik mi" (kapanis/sifirlama
+  // anina kadar) - motor anlaminda dogru ama alici yuzunde "pazar bugun mu" ile
+  // KARISTIRILMAMALI (bkz. bugunPazarGunuMu). Ileride ise yarayabilir diye tutuluyor,
+  // Ana Sayfa UI'i BUNU degil bugunPazarGunuMu'nu kullanir.
+  acikMi: boolean;
+  sonrakiAcilisAni: Date;
+  gunAdi: string;
+  // Bugun (pazarin saat diliminde) tam olarak baslangicGunu mu - alici yuzunde
+  // gosterilecek tek gercek: "pazar GUNU bugun mu", hafta-penceresinin tamami degil.
+  bugunPazarGunuMu: boolean;
+};
+
+// Ana Sayfa "haftalik ritim" widget'i icin: mevcut uc saf fonksiyonu birlestirir,
+// yeni tarih-yuvarlama mantigi EKLEMEZ. sonrakiSifirlamaTarihi zaten "sifirlama
+// saati gectiyse bir sonraki haftaya sar" kuralini uyguladigi icin, kapanisAni
+// HER ZAMAN simdi'den sonradir - "zaten kapandi" icin ayrica dal gerekmez.
+export function pazarRitimBilgisi(pazar: PazarZaman, simdi: Date = new Date()): PazarRitim {
+  const pazarHaftasi = sonrakiSifirlamaTarihi(pazar, simdi);
+  const baslangicAni = pazarBaslangicAni(pazar, pazarHaftasi);
+  const kapanisAni = pazarKapanisAni(pazar, pazarHaftasi);
+  const bugunGunIndeksi = yerelGunIndeksi(pazar.saatDilimi || "Europe/Istanbul", simdi);
+  return {
+    acikMi: simdi >= baslangicAni && simdi < kapanisAni,
+    sonrakiAcilisAni: baslangicAni,
+    gunAdi: pazar.baslangicGunu,
+    bugunPazarGunuMu: bugunGunIndeksi === GUN_INDEKSI[pazar.baslangicGunu],
+  };
+}
