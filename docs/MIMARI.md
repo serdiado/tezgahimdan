@@ -53,3 +53,4 @@ eklenmeli (bugün yalnız `getMagazaBySlug` filtreliyor).
 - **Satıcı kendi ürününe rezervasyon yapabiliyor:** Şu an engellenmiyor, kural tanımsız.
 - **Stok sonradan düşürülürse:** Mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir. Ürün düzenleme akışı yazılırken ele alınacak.
 - **Geri alma redlerinin doğası:** Geri alma redleri (`DurumGecmisi`'ndeki `geri_alma_reddedildi` kayıtları) kalıcı (gerçekten dolu/satıldı) ya da yarış kaynaklı geçici olabilir. Admin paneli bu kayıtları listelerken bu ayrımı yapmalı.
+- **Kategori kaldırma ile eşzamanlı ürün ekleme (kapanmamış milisaniyelik pencere):** `urun-ekle`/`urun-duzenle` artık gönderilen kategoriyi kilitsiz okuyup `silindiMi` kontrol ediyor (AP-4 sonrası); admin bir kategoriyi *tam bu okumadan hemen sonra* kaldırırsa nadir bir yarış hâlâ mümkün — kabul edilebilir risk (kategori kaldırma nadir bir admin eylemi).

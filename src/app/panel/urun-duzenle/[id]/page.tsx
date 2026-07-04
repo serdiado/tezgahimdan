@@ -44,8 +44,11 @@ export default async function UrunDuzenlePage({ params }: { params: Promise<{ id
     notFound();
   }
 
+  // Kaldirilmis (silindiMi=true) kategoriler secenek olarak sunulmaz. Urunun
+  // MEVCUT kategorisi kaldirilmissa listede gorunmez - satici baska bir kategori
+  // secmek zorunda kalir (kaldirilmis kategoriyle devam edilmesi tutarsiz olurdu).
   const [kategoriler, aktifSayisi, satildiSayisi] = await Promise.all([
-    prisma.kategori.findMany({ orderBy: { ad: "asc" } }),
+    prisma.kategori.findMany({ where: { silindiMi: false }, orderBy: { ad: "asc" } }),
     prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "bekliyor", tip: "aktif" } }),
     prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "satildi" } }),
   ]);

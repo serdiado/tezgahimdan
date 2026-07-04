@@ -97,9 +97,15 @@ export async function POST(request: Request) {
     );
   }
 
+  // silindiMi kontrolu: admin bu kategoriyi tam bu istekle ayni anda kaldirmis
+  // olabilir (TOCTOU) - kalan milisaniyelik pencere kabul edilebilir (bkz.
+  // docs/MIMARI.md "Bilinen kisitlar").
   const kategori = await prisma.kategori.findUnique({ where: { id: kategoriId } });
-  if (!kategori) {
-    return NextResponse.json({ hata: "gecersiz kategori" }, { status: 400 });
+  if (!kategori || kategori.silindiMi) {
+    return NextResponse.json(
+      { hata: "Bu kategori artık kullanılmıyor, lütfen başka bir kategori seçin" },
+      { status: 400 },
+    );
   }
 
   // Yeni dosyalari bellekte oku + dogrula (magic number), istemcinin

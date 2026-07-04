@@ -39,7 +39,12 @@ export default async function UrunEklePage({
         </>
       );
     } else {
-      const kategoriler = await prisma.kategori.findMany({ orderBy: { ad: "asc" } });
+      // Kaldirilmis (admin tarafindan silindiMi=true yapilmis) kategoriler yeni
+      // urunlerde secilemez - AP-4'ten sonra ortaya cikan tutarlilik geregi.
+      const kategoriler = await prisma.kategori.findMany({
+        where: { silindiMi: false },
+        orderBy: { ad: "asc" },
+      });
       icerik = (
         <>
           <h1 className="text-xl font-bold text-neutral-900">Ürün Ekle — {magaza.ad}</h1>
