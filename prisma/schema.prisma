@@ -86,6 +86,10 @@ model Kullanici {
 model Kategori {
   id        String   @id @default(uuid())
   ad        String
+  // Kalici silme yok (PLAN.md "hicbir kayit kalici silinmez"): kullanimda
+  // degilse (hicbir Urun.kategoriId bu id'yi isaret etmiyorsa) admin soft-delete
+  // eder, "Geri Getir" ile geri doner. Kullanimdaysa kaldirma engellenir.
+  silindiMi Boolean  @default(false)
   createdAt DateTime @default(now())
 
   urunler Urun[]

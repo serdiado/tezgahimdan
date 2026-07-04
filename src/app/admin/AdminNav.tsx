@@ -7,8 +7,8 @@ import Link from "next/link";
 const OGELER: { anahtar: string; etiket: string; href?: string }[] = [
   { anahtar: "panel", etiket: "Panel", href: "/admin" },
   { anahtar: "magazalar", etiket: "Mağazalar", href: "/admin/magazalar" },
-  { anahtar: "pazarlar", etiket: "Pazarlar" },
-  { anahtar: "kategoriler", etiket: "Kategoriler" },
+  { anahtar: "pazarlar", etiket: "Pazarlar", href: "/admin/pazarlar" },
+  { anahtar: "kategoriler", etiket: "Kategoriler", href: "/admin/kategoriler" },
   { anahtar: "sikayetler", etiket: "Şikayetler" },
   { anahtar: "anlasmazliklar", etiket: "Anlaşmazlıklar" },
 ];

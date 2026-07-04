@@ -68,8 +68,18 @@ export default async function AdminSayfasi() {
             baslik="Mağazalar"
             aciklama="Görünürlük, moderasyon"
           />
-          <AdminKart ikon={Landmark} baslik="Pazarlar" aciklama="Yakında" />
-          <AdminKart ikon={Tags} baslik="Kategoriler" aciklama="Yakında" />
+          <AdminKart
+            href="/admin/pazarlar"
+            ikon={Landmark}
+            baslik="Pazarlar"
+            aciklama="Gün, saat, sıfırlama"
+          />
+          <AdminKart
+            href="/admin/kategoriler"
+            ikon={Tags}
+            baslik="Kategoriler"
+            aciklama="Ekle, düzenle, kaldır"
+          />
           <AdminKart ikon={MessageSquareWarning} baslik="Şikayetler" aciklama="Yakında" />
           <AdminKart ikon={ShieldAlert} baslik="Anlaşmazlıklar" aciklama="Yakında" />
         </div>
