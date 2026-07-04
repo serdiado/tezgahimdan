@@ -2,15 +2,14 @@ import Link from "next/link";
 
 // Paylasilan admin alt-navigasyonu. Sadece yetki kontrolu basarili sayfalarda
 // render edilir (gate her sayfanin kendi icinde, satici panel deseniyle ayni -
-// bkz. src/app/panel/*). Henuz insa edilmemis bolumler (AP-3..AP-6) href'siz
-// "Yakinda" olarak durur; ilgili build tamamlaninca sadece href eklenir.
+// bkz. src/app/panel/*).
 const OGELER: { anahtar: string; etiket: string; href?: string }[] = [
   { anahtar: "panel", etiket: "Panel", href: "/admin" },
   { anahtar: "magazalar", etiket: "Mağazalar", href: "/admin/magazalar" },
   { anahtar: "pazarlar", etiket: "Pazarlar", href: "/admin/pazarlar" },
   { anahtar: "kategoriler", etiket: "Kategoriler", href: "/admin/kategoriler" },
-  { anahtar: "sikayetler", etiket: "Şikayetler" },
-  { anahtar: "anlasmazliklar", etiket: "Anlaşmazlıklar" },
+  { anahtar: "sikayetler", etiket: "Şikayetler", href: "/admin/sikayetler" },
+  { anahtar: "anlasmazliklar", etiket: "Anlaşmazlıklar", href: "/admin/anlasmazliklar" },
 ];
 
 export function AdminNav({ aktif }: { aktif: string }) {

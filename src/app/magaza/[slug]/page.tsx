@@ -5,6 +5,7 @@ import { getMagazaBySlug } from "@/lib/magaza";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaHero } from "./MagazaHero";
 import { MagazaIcerik } from "./MagazaIcerik";
+import { MagazaSikayetButonu } from "./MagazaSikayetButonu";
 
 export default async function MagazaSayfasi({
   params,
@@ -53,6 +54,7 @@ export default async function MagazaSayfasi({
               pazar: { ad: magaza.pazar.ad, sifirlamaGunu: magaza.pazar.sifirlamaGunu },
             }}
           />
+          <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
         </div>
 
         <MagazaIcerik

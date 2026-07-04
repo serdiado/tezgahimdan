@@ -3,7 +3,9 @@
 import { createElement, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Flag } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
+import { SikayetModal } from "@/components/SikayetModal";
 import { RezerveModal } from "./RezerveModal";
 
 const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
@@ -44,6 +46,7 @@ export function UrunKarti({
   const [modalAcik, setModalAcik] = useState(
     () => girisli && urun.durum === "sergide" && searchParams.get("rezerveEt") === urun.id,
   );
+  const [sikayetModalAcik, setSikayetModalAcik] = useState(false);
   const renk = kategoriRengiSec(urun.kategori.id);
   // Kategori ikonu render icinde PascalCase bilesen olarak baglanmaz (lint:
   // react-hooks/static-components) - lookup lowercase tutulup createElement ile
@@ -76,6 +79,15 @@ export function UrunKarti({
       return;
     }
     setModalAcik(true);
+  }
+
+  function sikayetTikla() {
+    if (!girisli) {
+      const next = `${pathname}?urun=${urun.id}`;
+      router.push(`/giris?next=${encodeURIComponent(next)}`);
+      return;
+    }
+    setSikayetModalAcik(true);
   }
 
   return (
@@ -118,6 +130,14 @@ export function UrunKarti({
         >
           {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
         </button>
+        <button
+          type="button"
+          onClick={sikayetTikla}
+          className="flex items-center gap-1 self-start text-xs font-medium text-neutral-400 hover:text-neutral-600"
+        >
+          <Flag className="h-3 w-3" strokeWidth={2} />
+          Bildir
+        </button>
       </div>
       {modalAcik && (
         <RezerveModal
@@ -125,6 +145,14 @@ export function UrunKarti({
           urunBaslik={urun.baslik}
           kullaniciTelefonVar={kullaniciTelefonVar}
           onClose={() => setModalAcik(false)}
+        />
+      )}
+      {sikayetModalAcik && (
+        <SikayetModal
+          hedefTuru="urun"
+          hedefId={urun.id}
+          hedefAdi={urun.baslik}
+          onClose={() => setSikayetModalAcik(false)}
         />
       )}
     </div>
