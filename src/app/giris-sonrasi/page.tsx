@@ -12,12 +12,14 @@ export default async function GirisSonrasiSayfasi() {
     redirect("/giris");
   }
 
-  // PLAN SS4: /panel satici paneli, /admin ayri panel. Sadece satici /panel'e.
+  // PLAN SS4: /panel satici paneli, /admin ayri panel.
   if (session.user.rol === "satici") {
     redirect("/panel");
   }
+  if (session.user.rol === "admin") {
+    redirect("/admin");
+  }
 
-  // admin -> ileride /admin panelı (henuz yok); alici -> ana sayfa. Ikisi de
-  // simdilik varsayilan "/" (ana sayfa da henuz insa edilmedi).
+  // alici -> ana sayfa. Ana sayfa henuz insa edilmedi (create-next-app stub'i).
   redirect("/");
 }

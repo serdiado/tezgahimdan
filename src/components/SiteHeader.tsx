@@ -1,15 +1,18 @@
 import Link from "next/link";
 import { signOut } from "@/auth";
-import { getSaticiSession } from "@/lib/yetki";
+import { oturumRolOku } from "@/lib/yetki";
 
 // Vitrin + panel sayfalarinda ust bar. Sol: marka (ana sayfaya link). Sag:
-// oturum durumuna gore navigasyon - giris yapmis satici icin "Panelim", satici
-// olmayan giris yapmis kullaniciya "Magaza Ac" (self-servis onboarding), giris
-// yapmamis icin "Giris". getSaticiSession rolu DB'den okur (JWT bayat olsa da
-// dogru) - boylece bir kullanici magaza acip satici olunca header hemen guncellenir.
+// oturum durumuna gore navigasyon - admin icin "Yonetim", satici icin "Panelim",
+// satici/admin olmayan giris yapmis kullaniciya "Magaza Ac" (self-servis
+// onboarding), giris yapmamis icin "Giris". oturumRolOku rolu DB'den okur (JWT
+// bayat olsa da dogru) - boylece bir kullanici magaza acip satici olunca header
+// hemen guncellenir.
 export async function SiteHeader() {
-  const { session, yetkili: satici } = await getSaticiSession();
+  const { session, rol } = await oturumRolOku();
   const girisli = !!session?.user;
+  const satici = rol === "satici";
+  const admin = rol === "admin";
 
   return (
     <div className="border-b border-neutral-200 bg-white">
@@ -20,7 +23,11 @@ export async function SiteHeader() {
         <nav className="flex items-center gap-4 text-sm font-medium">
           {girisli ? (
             <>
-              {satici ? (
+              {admin ? (
+                <Link href="/admin" className="text-neutral-700 hover:text-primary-600">
+                  Yönetim
+                </Link>
+              ) : satici ? (
                 <Link href="/panel" className="text-neutral-700 hover:text-primary-600">
                   Panelim
                 </Link>

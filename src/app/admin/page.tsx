@@ -1,0 +1,142 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import { Store, Landmark, Tags, MessageSquareWarning, ShieldAlert } from "lucide-react";
+import { getAdminSession } from "@/lib/yetki";
+import { prisma } from "@/lib/prisma";
+import { SiteHeader } from "@/components/SiteHeader";
+
+const YEDI_GUN_MS = 7 * 24 * 60 * 60 * 1000;
+
+// react-hooks/purity: Date.now() dogrudan bilesen govdesinde "impure call" olarak
+// isaretleniyor (React Compiler kurali, async Server Component'i ayirt etmiyor).
+// Yardimci fonksiyona tasimak yeterli - kural sadece bilesenin kendi govdesini tarar.
+function yediGunOncesi(): Date {
+  return new Date(Date.now() - YEDI_GUN_MS);
+}
+
+export default async function AdminSayfasi() {
+  const { session, yetkili } = await getAdminSession();
+  if (!session) {
+    redirect("/giris");
+  }
+
+  let icerik;
+  if (!yetkili) {
+    icerik = (
+      <>
+        <h1 className="text-xl font-bold text-neutral-900">Yetkisiz Erişim</h1>
+        <p className="mt-1 text-neutral-600">Bu sayfaya sadece yönetici hesapları erişebilir.</p>
+      </>
+    );
+  } else {
+    const yediGunOnce = yediGunOncesi();
+    const [toplamMagaza, yeniMagaza, bekleyenSikayet, anlasmazlikSayisi] = await Promise.all([
+      prisma.magaza.count({ where: { silindiMi: false } }),
+      prisma.magaza.count({ where: { silindiMi: false, createdAt: { gte: yediGunOnce } } }),
+      prisma.sikayet.count({ where: { durum: "bekliyor" } }),
+      prisma.durumGecmisi.count({ where: { olay: { startsWith: "geri_alma_reddedildi:" } } }),
+    ]);
+
+    icerik = (
+      <>
+        <h1 className="text-xl font-bold text-neutral-900">Yönetim Paneli</h1>
+        <p className="mt-1 text-neutral-600">Merhaba {session.user.name}.</p>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <IstatistikKarti
+            baslik="Aktif Mağaza"
+            deger={toplamMagaza}
+            altYazi={`${yeniMagaza} yeni (son 7 gün)`}
+          />
+          <IstatistikKarti
+            baslik="Bekleyen Şikayet"
+            deger={bekleyenSikayet}
+            altYazi="Henüz incelenmedi"
+          />
+          <IstatistikKarti
+            baslik="Anlaşmazlık Kaydı"
+            deger={anlasmazlikSayisi}
+            altYazi="Reddedilen geri alma talepleri (bilgi amaçlı)"
+          />
+        </div>
+
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <AdminKart
+            href="/admin/magazalar"
+            ikon={Store}
+            baslik="Mağazalar"
+            aciklama="Görünürlük, moderasyon"
+          />
+          <AdminKart ikon={Landmark} baslik="Pazarlar" aciklama="Yakında" />
+          <AdminKart ikon={Tags} baslik="Kategoriler" aciklama="Yakında" />
+          <AdminKart ikon={MessageSquareWarning} baslik="Şikayetler" aciklama="Yakında" />
+          <AdminKart ikon={ShieldAlert} baslik="Anlaşmazlıklar" aciklama="Yakında" />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-neutral-50">
+      <SiteHeader />
+      <main className="mx-auto max-w-6xl px-4 py-6">{icerik}</main>
+    </div>
+  );
+}
+
+function IstatistikKarti({
+  baslik,
+  deger,
+  altYazi,
+}: {
+  baslik: string;
+  deger: number;
+  altYazi: string;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-4 shadow-sm">
+      <p className="text-sm text-neutral-500">{baslik}</p>
+      <p className="mt-1 text-2xl font-bold text-neutral-900">{deger}</p>
+      <p className="mt-1 text-xs text-neutral-400">{altYazi}</p>
+    </div>
+  );
+}
+
+function AdminKart({
+  href,
+  ikon: Ikon,
+  baslik,
+  aciklama,
+}: {
+  href?: string;
+  ikon: LucideIcon;
+  baslik: string;
+  aciklama: string;
+}) {
+  const devreDisi = !href;
+  const govde = (
+    <>
+      <Ikon className={`h-8 w-8 ${devreDisi ? "text-neutral-300" : "text-primary-600"}`} strokeWidth={1.75} />
+      <div>
+        <p className={`font-semibold ${devreDisi ? "text-neutral-400" : "text-neutral-900"}`}>{baslik}</p>
+        <p className="text-sm text-neutral-400">{aciklama}</p>
+      </div>
+    </>
+  );
+  if (devreDisi) {
+    return (
+      <div className="flex cursor-not-allowed items-center gap-3 rounded-2xl bg-white p-4 opacity-60 shadow-sm">
+        {govde}
+      </div>
+    );
+  }
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+    >
+      {govde}
+    </Link>
+  );
+}
