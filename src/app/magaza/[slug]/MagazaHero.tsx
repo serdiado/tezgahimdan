@@ -16,7 +16,7 @@ export function MagazaHero({
   magaza: { ad: string; aciklama: string | null; pazar: { ad: string; sifirlamaGunu: string } };
 }) {
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
+    <div className="rounded-2xl bg-linear-to-br from-primary-600 to-primary-700 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
       <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
         <MapPin className="h-4 w-4" strokeWidth={2} />
         {magaza.pazar.ad} · her {GUN_ETIKETI[magaza.pazar.sifirlamaGunu] ?? magaza.pazar.sifirlamaGunu}

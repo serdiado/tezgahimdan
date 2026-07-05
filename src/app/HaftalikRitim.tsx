@@ -39,7 +39,7 @@ export function HaftalikRitim({ pazarlar }: { pazarlar: RitimPazarVeri[] }) {
         return (
           <div
             key={pazar.id}
-            className="rounded-2xl bg-gradient-to-br from-primary-600 to-primary-700 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10"
+            className="rounded-2xl bg-linear-to-br from-primary-600 to-primary-700 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10"
           >
             <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
               <MapPin className="h-4 w-4" strokeWidth={2} />
