@@ -59,7 +59,17 @@ export default async function AnaSayfa() {
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
       <main className="mx-auto max-w-5xl px-4 py-6">
-        <HaftalikRitim pazarlar={pazarlar} />
+        <HaftalikRitim
+          pazarlar={pazarlar.map((pazar) => ({
+            id: pazar.id,
+            bolge: pazar.bolge,
+            baslangicGunu: pazar.baslangicGunu,
+            baslangicSaati: pazar.baslangicSaati,
+            sifirlamaGunu: pazar.sifirlamaGunu,
+            sifirlamaSaati: pazar.sifirlamaSaati,
+            saatDilimi: pazar.saatDilimi,
+          }))}
+        />
 
         {yeniUrunler.length > 0 && (
           <div className="mt-8">

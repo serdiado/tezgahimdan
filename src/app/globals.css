@@ -44,3 +44,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* HaftalikRitim'deki kayan pazar seridi icin - icerik iki kez yan yana
+   render edilip tam %50 kaydirilir, boylece dongu dikissiz gorunur. */
+@keyframes kayanYazi {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
