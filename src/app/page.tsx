@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import { HaftalikRitim } from "./HaftalikRitim";
 import { YeniEklenenler } from "./YeniEklenenler";
 import { MagazaVitrini } from "./MagazaVitrini";
@@ -81,7 +82,7 @@ export default async function AnaSayfa() {
           </div>
         )}
 
-        <div className="mt-8">
+        <div id="magazalar" className="mt-8 scroll-mt-6">
           <h2 className="text-lg font-bold text-neutral-900">Mağazalar</h2>
           <div className="mt-4">
             <MagazaVitrini
@@ -99,6 +100,7 @@ export default async function AnaSayfa() {
 
         {!satici && !admin && <MagazaAcCTA girisli={girisli} />}
       </main>
+      <SiteFooter />
     </div>
   );
 }
