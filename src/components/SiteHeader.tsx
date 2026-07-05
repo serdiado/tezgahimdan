@@ -17,8 +17,8 @@ export async function SiteHeader() {
   return (
     <div className="border-b border-neutral-200 bg-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <Link href="/" className="text-lg font-bold tracking-tight text-primary-600">
-          Tezgahımdan
+        <Link href="/" className="flex items-center">
+          <img src="/tezgahimdan-logo.svg" alt="Tezgahımdan" width={142} height={36} className="h-9 w-auto" />
         </Link>
         <nav className="flex items-center gap-4 text-sm font-medium">
           {girisli ? (
