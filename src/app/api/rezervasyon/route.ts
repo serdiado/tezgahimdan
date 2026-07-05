@@ -88,5 +88,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ hata: "ürün satışta değil" }, { status: 409 });
     case "urun-yok":
       return NextResponse.json({ hata: "ürün bulunamadı" }, { status: 404 });
+    case "guvenilirlik-kisitli":
+      return NextResponse.json(
+        {
+          hata:
+            "Şu an aktif bir rezervasyonunuz var. Yeni bir rezervasyon yapabilmek için önce onu tamamlamanız gerekiyor.",
+        },
+        { status: 409 },
+      );
   }
 }

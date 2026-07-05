@@ -6,13 +6,19 @@ import { pazarBaslangicAni, pazarKapanisAni, sonrakiSifirlamaTarihi } from "@/li
 // toplam (stok + MAX_YEDEK) dolunca rezervasyon kapanir.
 export const MAX_YEDEK = 5;
 
+// PLAN.md SS3 "Guvenilirlik": bu sayida (veya daha fazla) 'gelmedi' biriktiren
+// alici, ayni anda yalnizca 1 aktif rezervasyon tutabilir - MAX_YEDEK gibi
+// kod-ici sabit (admin panelinden ayarlanabilir bir esik degil, simdilik).
+export const GUVENILIRLIK_ESIGI = 3;
+
 export type RezervasyonSonucu =
   | { tur: "olusturuldu"; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string }
   | { tur: "zaten-var"; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string }
   | { tur: "dolu" }
   | { tur: "urun-yok" }
   | { tur: "magaza-gizli" }
-  | { tur: "satista-degil" };
+  | { tur: "satista-degil" }
+  | { tur: "guvenilirlik-kisitli"; gelmediSayisi: number };
 
 // 0/O, 1/I gibi karistirilabilir karakterler yok - kod pazarda sozlu soylenecek.
 const KOD_ALFABESI = "ABCDEFGHJKMNPRSTUVYZ23456789";
@@ -80,6 +86,25 @@ export async function rezervasyonOlustur(params: {
               siraNo: zaten.siraNo,
               rezervKodu: zaten.rezervKodu,
             };
+          }
+
+          // Guvenilirlik kisitlamasi (PLAN.md SS3): GUVENILIRLIK_ESIGI'ni asan
+          // gelmedi sayisi olan alici, halihazirda (herhangi bir urunde) bir
+          // aktif rezervasyonu varsa YENI rezervasyon (aktif ya da yedek fark
+          // etmez) alamaz - once elindekini sonuclandirmasi gerekir. Bu kontrol
+          // sadece BU urunun kilidi altinda calisiyor; alicinin ayni anda BASKA
+          // bir urune de saldirmasi (iki farkli urun kilidi) ele alinmiyor -
+          // dusuk ihtimalli, kabul edilen bir yaris (bkz. docs/mimari).
+          const gelmediSayisi = await tx.rezervasyon.count({
+            where: { aliciId: params.aliciId, durum: "gelmedi" },
+          });
+          if (gelmediSayisi >= GUVENILIRLIK_ESIGI) {
+            const aktifRezervasyonVarMi = await tx.rezervasyon.count({
+              where: { aliciId: params.aliciId, durum: "bekliyor", tip: "aktif" },
+            });
+            if (aktifRezervasyonVarMi > 0) {
+              return { tur: "guvenilirlik-kisitli", gelmediSayisi };
+            }
           }
 
           // Kapasiteyi sadece 'bekliyor' kayitlar isgal eder - iptal/gelmedi
@@ -175,6 +200,29 @@ export async function rezervasyonOlustur(params: {
     }
   }
   throw new Error("rezerv kodu uretilemedi (art arda carpisma)");
+}
+
+// Birden fazla alici icin tek sorguda satildi/gelmedi sayilarini doner (satici
+// "Gelen Rezervasyonlar" ekraninda her satir icin ayri sorgu yerine toplu
+// cekim). PLAN.md SS3: "Saticiya rezervasyonda alicinin orani gosterilir".
+export async function aliciGuvenilirlikHaritasi(
+  aliciIdler: string[],
+): Promise<Map<string, { satildi: number; gelmedi: number }>> {
+  const harita = new Map<string, { satildi: number; gelmedi: number }>();
+  if (aliciIdler.length === 0) return harita;
+
+  const satirlar = await prisma.rezervasyon.groupBy({
+    by: ["aliciId", "durum"],
+    where: { aliciId: { in: aliciIdler }, durum: { in: ["satildi", "gelmedi"] } },
+    _count: true,
+  });
+  for (const satir of satirlar) {
+    const mevcut = harita.get(satir.aliciId) ?? { satildi: 0, gelmedi: 0 };
+    if (satir.durum === "satildi") mevcut.satildi = satir._count;
+    else if (satir.durum === "gelmedi") mevcut.gelmedi = satir._count;
+    harita.set(satir.aliciId, mevcut);
+  }
+  return harita;
 }
 
 // ---------------------------------------------------------------------------

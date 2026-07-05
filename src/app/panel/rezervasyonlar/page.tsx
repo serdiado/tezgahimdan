@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
+import { GUVENILIRLIK_ESIGI, aliciGuvenilirlikHaritasi } from "@/lib/rezervasyon";
 import { SiteHeader } from "@/components/SiteHeader";
 import { KuyrukKarti } from "./KuyrukKarti";
 
@@ -41,6 +42,22 @@ export default async function RezervasyonlarSayfasi() {
       })
     : [];
 
+  // Bu magazadaki tum rezervasyonlarin alicilarini tekillestirip TEK sorguda
+  // guvenilirlik (satildi/gelmedi) sayilarini cekiyoruz - satir basina ayri
+  // sorgu yerine (PLAN.md SS3: "saticiya alicinin orani gosterilir").
+  const aliciIdSeti = new Set<string>();
+  for (const urun of urunler) {
+    for (const r of urun.rezervasyonlar) aliciIdSeti.add(r.aliciId);
+  }
+  const guvenilirlik = await aliciGuvenilirlikHaritasi([...aliciIdSeti]);
+  // kisitliMi hesabini burada (gercek esikle) yapiyoruz - KuyrukKarti istemci
+  // bileseni oldugu icin rezervasyon.ts'den (prisma/node:crypto ithal ediyor)
+  // dogrudan sabit import edemez.
+  function guvenilirlikOzeti(aliciId: string) {
+    const veri = guvenilirlik.get(aliciId) ?? { satildi: 0, gelmedi: 0 };
+    return { ...veri, kisitliMi: veri.gelmedi >= GUVENILIRLIK_ESIGI };
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
@@ -75,6 +92,7 @@ export default async function RezervasyonlarSayfasi() {
                       rezervKodu: r.rezervKodu,
                       aliciAd: r.alici.ad,
                       aliciTelefon: r.alici.telefon,
+                      guvenilirlik: guvenilirlikOzeti(r.aliciId),
                     })),
                     sonuclananlar: sonuclananlar.map((r) => ({
                       id: r.id,
@@ -82,6 +100,7 @@ export default async function RezervasyonlarSayfasi() {
                       rezervKodu: r.rezervKodu,
                       aliciAd: r.alici.ad,
                       aliciTelefon: r.alici.telefon,
+                      guvenilirlik: guvenilirlikOzeti(r.aliciId),
                     })),
                   }}
                 />

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+type Guvenilirlik = { satildi: number; gelmedi: number; kisitliMi: boolean };
+
 type Rezervasyon = {
   id: string;
   tip: "aktif" | "yedek";
@@ -10,6 +12,7 @@ type Rezervasyon = {
   rezervKodu: string;
   aliciAd: string;
   aliciTelefon: string | null;
+  guvenilirlik: Guvenilirlik;
 };
 
 type SonuclananRezervasyon = {
@@ -18,6 +21,7 @@ type SonuclananRezervasyon = {
   rezervKodu: string;
   aliciAd: string;
   aliciTelefon: string | null;
+  guvenilirlik: Guvenilirlik;
 };
 
 type Urun = {
@@ -42,6 +46,26 @@ const SONUC_STIL: Record<string, { etiket: string; className: string }> = {
   gelmedi: { etiket: "Gelmedi", className: "bg-amber-100 text-amber-700" },
   iptal: { etiket: "İptal", className: "bg-neutral-200 text-neutral-600" },
 };
+
+// PLAN.md SS3: "Saticiya rezervasyonda alicinin orani gosterilir". Toplam
+// sonuc (satildi+gelmedi) sifirsa hic gecmisi yok demektir, rozet gosterilmez -
+// ilk kez gelen her aliciya "yeni" etiketi yapistirmak gereksiz gurultu olur.
+function GuvenilirlikRozeti({ guvenilirlik }: { guvenilirlik: Guvenilirlik }) {
+  const toplam = guvenilirlik.satildi + guvenilirlik.gelmedi;
+  if (toplam === 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className="text-xs text-neutral-400">
+        {guvenilirlik.satildi}/{toplam} aldı
+      </span>
+      {guvenilirlik.kisitliMi && (
+        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">
+          Kısıtlı
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function KuyrukKarti({ urun }: { urun: Urun }) {
   const router = useRouter();
@@ -119,7 +143,8 @@ export function KuyrukKarti({ urun }: { urun: Urun }) {
                       <span className="font-semibold text-neutral-900">#{r.siraNo}</span>{" "}
                       <span className="text-neutral-700">{r.aliciAd}</span>{" "}
                       <span className="text-neutral-500">{r.aliciTelefon}</span>{" "}
-                      <span className="font-mono text-xs text-neutral-400">{r.rezervKodu}</span>
+                      <span className="font-mono text-xs text-neutral-400">{r.rezervKodu}</span>{" "}
+                      <GuvenilirlikRozeti guvenilirlik={r.guvenilirlik} />
                     </div>
                     {onay?.rezervId === r.id ? (
                       <div className="flex items-center gap-2 text-sm">
@@ -175,7 +200,8 @@ export function KuyrukKarti({ urun }: { urun: Urun }) {
                     <span className="font-semibold text-neutral-900">Y{r.siraNo}</span>{" "}
                     <span className="text-neutral-700">{r.aliciAd}</span>{" "}
                     <span className="text-neutral-500">{r.aliciTelefon}</span>{" "}
-                    <span className="font-mono text-xs text-neutral-400">{r.rezervKodu}</span>
+                    <span className="font-mono text-xs text-neutral-400">{r.rezervKodu}</span>{" "}
+                    <GuvenilirlikRozeti guvenilirlik={r.guvenilirlik} />
                   </li>
                 ))}
               </ul>
@@ -207,6 +233,7 @@ export function KuyrukKarti({ urun }: { urun: Urun }) {
                   <span className="text-neutral-700">{r.aliciAd}</span>
                   <span className="text-neutral-500">{r.aliciTelefon}</span>
                   <span className="font-mono text-xs text-neutral-400">{r.rezervKodu}</span>
+                  <GuvenilirlikRozeti guvenilirlik={r.guvenilirlik} />
                   {geriAlinabilir &&
                     (geriAlOnay === r.id ? (
                       <span className="ml-auto flex items-center gap-1">
