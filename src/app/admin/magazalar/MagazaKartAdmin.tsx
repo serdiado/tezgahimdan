@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Eye, EyeOff } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, PackagePlus } from "lucide-react";
 
 const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
   aktif: { etiket: "Aktif", className: "bg-green-100 text-green-700" },
@@ -67,15 +67,26 @@ export function MagazaKartAdmin({ magaza }: { magaza: MagazaAdminVeri }) {
             {tarihFormat.format(new Date(magaza.olusturulmaTarihi))}
           </p>
         </div>
-        <Link
-          href={`/magaza/${magaza.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex shrink-0 items-center gap-1 text-xs font-semibold text-primary-600 hover:underline"
-        >
-          <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
-          Vitrini Gör
-        </Link>
+        <div className="flex shrink-0 items-center gap-3">
+          {!magaza.silindiMi && (
+            <Link
+              href={`/admin/magazalar/${magaza.id}/urun-ekle`}
+              className="flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline"
+            >
+              <PackagePlus className="h-3.5 w-3.5" strokeWidth={2} />
+              Ürün Ekle
+            </Link>
+          )}
+          <Link
+            href={`/magaza/${magaza.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline"
+          >
+            <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
+            Vitrini Gör
+          </Link>
+        </div>
       </div>
 
       {!magaza.silindiMi && (
