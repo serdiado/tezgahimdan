@@ -5,15 +5,18 @@ import { useRouter } from "next/navigation";
 import { MapPin, Store } from "lucide-react";
 import { slugTuret } from "@/lib/slug";
 
-// Kisa sihirbaz (2 adim): (1) mağaza adı + otomatik bağlantı (+ pazar bilgisi),
-// (2) WhatsApp (opsiyonel). Pazar SP-4'e kadar tek varsayilan oldugu icin ayri bir
-// secim adimi degil, 1. adimda bilgi olarak gosterilir (bos tiki olmasin).
-export function MagazaAcForm({ pazarAd }: { pazarAd: string }) {
+export type MagazaAcPazarVeri = { id: string; ad: string; bolge: string };
+
+// Kisa sihirbaz (2 adim): (1) mağaza adı + otomatik bağlantı + pazar secimi,
+// (2) WhatsApp (opsiyonel). Tek aktif pazar varsa secim gereksiz oldugundan
+// bilgi olarak gosterilir; birden fazlaysa gercek bir secim listesi cikar (AP-SP4).
+export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
   const router = useRouter();
   const [adim, setAdim] = useState<1 | 2>(1);
   const [ad, setAd] = useState("");
   const [slugManuel, setSlugManuel] = useState<string | null>(null);
   const [slugDuzenle, setSlugDuzenle] = useState(false);
+  const [pazarId, setPazarId] = useState(pazarlar[0]?.id ?? "");
   const [whatsapp, setWhatsapp] = useState("");
   const [hata, setHata] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
@@ -39,7 +42,12 @@ export function MagazaAcForm({ pazarAd }: { pazarAd: string }) {
     const res = await fetch("/api/panel/magaza-ac", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ad: ad.trim(), slug, whatsappNo: whatsapp.trim() || undefined }),
+      body: JSON.stringify({
+        ad: ad.trim(),
+        slug,
+        whatsappNo: whatsapp.trim() || undefined,
+        pazarId,
+      }),
     });
     setGonderiliyor(false);
     if (!res.ok) {
@@ -107,14 +115,38 @@ export function MagazaAcForm({ pazarAd }: { pazarAd: string }) {
             </p>
           </div>
 
-          {/* Pazar bilgisi (tek varsayilan - SP-4'te secilebilir olacak) */}
-          <div className="flex items-start gap-2 rounded-lg border border-neutral-200 p-3 text-sm text-neutral-600">
-            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" strokeWidth={2} />
-            <span>
-              Mağazan <span className="font-semibold text-neutral-800">{pazarAd}</span> pazarına
-              bağlanacak.
-            </span>
-          </div>
+          {/* Tek aktif pazar varsa bilgi olarak goster; birden fazlaysa gercek secim */}
+          {pazarlar.length <= 1 ? (
+            <div className="flex items-start gap-2 rounded-lg border border-neutral-200 p-3 text-sm text-neutral-600">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" strokeWidth={2} />
+              <span>
+                Mağazan{" "}
+                <span className="font-semibold text-neutral-800">{pazarlar[0]?.ad}</span> pazarına
+                bağlanacak.
+              </span>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-neutral-700">
+                Pazar
+                <div className="mt-1 flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-2">
+                  <MapPin className="h-4 w-4 shrink-0 text-primary-600" strokeWidth={2} />
+                  <select
+                    value={pazarId}
+                    onChange={(e) => setPazarId(e.target.value)}
+                    className="w-full bg-transparent text-sm text-neutral-900 outline-none"
+                  >
+                    {pazarlar.map((pazar) => (
+                      <option key={pazar.id} value={pazar.id}>
+                        {pazar.ad} — {pazar.bolge}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </label>
+              <p className="mt-1 text-xs text-neutral-400">Mağazan seçtiğin pazara bağlanacak.</p>
+            </div>
+          )}
 
           {hata && <p className="text-sm text-red-600">{hata}</p>}
 

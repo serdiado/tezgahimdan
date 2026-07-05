@@ -32,6 +32,7 @@ export type MagazaAcSonucu =
   | { tur: "acildi"; magaza: { id: string; slug: string } }
   | { tur: "gecersiz-ad" }
   | { tur: "gecersiz-slug" }
+  | { tur: "gecersiz-pazar" }
   | { tur: "slug-alinmis" }
   | { tur: "zaten-magaza-var" };
 
@@ -48,13 +49,20 @@ export async function magazaAc(params: {
   ad: string;
   slug: string;
   whatsappNo?: string | null;
+  // Opsiyonel: verilmezse (ors. urun-ekle'deki "magaza silinmisse yeniden
+  // olustur" dalinda oldugu gibi) eski varsayilan-pazar davranisi korunur.
+  // Ana onboarding sihirbazi (magaza-ac) artik her zaman gercek bir secim gonderir.
+  pazarId?: string;
 }): Promise<MagazaAcSonucu> {
   const ad = params.ad.trim();
   const slug = params.slug.trim().toLowerCase();
   if (!ad) return { tur: "gecersiz-ad" };
   if (!SLUG_REGEX.test(slug)) return { tur: "gecersiz-slug" };
 
-  const pazar = await varsayilanPazariGetirVeyaOlustur();
+  const pazar = params.pazarId
+    ? await prisma.pazar.findFirst({ where: { id: params.pazarId, aktifMi: true } })
+    : await varsayilanPazariGetirVeyaOlustur();
+  if (!pazar) return { tur: "gecersiz-pazar" };
 
   try {
     return await prisma.$transaction(async (tx): Promise<MagazaAcSonucu> => {

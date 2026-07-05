@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { getOwnMagaza } from "@/lib/magaza";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaAcForm } from "./MagazaAcForm";
-import varsayilanPazar from "../../../../prisma/varsayilan-pazar.json";
 
 // Onboarding sayfasi: SADECE giris sarti (satici geciti YOK) - kullanici henuz
 // satici degil, mağaza acinca terfi edecek. Zaten magazasi varsa panele yollariz.
@@ -18,6 +18,14 @@ export default async function MagazaAcPage() {
     redirect("/panel");
   }
 
+  // Admin panelinden eklenen tum aktif pazarlar - Ana Sayfa'daki ayni sorgu
+  // (src/app/page.tsx) ile ayni desen, artik statik varsayilan-pazar.json'a
+  // degil gercek Pazar tablosuna bakiyoruz.
+  const pazarlar = await prisma.pazar.findMany({
+    where: { aktifMi: true },
+    orderBy: { createdAt: "asc" },
+  });
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
@@ -26,7 +34,16 @@ export default async function MagazaAcPage() {
         <p className="mt-1 text-sm text-neutral-600">
           Birkaç adımda mağazanı kur, ürünlerini sergilemeye başla.
         </p>
-        <MagazaAcForm pazarAd={varsayilanPazar.ad} />
+        {pazarlar.length === 0 ? (
+          <p className="mt-4 rounded-lg border border-neutral-200 p-3 text-sm text-neutral-600">
+            Şu anda aktif bir pazar yok, bu yüzden mağaza açılamıyor. Lütfen daha sonra tekrar
+            deneyin.
+          </p>
+        ) : (
+          <MagazaAcForm
+            pazarlar={pazarlar.map((pazar) => ({ id: pazar.id, ad: pazar.ad, bolge: pazar.bolge }))}
+          />
+        )}
       </main>
     </div>
   );

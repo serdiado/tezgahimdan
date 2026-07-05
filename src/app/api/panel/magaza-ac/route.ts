@@ -17,6 +17,7 @@ export async function POST(request: Request) {
   const ad = typeof body?.ad === "string" ? body.ad.trim() : "";
   const slugHam = typeof body?.slug === "string" ? body.slug.trim() : "";
   const whatsappHam = typeof body?.whatsappNo === "string" ? body.whatsappNo.trim() : "";
+  const pazarId = typeof body?.pazarId === "string" ? body.pazarId.trim() : undefined;
 
   if (!ad || ad.length > 100) {
     return NextResponse.json({ hata: "mağaza adı zorunlu (en fazla 100 karakter)" }, { status: 400 });
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const sonuc = await magazaAc({ userId: session.user.id, ad, slug, whatsappNo });
+  const sonuc = await magazaAc({ userId: session.user.id, ad, slug, whatsappNo, pazarId });
 
   switch (sonuc.tur) {
     case "acildi":
@@ -46,6 +47,11 @@ export async function POST(request: Request) {
     case "gecersiz-slug":
       return NextResponse.json(
         { hata: "mağaza adından geçerli bir bağlantı üretilemedi, lütfen harf içeren bir ad girin" },
+        { status: 400 },
+      );
+    case "gecersiz-pazar":
+      return NextResponse.json(
+        { hata: "geçersiz pazar seçimi, lütfen listeden bir pazar seçin" },
         { status: 400 },
       );
     case "slug-alinmis":
