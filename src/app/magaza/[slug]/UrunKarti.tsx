@@ -2,6 +2,7 @@
 
 import { createElement, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Flag } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
@@ -32,10 +33,14 @@ export function UrunKarti({
   urun,
   girisli,
   kullaniciTelefonVar,
+  magaza,
 }: {
   urun: UrunKartiVeri;
   girisli: boolean;
   kullaniciTelefonVar: boolean;
+  // Sadece magazalar-arasi listelerde (ana sayfa "Bu Hafta Eklenenler") gecilir -
+  // bir magazanin kendi sayfasinda (MagazaIcerik) baglam zaten belli, gerek yok.
+  magaza?: { ad: string; slug: string };
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -108,6 +113,14 @@ export function UrunKarti({
         )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
+        {magaza && (
+          <Link
+            href={`/magaza/${magaza.slug}`}
+            className="w-fit text-xs font-medium text-neutral-500 hover:text-primary-600"
+          >
+            {magaza.ad}
+          </Link>
+        )}
         <span
           className={`w-fit rounded-full border px-3 py-1 text-sm font-semibold ${renk.bg} ${renk.text} ${renk.border}`}
         >
