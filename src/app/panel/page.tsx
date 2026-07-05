@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { PackagePlus, ClipboardList, Package, Store } from "lucide-react";
+import { PackagePlus, ClipboardList, Package, Store, QrCode } from "lucide-react";
 import { getSaticiSession } from "@/lib/yetki";
 import { SiteHeader } from "@/components/SiteHeader";
 
@@ -62,6 +62,16 @@ export default async function PanelSayfasi() {
                 <div>
                   <p className="font-semibold text-neutral-900">Mağaza Ayarları</p>
                   <p className="text-sm text-neutral-500">Ad, açıklama, WhatsApp</p>
+                </div>
+              </Link>
+              <Link
+                href="/panel/magaza-qr"
+                className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+              >
+                <QrCode className="h-8 w-8 text-primary-600" strokeWidth={1.75} />
+                <div>
+                  <p className="font-semibold text-neutral-900">Mağaza QR Kodu</p>
+                  <p className="text-sm text-neutral-500">Yazdır, tezgahına koy</p>
                 </div>
               </Link>
             </div>
