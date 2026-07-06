@@ -57,14 +57,22 @@ export default async function UrunlerimPage({
 
       icerik = (
         <>
-          <div className="flex items-baseline justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-xl font-bold text-neutral-900">Ürünlerim</h1>
-            <Link
-              href={kaldirilanlarGosteriliyor ? "/panel/urunlerim" : "/panel/urunlerim?kaldirilanlar=1"}
-              className="text-sm font-medium text-primary-600 hover:underline"
-            >
-              {kaldirilanlarGosteriliyor ? "Aktif ürünlere dön" : "Kaldırılanlar"}
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href={kaldirilanlarGosteriliyor ? "/panel/urunlerim" : "/panel/urunlerim?kaldirilanlar=1"}
+                className="text-sm font-medium text-primary-600 hover:underline"
+              >
+                {kaldirilanlarGosteriliyor ? "Aktif ürünlere dön" : "Kaldırılanlar"}
+              </Link>
+              <Link
+                href="/panel/urun-ekle"
+                className="rounded-md bg-primary-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-600"
+              >
+                Yeni Ürün Ekle
+              </Link>
+            </div>
           </div>
 
           {urunler.length === 0 ? (

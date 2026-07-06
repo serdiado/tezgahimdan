@@ -8,10 +8,12 @@ export function MagazaIcerik({
   urunler,
   girisli,
   kullaniciTelefonVar,
+  magazaSlug,
 }: {
   urunler: UrunKartiVeri[];
   girisli: boolean;
   kullaniciTelefonVar: boolean;
+  magazaSlug: string;
 }) {
   const [secilenKategoriId, setSecilenKategoriId] = useState<string | null>(null);
 
@@ -77,6 +79,7 @@ export function MagazaIcerik({
               urun={urun}
               girisli={girisli}
               kullaniciTelefonVar={kullaniciTelefonVar}
+              magazaSlug={magazaSlug}
             />
           ))}
         </div>

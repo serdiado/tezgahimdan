@@ -31,6 +31,11 @@ export function PaylasButonlari({
   const [paylasVar, setPaylasVar] = useState(false);
   const [kopyalandi, setKopyalandi] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
+  // Clipboard API de guvenli baglam (HTTPS/localhost) ister - HTTP uzerinden
+  // (or. LAN IP ile telefondan test) erisimde clipboard.writeText basarisiz
+  // olur. Bu durumda linki elle secilebilir bir alanda gosteririz, aksi halde
+  // "elle secebilirsiniz" mesaji secilecek hicbir sey olmadan kalirdi.
+  const [elleKopyalaLinki, setElleKopyalaLinki] = useState<string | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- istemci ozellik tespiti; hydration uyumsuzlugunu onlemek icin mount sonrasi
@@ -57,12 +62,14 @@ export function PaylasButonlari({
 
   async function kopyala() {
     setHata(null);
+    setElleKopyalaLinki(null);
     try {
       await navigator.clipboard.writeText(mutlakLink());
       setKopyalandi(true);
       setTimeout(() => setKopyalandi(false), 2000);
     } catch {
-      setHata("kopyalanamadı, bağlantıyı elle seçebilirsiniz");
+      setHata("kopyalanamadı, bağlantıyı aşağıdan elle seçebilirsiniz");
+      setElleKopyalaLinki(mutlakLink());
     }
   }
 
@@ -132,6 +139,15 @@ export function PaylasButonlari({
       )}
 
       {hata && <span className="w-full text-xs text-red-600">{hata}</span>}
+      {elleKopyalaLinki && (
+        <input
+          type="text"
+          readOnly
+          value={elleKopyalaLinki}
+          onFocus={(e) => e.currentTarget.select()}
+          className="w-full rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700"
+        />
+      )}
     </div>
   );
 }

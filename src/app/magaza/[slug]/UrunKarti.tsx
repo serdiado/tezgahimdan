@@ -4,12 +4,14 @@ import { createElement, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Flag } from "lucide-react";
+import { Flag, Images } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
+import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { SikayetModal } from "@/components/SikayetModal";
 import { RezerveModal } from "./RezerveModal";
+import { UrunDetayModal } from "./UrunDetayModal";
 
-const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
+export const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
   sergide: { etiket: "Sergide", className: "bg-green-100 text-green-700" },
   doldu: { etiket: "Dolu", className: "bg-amber-100 text-amber-700" },
   satildi: { etiket: "Satıldı", className: "bg-neutral-200 text-neutral-600" },
@@ -23,6 +25,7 @@ const fiyatFormat = new Intl.NumberFormat("tr-TR", {
 export type UrunKartiVeri = {
   id: string;
   baslik: string;
+  aciklama: string | null;
   fiyat: number;
   durum: string;
   fotograflar: string[];
@@ -34,6 +37,7 @@ export function UrunKarti({
   girisli,
   kullaniciTelefonVar,
   magaza,
+  magazaSlug,
 }: {
   urun: UrunKartiVeri;
   girisli: boolean;
@@ -41,6 +45,11 @@ export function UrunKarti({
   // Sadece magazalar-arasi listelerde (ana sayfa "Bu Hafta Eklenenler") gecilir -
   // bir magazanin kendi sayfasinda (MagazaIcerik) baglam zaten belli, gerek yok.
   magaza?: { ad: string; slug: string };
+  // Paylasim linki (?urun=<id>) icin her zaman gerekli - magaza prop'undan
+  // ayri tutulur cunku magaza SADECE capraz-magaza baglaminda "hangi magaza"
+  // etiketini gostermek icin var, magazaSlug ise her iki baglamda da linki
+  // kurmak icin sart.
+  magazaSlug: string;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -52,6 +61,7 @@ export function UrunKarti({
     () => girisli && urun.durum === "sergide" && searchParams.get("rezerveEt") === urun.id,
   );
   const [sikayetModalAcik, setSikayetModalAcik] = useState(false);
+  const [detayModalAcik, setDetayModalAcik] = useState(false);
   const renk = kategoriRengiSec(urun.kategori.id);
   // Kategori ikonu render icinde PascalCase bilesen olarak baglanmaz (lint:
   // react-hooks/static-components) - lookup lowercase tutulup createElement ile
@@ -95,6 +105,18 @@ export function UrunKarti({
     setSikayetModalAcik(true);
   }
 
+  // Detay goruntuleme girissiz de acik (kesif serbest, KP-1 yalniz "Rezerve
+  // Et"i kimlik ister). Detaydan "Rezerve Et"e basilinca detay kapanir ve
+  // AYNI rezerveTikla() cagrilir - giris/telefon mantigi tek yerde kalir.
+  function detayTikla() {
+    setDetayModalAcik(true);
+  }
+
+  function detayRezerveEt() {
+    setDetayModalAcik(false);
+    rezerveTikla();
+  }
+
   return (
     <div
       ref={kartRef}
@@ -103,7 +125,11 @@ export function UrunKarti({
         vurgulu ? "ring-2 ring-primary-500 ring-offset-2" : ""
       }`}
     >
-      <div className={`relative aspect-square w-full ${fotograf ? "bg-neutral-100" : renk.bg}`}>
+      <button
+        type="button"
+        onClick={detayTikla}
+        className={`relative aspect-square w-full cursor-pointer ${fotograf ? "bg-neutral-100" : renk.bg}`}
+      >
         {fotograf ? (
           <Image src={fotograf} alt={urun.baslik} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
         ) : (
@@ -111,7 +137,13 @@ export function UrunKarti({
             {createElement(kategoriIkonu, { className: `h-10 w-10 ${renk.text}`, strokeWidth: 1.5 })}
           </div>
         )}
-      </div>
+        {urun.fotograflar.length > 1 && (
+          <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white">
+            <Images className="h-3 w-3" strokeWidth={2} />
+            {urun.fotograflar.length}
+          </span>
+        )}
+      </button>
       <div className="flex flex-1 flex-col gap-2 p-4">
         {magaza && (
           <Link
@@ -127,6 +159,13 @@ export function UrunKarti({
           {urun.kategori.ad}
         </span>
         <h3 className="font-medium text-neutral-900">{urun.baslik}</h3>
+        <button
+          type="button"
+          onClick={detayTikla}
+          className="w-fit text-xs font-medium text-primary-600 hover:underline"
+        >
+          Detayları gör
+        </button>
         <p className="text-lg font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
         <span className={`mb-2 w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${durumStil.className}`}>
           {durumStil.etiket}
@@ -143,6 +182,12 @@ export function UrunKarti({
         >
           {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
         </button>
+        <PaylasButonlari
+          baslik={urun.baslik}
+          fiyat={urun.fiyat}
+          urunLink={`/magaza/${magazaSlug}?urun=${urun.id}`}
+          kapakFotoUrl={fotograf}
+        />
         <button
           type="button"
           onClick={sikayetTikla}
@@ -166,6 +211,14 @@ export function UrunKarti({
           hedefId={urun.id}
           hedefAdi={urun.baslik}
           onClose={() => setSikayetModalAcik(false)}
+        />
+      )}
+      {detayModalAcik && (
+        <UrunDetayModal
+          urun={urun}
+          magazaSlug={magazaSlug}
+          onClose={() => setDetayModalAcik(false)}
+          onRezerveEt={detayRezerveEt}
         />
       )}
     </div>

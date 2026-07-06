@@ -71,6 +71,7 @@ export function YeniEklenenler({
             key={urun.id}
             urun={urun}
             magaza={urun.magaza}
+            magazaSlug={urun.magaza.slug}
             girisli={girisli}
             kullaniciTelefonVar={kullaniciTelefonVar}
           />

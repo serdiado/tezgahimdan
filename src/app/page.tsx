@@ -81,6 +81,7 @@ export default async function AnaSayfa() {
                 urunler={yeniUrunler.map((urun) => ({
                   id: urun.id,
                   baslik: urun.baslik,
+                  aciklama: urun.aciklama,
                   fiyat: Number(urun.fiyat),
                   durum: urun.durum,
                   fotograflar: urun.fotograflar,

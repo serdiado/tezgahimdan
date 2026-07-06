@@ -60,9 +60,11 @@ export default async function MagazaSayfasi({
         <MagazaIcerik
           girisli={girisli}
           kullaniciTelefonVar={kullaniciTelefonVar}
+          magazaSlug={magaza.slug}
           urunler={urunler.map((urun) => ({
             id: urun.id,
             baslik: urun.baslik,
+            aciklama: urun.aciklama,
             fiyat: Number(urun.fiyat),
             durum: urun.durum,
             fotograflar: urun.fotograflar,
