@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Flag, Images } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
+import { BegeniButonu } from "@/components/BegeniButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { SikayetModal } from "@/components/SikayetModal";
 import { RezerveModal } from "./RezerveModal";
@@ -30,6 +31,11 @@ export type UrunKartiVeri = {
   durum: string;
   fotograflar: string[];
   kategori: { id: string; ad: string };
+  // Begeni sayisi HERKESE ACIK (girissiz ziyaretciye de gosterilir); takip
+  // (bildirim aboneligi) SADECE UrunDetayModal'da gosterilir, kartta yok.
+  begeniSayisi: number;
+  benimBegenimVar: boolean;
+  benimTakibimVar: boolean;
 };
 
 export function UrunKarti({
@@ -167,6 +173,12 @@ export function UrunKarti({
           Detayları gör
         </button>
         <p className="text-lg font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
+        <BegeniButonu
+          urunId={urun.id}
+          girisli={girisli}
+          begeniSayisi={urun.begeniSayisi}
+          benimBegenimVar={urun.benimBegenimVar}
+        />
         <span className={`mb-2 w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${durumStil.className}`}>
           {durumStil.etiket}
         </span>
@@ -217,6 +229,7 @@ export function UrunKarti({
         <UrunDetayModal
           urun={urun}
           magazaSlug={magazaSlug}
+          girisli={girisli}
           onClose={() => setDetayModalAcik(false)}
           onRezerveEt={detayRezerveEt}
         />

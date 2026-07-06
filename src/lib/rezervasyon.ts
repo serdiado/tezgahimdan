@@ -287,7 +287,10 @@ async function yedekSlotBosalt(tx: TxKismi, urunId: string, bosalan: { siraNo: n
 // ---------------------------------------------------------------------------
 
 export type VazgecSonucu =
-  | { tur: "iptal-edildi"; yukselenKodu: string | null }
+  // tip: iptal edilen kaydin aktif/yedek olmasi - cagiran taraf (API route) bunu
+  // favori/bildirim tetiklemesinde kullanir (yedek-tier hareketleri bildirilmez).
+  // urunId: hangi urunun takipcilerine bildirim gidecegini bilmek icin.
+  | { tur: "iptal-edildi"; yukselenKodu: string | null; tip: "aktif" | "yedek"; urunId: string }
   | { tur: "bulunamadi" }
   | { tur: "islenemez"; durum: string };
 
@@ -361,7 +364,7 @@ export async function rezervasyonVazgec(params: {
         });
       }
 
-      return { tur: "iptal-edildi", yukselenKodu };
+      return { tur: "iptal-edildi", yukselenKodu, tip: rez.tip, urunId: rez.urunId };
     },
     { maxWait: 5000, timeout: 15000 },
   );
@@ -372,7 +375,9 @@ export async function rezervasyonVazgec(params: {
 // ---------------------------------------------------------------------------
 
 export type SonuclandirSonucu =
-  | { tur: "sonuclandi"; sonuc: "satildi" | "gelmedi"; yukselenKodu: string | null; urunTukendi: boolean }
+  // urunId: favori/bildirim tetiklemesi icin (cagiran API route hangi urunun
+  // takipcilerine bildirim gonderecegini bilir - her zaman aktif-tier).
+  | { tur: "sonuclandi"; sonuc: "satildi" | "gelmedi"; yukselenKodu: string | null; urunTukendi: boolean; urunId: string }
   | { tur: "yetkisiz" }
   | { tur: "bulunamadi" }
   | { tur: "islenemez"; sebep: string };
@@ -487,7 +492,7 @@ export async function rezervasyonSonuclandir(params: {
         }
       }
 
-      return { tur: "sonuclandi", sonuc: params.sonuc, yukselenKodu, urunTukendi };
+      return { tur: "sonuclandi", sonuc: params.sonuc, yukselenKodu, urunTukendi, urunId: rez.urunId };
     },
     { maxWait: 5000, timeout: 15000 },
   );
@@ -500,7 +505,8 @@ export async function rezervasyonSonuclandir(params: {
 export type GeriAlSebep = "kapasite_dolu" | "urun_satildi";
 
 export type GeriAlSonucu =
-  | { tur: "geri-alindi"; siraNo: number; dusenYedekKodu: string | null }
+  // urunId: favori/bildirim tetiklemesi icin (bkz. VazgecSonucu/SonuclandirSonucu).
+  | { tur: "geri-alindi"; siraNo: number; dusenYedekKodu: string | null; urunId: string }
   | { tur: "yetkisiz" }
   | { tur: "bulunamadi" }
   | { tur: "reddedildi"; sebep: GeriAlSebep }
@@ -645,7 +651,7 @@ export async function rezervasyonGeriAl(params: {
         });
       }
 
-      return { tur: "geri-alindi", siraNo: eskiSira, dusenYedekKodu };
+      return { tur: "geri-alindi", siraNo: eskiSira, dusenYedekKodu, urunId: rez.urunId };
     },
     { maxWait: 5000, timeout: 15000 },
   );
@@ -666,21 +672,24 @@ function isoHafta(d: Date): string {
 //  - Sonradan yukselen aktifler + tum yedekler -> iptal (cezasiz).
 //  - Temizlenen herkese bildirim izi (bildirimKanali; gonderim YOK, Faz 2).
 //  - satildi/gelmedi/iptal olanlara DOKUNULMAZ (sorgu sadece durum=bekliyor).
-async function urunSifirla(urunId: string, now: Date): Promise<number> {
+type SifirlaSonucu = { etkilenen: number; noShowlar: { urunId: string; aliciId: string }[] };
+
+async function urunSifirla(urunId: string, now: Date): Promise<SifirlaSonucu> {
   return prisma.$transaction(
-    async (tx): Promise<number> => {
+    async (tx): Promise<SifirlaSonucu> => {
+      const bos = { etkilenen: 0, noShowlar: [] };
       const kilitli = await tx.$queryRaw<
         { id: string; durum: string }[]
       >`SELECT "id", "durum" FROM "Urun" WHERE "id" = ${urunId} FOR UPDATE`;
       const urun = kilitli[0];
-      if (!urun) return 0;
+      if (!urun) return bos;
 
       const urunTam = await tx.urun.findUnique({
         where: { id: urunId },
         select: { magaza: { select: { pazar: true } } },
       });
       const pazar = urunTam?.magaza.pazar;
-      if (!pazar) return 0;
+      if (!pazar) return bos;
 
       const kuyruk = await tx.rezervasyon.findMany({
         where: { urunId, durum: "bekliyor" },
@@ -689,6 +698,10 @@ async function urunSifirla(urunId: string, now: Date): Promise<number> {
 
       let etkilenen = 0;
       const haftaSayilari = new Map<string, number>();
+      // Favori/bildirim sistemi icin: sadece cezali no-show'lar (her zaman
+      // aktif-tier) toplanir - cezasiz iptal (karisik aktif+yedek) bilincli
+      // olarak bildirim kapsamina alinmadi (kullanici karari).
+      const noShowlar: { urunId: string; aliciId: string }[] = [];
       for (const rez of kuyruk) {
         // Bu haftanin kapanisi henuz gelmedi ise atla (gelecek hafta kaydi).
         if (now < pazarKapanisAni(pazar, rez.pazarHaftasi)) continue;
@@ -717,9 +730,10 @@ async function urunSifirla(urunId: string, now: Date): Promise<number> {
         });
         etkilenen++;
         haftaSayilari.set(hafta, (haftaSayilari.get(hafta) ?? 0) + 1);
+        if (noShow) noShowlar.push({ urunId, aliciId: rez.aliciId });
       }
 
-      if (etkilenen === 0) return 0;
+      if (etkilenen === 0) return bos;
 
       // Kuyruk temizlendi -> urun tekrar satisa acik (satildi/tukenmis degilse).
       if (urun.durum !== "satildi" && urun.durum !== "sergide") {
@@ -738,7 +752,7 @@ async function urunSifirla(urunId: string, now: Date): Promise<number> {
           DO UPDATE SET "etkilenenSayi" = "PazarSifirlama"."etkilenenSayi" + ${sayi}`;
       }
 
-      return etkilenen;
+      return { etkilenen, noShowlar };
     },
     { maxWait: 5000, timeout: 15000 },
   );
@@ -750,7 +764,7 @@ async function urunSifirla(urunId: string, now: Date): Promise<number> {
 // transaction + FOR UPDATE (kisa kilit, kismi basari toleransi).
 export async function pazarlariSifirla(
   now: Date = new Date(),
-): Promise<{ islenenUrun: number; toplamEtkilenen: number }> {
+): Promise<{ islenenUrun: number; toplamEtkilenen: number; tumNoShowlar: { urunId: string; aliciId: string }[] }> {
   const bekleyenler = await prisma.rezervasyon.findMany({
     where: { durum: "bekliyor" },
     select: {
@@ -769,12 +783,14 @@ export async function pazarlariSifirla(
 
   let islenenUrun = 0;
   let toplamEtkilenen = 0;
+  const tumNoShowlar: { urunId: string; aliciId: string }[] = [];
   for (const urunId of sifirlanacak) {
-    const etkilenen = await urunSifirla(urunId, now);
+    const { etkilenen, noShowlar } = await urunSifirla(urunId, now);
     if (etkilenen > 0) {
       islenenUrun++;
       toplamEtkilenen += etkilenen;
+      tumNoShowlar.push(...noShowlar);
     }
   }
-  return { islenenUrun, toplamEtkilenen };
+  return { islenenUrun, toplamEtkilenen, tumNoShowlar };
 }

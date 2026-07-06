@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getMagazaBySlug } from "@/lib/magaza";
+import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaHero } from "./MagazaHero";
 import { MagazaIcerik } from "./MagazaIcerik";
@@ -42,6 +43,16 @@ export default async function MagazaSayfasi({
     orderBy: { createdAt: "desc" },
   });
 
+  // N+1 onlemek icin TEK toplu sorgu + Map (aliciGuvenilirlikHaritasi ile ayni
+  // desen, bkz. rezervasyon.ts). Begeni sayisi herkese acik (girissiz de dahil),
+  // "benim begenim/takibim" sadece girisliyse dolu gelir (kullaniciId yoksa
+  // haritalar bos doner).
+  const urunIdler = urunler.map((u) => u.id);
+  const [begeniSayilari, benimFavorilerim] = await Promise.all([
+    begeniSayilariHaritasi(urunIdler),
+    kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
+  ]);
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
@@ -69,6 +80,9 @@ export default async function MagazaSayfasi({
             durum: urun.durum,
             fotograflar: urun.fotograflar,
             kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
+            begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
+            benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
+            benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
           }))}
         />
       </main>

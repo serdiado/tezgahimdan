@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSaticiSession } from "@/lib/yetki";
+import { prisma } from "@/lib/prisma";
 import { rezervasyonSonuclandir } from "@/lib/rezervasyon";
+import { bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   const { session, yetkili } = await getSaticiSession();
@@ -22,12 +24,22 @@ export async function POST(request: Request) {
   });
 
   switch (cikti.tur) {
-    case "sonuclandi":
+    case "sonuclandi": {
+      // Her zaman aktif-tier (yedek sonuclandirilamaz) - kosulsuz bildirim.
+      const urun = await prisma.urun.findUnique({ where: { id: cikti.urunId }, select: { baslik: true } });
+      if (urun) {
+        const mesaj =
+          cikti.sonuc === "satildi"
+            ? `Takip ettiğiniz "${urun.baslik}" satıldı.`
+            : `Takip ettiğiniz "${urun.baslik}" için hak sahibi gelmedi, yeni bir hak açıldı.`;
+        await bildirimGonderTakipcilere({ urunId: cikti.urunId, mesaj, haricKullaniciId: session.user.id });
+      }
       return NextResponse.json({
         sonuc: cikti.sonuc,
         yukselenKodu: cikti.yukselenKodu,
         urunTukendi: cikti.urunTukendi,
       });
+    }
     case "yetkisiz":
       return NextResponse.json({ hata: "bu rezervasyon sizin magazaniza ait degil" }, { status: 403 });
     case "bulunamadi":

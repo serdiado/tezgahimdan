@@ -81,6 +81,8 @@ model Kullanici {
   rezervasyonlar Rezervasyon[]
   durumGecmisi   DurumGecmisi[]
   sikayetler     Sikayet[]
+  urunFavorileri UrunFavori[]
+  bildirimler    Bildirim[]
 }
 
 model Kategori {
@@ -143,6 +145,8 @@ model Urun {
 
   rezervasyonlar Rezervasyon[]
   sikayetler     Sikayet[]
+  favoriler      UrunFavori[]
+  bildirimler    Bildirim[]
 }
 
 enum RezervasyonTipi {
@@ -210,4 +214,39 @@ model Sikayet {
   sebep         String
   durum         SikayetDurumu @default(bekliyor)
   createdAt     DateTime      @default(now())
+}
+
+// Kalp/begeni (begeniMi) ve favori/takip (takipMi) AYNI (kullanici,urun) satirinda
+// iki bagimsiz bayrak - ikisi de ayni sekle sahip oldugu icin iki ayri tablo yerine
+// tek tablo (PLAN.md "hicbir kayit kalici silinmez" ilkesiyle tutarli: geri alma =
+// ilgili bayragi false yapmak, satir hic silinmez).
+model UrunFavori {
+  id          String    @id @default(uuid())
+  kullanici   Kullanici @relation(fields: [kullaniciId], references: [id])
+  kullaniciId String
+  urun        Urun      @relation(fields: [urunId], references: [id])
+  urunId      String
+  // Kalp/begeni: herkese acik sayilir, bildirim tetiklemez.
+  begeniMi    Boolean   @default(false)
+  // Favori/takip: bildirim aboneligi (rezervasyon.ts'teki aktif-katman
+  // hareketlerinde bildirimGonderTakipcilere() bu bayragi okur).
+  takipMi     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@unique([kullaniciId, urunId])
+}
+
+// Site-ici bildirim (Faz 2'de WhatsApp/SMS kanaliyla degistirilebilir/genisletilebilir
+// altyapi - Rezervasyon.bildirimKanali/bildirimGonderildi'nin urun-takip karsiligi).
+model Bildirim {
+  id          String    @id @default(uuid())
+  kullanici   Kullanici @relation(fields: [kullaniciId], references: [id])
+  kullaniciId String
+  urun        Urun      @relation(fields: [urunId], references: [id])
+  urunId      String
+  mesaj       String
+  okunduMu    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@index([kullaniciId, okunduMu])
 }

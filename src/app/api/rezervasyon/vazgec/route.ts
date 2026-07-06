@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { rezervasyonVazgec } from "@/lib/rezervasyon";
+import { bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   // KP-1: kimlik dogrulama artik (kod + telefon) degil, giris yapmis kullanicinin
@@ -20,6 +22,19 @@ export async function POST(request: Request) {
 
   switch (sonuc.tur) {
     case "iptal-edildi":
+      if (sonuc.tip === "aktif") {
+        const urun = await prisma.urun.findUnique({
+          where: { id: sonuc.urunId },
+          select: { baslik: true },
+        });
+        if (urun) {
+          await bildirimGonderTakipcilere({
+            urunId: sonuc.urunId,
+            mesaj: `Takip ettiğiniz "${urun.baslik}" için aktif bir rezervasyon iptal edildi.`,
+            haricKullaniciId: session.user.id,
+          });
+        }
+      }
       return NextResponse.json({ mesaj: "rezervasyon iptal edildi" });
     case "bulunamadi":
       return NextResponse.json({ hata: "rezervasyon bulunamadı" }, { status: 404 });

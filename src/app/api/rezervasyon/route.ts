@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { p2002Mi, prisma } from "@/lib/prisma";
 import { rezervasyonOlustur } from "@/lib/rezervasyon";
 import { telefonNormallestir } from "@/lib/telefon";
+import { bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   // KP-1: rezervasyon icin giris zorunlu. Vitrin/kesif girissiz acik, yalniz bu
@@ -63,6 +64,19 @@ export async function POST(request: Request) {
 
   switch (sonuc.tur) {
     case "olusturuldu":
+      // Favori/takip bildirimi: SADECE aktif-tier (yedek hareketleri kullanici
+      // karariyla bildirim kapsami disinda, bkz. plan dosyasi). Motor cagrisi
+      // (kilit/transaction) coktan tamamlandi - bildirim onun DISINDA gonderilir.
+      if (sonuc.tip === "aktif") {
+        const urun = await prisma.urun.findUnique({ where: { id: urunId }, select: { baslik: true } });
+        if (urun) {
+          await bildirimGonderTakipcilere({
+            urunId,
+            mesaj: `Takip ettiğiniz "${urun.baslik}" için yeni bir rezervasyon alındı.`,
+            haricKullaniciId: session.user.id,
+          });
+        }
+      }
       return NextResponse.json(
         { tip: sonuc.tip, siraNo: sonuc.siraNo, rezervKodu: sonuc.rezervKodu },
         { status: 201 },

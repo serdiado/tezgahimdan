@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Bell, Heart } from "lucide-react";
 import { signOut } from "@/auth";
 import { oturumRolOku } from "@/lib/yetki";
+import { prisma } from "@/lib/prisma";
 
 // Vitrin + panel sayfalarinda ust bar. Sol: marka (ana sayfaya link). Sag:
 // oturum durumuna gore navigasyon - admin icin "Yonetim", satici icin "Panelim",
@@ -13,6 +15,9 @@ export async function SiteHeader() {
   const girisli = !!session?.user;
   const satici = rol === "satici";
   const admin = rol === "admin";
+  const okunmamisSayisi = girisli
+    ? await prisma.bildirim.count({ where: { kullaniciId: session.user.id, okunduMu: false } })
+    : 0;
 
   return (
     <div className="border-b border-neutral-200 bg-white">
@@ -21,6 +26,29 @@ export async function SiteHeader() {
           <img src="/tezgahimdan-logo.svg" alt="Tezgahımdan" width={142} height={36} className="h-9 w-auto" />
         </Link>
         <nav className="flex items-center gap-4 text-sm font-medium">
+          {girisli && (
+            <>
+              <Link
+                href="/favorilerim"
+                aria-label="Favorilerim"
+                className="text-neutral-500 hover:text-primary-600"
+              >
+                <Heart className="h-5 w-5" strokeWidth={2} />
+              </Link>
+              <Link
+                href="/bildirimlerim"
+                aria-label="Bildirimlerim"
+                className="relative text-neutral-500 hover:text-primary-600"
+              >
+                <Bell className="h-5 w-5" strokeWidth={2} />
+                {okunmamisSayisi > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
+                    {okunmamisSayisi > 9 ? "9+" : okunmamisSayisi}
+                  </span>
+                )}
+              </Link>
+            </>
+          )}
           {girisli ? (
             <>
               {admin ? (

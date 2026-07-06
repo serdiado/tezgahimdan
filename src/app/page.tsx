@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
+import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { HaftalikRitim } from "./HaftalikRitim";
@@ -55,6 +56,12 @@ export default async function AnaSayfa() {
     }),
   ]);
 
+  const yeniUrunIdler = yeniUrunler.map((u) => u.id);
+  const [begeniSayilari, benimFavorilerim] = await Promise.all([
+    begeniSayilariHaritasi(yeniUrunIdler),
+    kullaniciFavoriHaritasi(session?.user?.id, yeniUrunIdler),
+  ]);
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
@@ -87,6 +94,9 @@ export default async function AnaSayfa() {
                   fotograflar: urun.fotograflar,
                   kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
                   magaza: { ad: urun.magaza.ad, slug: urun.magaza.slug },
+                  begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
+                  benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
+                  benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
                 }))}
               />
             </div>

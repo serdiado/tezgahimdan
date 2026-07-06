@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSaticiSession } from "@/lib/yetki";
+import { prisma } from "@/lib/prisma";
 import { rezervasyonGeriAl } from "@/lib/rezervasyon";
+import { bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 const RED_MESAJI: Record<string, string> = {
   urun_satildi: "Ürün tükendiği için güvenle geri alınamaz. Kaydınız admin'e iletildi.",
@@ -25,8 +27,18 @@ export async function POST(request: Request) {
   const cikti = await rezervasyonGeriAl({ rezervId, saticiUserId: session.user.id });
 
   switch (cikti.tur) {
-    case "geri-alindi":
+    case "geri-alindi": {
+      // Her zaman aktif-tier (sadece satildi/gelmedi geri alinabilir) - kosulsuz bildirim.
+      const urun = await prisma.urun.findUnique({ where: { id: cikti.urunId }, select: { baslik: true } });
+      if (urun) {
+        await bildirimGonderTakipcilere({
+          urunId: cikti.urunId,
+          mesaj: `Takip ettiğiniz "${urun.baslik}" için bir işlem geri alındı.`,
+          haricKullaniciId: session.user.id,
+        });
+      }
       return NextResponse.json({ siraNo: cikti.siraNo, dusenYedekKodu: cikti.dusenYedekKodu });
+    }
     case "reddedildi":
       // 409: guvenle geri alinamaz (admin'e bildirim DurumGecmisi'ne yazildi).
       return NextResponse.json(
