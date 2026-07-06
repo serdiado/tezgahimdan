@@ -90,6 +90,22 @@ tutacak şekilde genişletildi.
 
 ---
 
+## WhatsApp iletişim + Tezgah bilgisi/kroki + Mağaza değerlendirmesi
+
+Üç bağımsız özellik, aynı oturumda mağaza sayfası etrafında eklendi. **WhatsApp**:
+`Magaza.whatsappNo` zaten vardı, sadece `wa.me/<numara>` linkiyle gösterime açıldı
+(mesaj ön-doldurma yok). **Tezgah bilgisi/kroki**: admin-yönetimli ortak pazar haritası
+YERİNE her satıcının kendi mağazası için tek bir fotoğraf yüklediği self-servis model
+(`Magaza.tezgahBilgisi` + `krokiFotoUrl`, `urunEkle()`'nin tek-foto sadeleştirilmiş
+hali). **Mağaza değerlendirmesi**: `Degerlendirme`ye `magazaId` eklemek yerine ayrı
+`MagazaDegerlendirme` tablosu (`MagazaTakip` kararıyla tutarlı gerekçe) — kim
+değerlendirebilir: bu mağazadan (hangi ürün olursa olsun) satın almış herkes,
+`/rezervasyonum`'da mağaza-bazlı tekil buton.
+
+→ Detay: [`docs/mimari/magaza-iletisim-ve-degerlendirme.md`](./mimari/magaza-iletisim-ve-degerlendirme.md)
+
+---
+
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
 - **Rate-limit yok:** Deploy öncesi en azından IP bazlı limit değerlendirilmeli. (KP-1 üyelik zorunluluğuyla sahte-numarayla kitle rezervasyonu riski büyük ölçüde azaldı — rezervasyon için hesap gerekir; yine de rate-limit tamamen ikame etmez.)
