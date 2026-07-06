@@ -52,7 +52,9 @@ function ZoomluGorsel({
     panBaslangic: { x: 0, y: 0 },
   });
 
-  function ciftTikla() {
+  // Hem gorsele cift tik/cift dokunma hem de buyutec ikonuna TEK tikla
+  // tetiklenir - ikisi de ayni 1x<->2x toggle'i cagirir.
+  function zoomAcKapa() {
     if (zoom > 1) {
       setZoom(1);
       setPan({ x: 0, y: 0 });
@@ -121,20 +123,27 @@ function ZoomluGorsel({
   return (
     <div
       className="relative aspect-square w-full touch-none overflow-hidden rounded-xl bg-neutral-100"
-      onDoubleClick={ciftTikla}
+      onDoubleClick={zoomAcKapa}
       onPointerDown={pointerDown}
       onPointerMove={pointerMove}
       onPointerUp={pointerUp}
       onPointerCancel={pointerUp}
       onWheel={tekerlek}
+      onDragStart={(e) => e.preventDefault()}
     >
       {foto ? (
         <Image
           src={foto}
           alt={alt}
           fill
-          className="object-cover"
-          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          draggable={false}
+          className="object-cover select-none"
+          style={
+            {
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              WebkitUserDrag: "none",
+            } as React.CSSProperties
+          }
           sizes="(max-width: 640px) 100vw, 512px"
         />
       ) : (
@@ -142,10 +151,15 @@ function ZoomluGorsel({
           {createElement(kategoriIkonu, { className: `h-16 w-16 ${renkYazi}`, strokeWidth: 1.5 })}
         </div>
       )}
-      {foto && zoom === 1 && (
-        <span className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white">
+      {foto && (
+        <button
+          type="button"
+          onClick={zoomAcKapa}
+          aria-label={zoom > 1 ? "Uzaklaştır" : "Yakınlaştır"}
+          className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+        >
           <ZoomIn className="h-4 w-4" strokeWidth={2} />
-        </span>
+        </button>
       )}
     </div>
   );
@@ -230,22 +244,28 @@ export function UrunDetayModal({
         </div>
         <h2 className="mt-2 text-lg font-bold text-neutral-900">{urun.baslik}</h2>
         <p className="mt-1 text-xl font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
+        <p className="text-xs text-neutral-500">Stok: {urun.stokAdedi} adet</p>
         {urun.aciklama && (
           <p className="mt-3 whitespace-pre-wrap text-sm text-neutral-700">{urun.aciklama}</p>
         )}
 
-        <button
-          type="button"
-          disabled={rezervasyonKapali}
-          onClick={onRezerveEt}
-          className={`mt-5 w-full rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
-            rezervasyonKapali
-              ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
-              : "bg-primary-500 text-white hover:bg-primary-600"
-          }`}
-        >
-          {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
-        </button>
+        <div className="mt-5 flex items-center gap-2">
+          <button
+            type="button"
+            disabled={rezervasyonKapali}
+            onClick={onRezerveEt}
+            className={`flex-1 rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
+              rezervasyonKapali
+                ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
+                : "bg-primary-500 text-white hover:bg-primary-600"
+            }`}
+          >
+            {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
+          </button>
+          <span className="shrink-0 text-xs text-neutral-500">
+            Rezerv: {urun.aktifSayisi} · Yedek: {urun.yedekSayisi}
+          </span>
+        </div>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <BegeniButonu
             urunId={urun.id}
@@ -261,6 +281,7 @@ export function UrunDetayModal({
             fiyat={urun.fiyat}
             urunLink={`/magaza/${magazaSlug}?urun=${urun.id}`}
             kapakFotoUrl={urun.fotograflar[0] ?? null}
+            tamGenislik
           />
         </div>
       </div>
