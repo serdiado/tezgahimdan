@@ -22,11 +22,17 @@ export function PaylasButonlari({
   fiyat,
   urunLink,
   kapakFotoUrl,
+  tamGenislik = false,
 }: {
   baslik: string;
   fiyat: number;
   urunLink: string;
   kapakFotoUrl?: string | null;
+  // true ise: iki buton (WhatsApp + Paylas/Kopyala) sarma olmadan, ustteki
+  // satirla (ornegin Rezerve Et satiri) ayni tam genisligi esit paylasir -
+  // kart grid'inde genislik degisken oldugu icin flex-1 kullanilir, sabit
+  // piksel degil (bkz. UrunKarti.tsx tasarim guncellemesi).
+  tamGenislik?: boolean;
 }) {
   const [paylasVar, setPaylasVar] = useState(false);
   const [kopyalandi, setKopyalandi] = useState(false);
@@ -98,12 +104,15 @@ export function PaylasButonlari({
     }
   }
 
+  const butonTaban = "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold";
+  const butonGenislik = tamGenislik ? "flex-1 justify-center" : "";
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={`flex items-center gap-2 ${tamGenislik ? "" : "flex-wrap"}`}>
       <button
         type="button"
         onClick={whatsappPaylas}
-        className="flex items-center gap-1.5 rounded-md bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-white hover:brightness-95"
+        className={`${butonTaban} ${butonGenislik} bg-[#25D366] text-white hover:brightness-95`}
       >
         <WhatsappIkon className="h-4 w-4" />
         WhatsApp&apos;ta Paylaş
@@ -113,7 +122,7 @@ export function PaylasButonlari({
         <button
           type="button"
           onClick={webPaylas}
-          className="flex items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
+          className={`${butonTaban} ${butonGenislik} border border-neutral-300 text-neutral-700 hover:bg-neutral-100`}
         >
           <Share2 className="h-4 w-4" strokeWidth={2} />
           Paylaş
@@ -122,7 +131,7 @@ export function PaylasButonlari({
         <button
           type="button"
           onClick={kopyala}
-          className="flex items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
+          className={`${butonTaban} ${butonGenislik} border border-neutral-300 text-neutral-700 hover:bg-neutral-100`}
         >
           {kopyalandi ? (
             <>

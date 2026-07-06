@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getMagazaBySlug } from "@/lib/magaza";
 import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
+import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaHero } from "./MagazaHero";
 import { MagazaIcerik } from "./MagazaIcerik";
@@ -48,9 +49,10 @@ export default async function MagazaSayfasi({
   // "benim begenim/takibim" sadece girisliyse dolu gelir (kullaniciId yoksa
   // haritalar bos doner).
   const urunIdler = urunler.map((u) => u.id);
-  const [begeniSayilari, benimFavorilerim] = await Promise.all([
+  const [begeniSayilari, benimFavorilerim, kuyrukSayilari] = await Promise.all([
     begeniSayilariHaritasi(urunIdler),
     kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
+    kuyrukSayilariHaritasi(urunIdler),
   ]);
 
   return (
@@ -83,6 +85,9 @@ export default async function MagazaSayfasi({
             begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
             benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
             benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
+            stokAdedi: urun.stokAdedi,
+            aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
+            yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
           }))}
         />
       </main>

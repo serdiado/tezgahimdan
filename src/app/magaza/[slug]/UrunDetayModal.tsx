@@ -1,11 +1,11 @@
 "use client";
 
-import { createElement, useState } from "react";
+import { createElement, useRef, useState } from "react";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
-import { Bell, BellRing, X } from "lucide-react";
+import { X, ZoomIn, type LucideIcon } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { BegeniButonu } from "@/components/BegeniButonu";
+import { TakipButonu } from "@/components/TakipButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { DURUM_STIL, type UrunKartiVeri } from "./UrunKarti";
 
@@ -13,6 +13,143 @@ const fiyatFormat = new Intl.NumberFormat("tr-TR", {
   style: "currency",
   currency: "TRY",
 });
+
+function mesafe(a: { x: number; y: number }, b: { x: number; y: number }): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// Zoom: harici kutuphanesiz - cift tik/cift dokunma 1x<->2x toggle, iki-parmak
+// pinch (1x-3x), zoom'dayken surukleyerek gezinme. Pointer Events mouse+touch'u
+// TEK API'de birlestirir. Ayri bilesen olmasinin nedeni: ust bilesen bunu
+// `key={aktifIndex}` ile render eder - foto degisince React'in kendisi bu
+// bileseni SIFIRDAN monte eder (zoom/pan otomatik 1x/{0,0}'a doner), bir
+// useEffect+setState ile senkron sifirlamaya gerek kalmaz (react-hooks/
+// set-state-in-effect kuraliyla celisirdi).
+function ZoomluGorsel({
+  foto,
+  alt,
+  kategoriIkonu,
+  renkYazi,
+}: {
+  foto: string | undefined;
+  alt: string;
+  kategoriIkonu: LucideIcon;
+  renkYazi: string;
+}) {
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const gestureRef = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    baslangicMesafe: number;
+    baslangicZoom: number;
+    surukleBaslangic: { x: number; y: number } | null;
+    panBaslangic: { x: number; y: number };
+  }>({
+    pointers: new Map(),
+    baslangicMesafe: 0,
+    baslangicZoom: 1,
+    surukleBaslangic: null,
+    panBaslangic: { x: 0, y: 0 },
+  });
+
+  function ciftTikla() {
+    if (zoom > 1) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+    } else {
+      setZoom(2);
+    }
+  }
+
+  function pointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    // setPointerCapture bazi kenar durumlarda (or. pointerId artik gecerli
+    // degilse) NotFoundError firlatabilir - firlarsa asagidaki pointer takibi
+    // hic calismaz, gesture sessizce kirilir. Yakalayip yok sayiyoruz (capture
+    // sadece surukleme sirasinda pointer'i elementte "kilitli" tutmak icin,
+    // olmasa da asagidaki state takibi calismaya devam eder).
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // yut - pointer takibi capture olmadan da calisir.
+    }
+    gestureRef.current.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (gestureRef.current.pointers.size === 2) {
+      const [p1, p2] = Array.from(gestureRef.current.pointers.values());
+      gestureRef.current.baslangicMesafe = mesafe(p1, p2);
+      gestureRef.current.baslangicZoom = zoom;
+    } else if (gestureRef.current.pointers.size === 1 && zoom > 1) {
+      gestureRef.current.surukleBaslangic = { x: e.clientX, y: e.clientY };
+      gestureRef.current.panBaslangic = pan;
+    }
+  }
+
+  function pointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!gestureRef.current.pointers.has(e.pointerId)) return;
+    gestureRef.current.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (gestureRef.current.pointers.size === 2) {
+      const [p1, p2] = Array.from(gestureRef.current.pointers.values());
+      const mesafeSimdi = mesafe(p1, p2);
+      if (gestureRef.current.baslangicMesafe > 0) {
+        const oran = mesafeSimdi / gestureRef.current.baslangicMesafe;
+        setZoom(Math.min(3, Math.max(1, gestureRef.current.baslangicZoom * oran)));
+      }
+    } else if (gestureRef.current.pointers.size === 1 && gestureRef.current.surukleBaslangic && zoom > 1) {
+      const dx = e.clientX - gestureRef.current.surukleBaslangic.x;
+      const dy = e.clientY - gestureRef.current.surukleBaslangic.y;
+      // Kaba sinir: asiri surukleyip gorseli tamamen kadraj disina cikarmasin.
+      const maxPan = (zoom - 1) * 150;
+      const sinirla = (v: number) => Math.min(maxPan, Math.max(-maxPan, v));
+      setPan({
+        x: sinirla(gestureRef.current.panBaslangic.x + dx),
+        y: sinirla(gestureRef.current.panBaslangic.y + dy),
+      });
+    }
+  }
+
+  function pointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    gestureRef.current.pointers.delete(e.pointerId);
+    gestureRef.current.surukleBaslangic = null;
+    if (gestureRef.current.pointers.size < 2) gestureRef.current.baslangicMesafe = 0;
+  }
+
+  function tekerlek(e: React.WheelEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setZoom((z) => Math.min(3, Math.max(1, z - e.deltaY * 0.001)));
+  }
+
+  return (
+    <div
+      className="relative aspect-square w-full touch-none overflow-hidden rounded-xl bg-neutral-100"
+      onDoubleClick={ciftTikla}
+      onPointerDown={pointerDown}
+      onPointerMove={pointerMove}
+      onPointerUp={pointerUp}
+      onPointerCancel={pointerUp}
+      onWheel={tekerlek}
+    >
+      {foto ? (
+        <Image
+          src={foto}
+          alt={alt}
+          fill
+          className="object-cover"
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          sizes="(max-width: 640px) 100vw, 512px"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          {createElement(kategoriIkonu, { className: `h-16 w-16 ${renkYazi}`, strokeWidth: 1.5 })}
+        </div>
+      )}
+      {foto && zoom === 1 && (
+        <span className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white">
+          <ZoomIn className="h-4 w-4" strokeWidth={2} />
+        </span>
+      )}
+    </div>
+  );
+}
 
 // Rezervasyonun kendisi (girisli kontrolu, telefon isteme vb.) UrunKarti'de
 // kalir - bu modal sadece goruntuleme + "Rezerve Et"e basinca UrunKarti'e
@@ -30,46 +167,12 @@ export function UrunDetayModal({
   onClose: () => void;
   onRezerveEt: () => void;
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
   const [aktifIndex, setAktifIndex] = useState(0);
-  const [takipEdiliyor, setTakipEdiliyor] = useState(urun.benimTakibimVar);
-  const [takipGonderiliyor, setTakipGonderiliyor] = useState(false);
   const renk = kategoriRengiSec(urun.kategori.id);
   const kategoriIkonu = kategoriIkonuSec(urun.kategori.ad);
   const durumStil = DURUM_STIL[urun.durum] ?? { etiket: urun.durum, className: "bg-neutral-200 text-neutral-600" };
   const rezervasyonKapali = urun.durum !== "sergide";
   const aktifFoto = urun.fotograflar[aktifIndex];
-
-  // Favori/takip: bildirim aboneligi. begeniden ayri, bildirimGonderTakipcilere
-  // (src/lib/bildirim.ts) bu bayragi okur - yedek-tier haric her aktif-katman
-  // hareketinde bildirim uretir (bkz. plan dosyasi).
-  async function takipTikla() {
-    if (!girisli) {
-      const next = `${pathname}?urun=${urun.id}`;
-      router.push(`/giris?next=${encodeURIComponent(next)}`);
-      return;
-    }
-    if (takipGonderiliyor) return;
-    const onceki = takipEdiliyor;
-    setTakipEdiliyor(!onceki);
-    setTakipGonderiliyor(true);
-    try {
-      const res = await fetch("/api/favori", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ urunId: urun.id, tur: "takip" }),
-      });
-      if (!res.ok) throw new Error("basarisiz");
-      const data = await res.json();
-      setTakipEdiliyor(data.takipMi);
-      router.refresh();
-    } catch {
-      setTakipEdiliyor(onceki);
-    } finally {
-      setTakipGonderiliyor(false);
-    }
-  }
 
   return (
     <div
@@ -88,21 +191,13 @@ export function UrunDetayModal({
         >
           <X className="h-5 w-5" strokeWidth={2} />
         </button>
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-neutral-100">
-          {aktifFoto ? (
-            <Image
-              src={aktifFoto}
-              alt={urun.baslik}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, 512px"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              {createElement(kategoriIkonu, { className: `h-16 w-16 ${renk.text}`, strokeWidth: 1.5 })}
-            </div>
-          )}
-        </div>
+        <ZoomluGorsel
+          key={aktifIndex}
+          foto={aktifFoto}
+          alt={urun.baslik}
+          kategoriIkonu={kategoriIkonu}
+          renkYazi={renk.text}
+        />
 
         {/* Kucuk resim seridi: max 5 foto oldugu icin (urun-sabitleri.ts) harici
             bir carousel kutuphanesi gerekmiyor, basit state ile yeterli. */}
@@ -158,28 +253,7 @@ export function UrunDetayModal({
             begeniSayisi={urun.begeniSayisi}
             benimBegenimVar={urun.benimBegenimVar}
           />
-          <button
-            type="button"
-            onClick={takipTikla}
-            disabled={takipGonderiliyor}
-            className={`flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${
-              takipEdiliyor
-                ? "border-primary-200 bg-primary-50 text-primary-700"
-                : "border-neutral-300 text-neutral-700 hover:bg-neutral-100"
-            }`}
-          >
-            {takipEdiliyor ? (
-              <>
-                <BellRing className="h-3.5 w-3.5" strokeWidth={2} />
-                Takip Ediliyor
-              </>
-            ) : (
-              <>
-                <Bell className="h-3.5 w-3.5" strokeWidth={2} />
-                Takip Et
-              </>
-            )}
-          </button>
+          <TakipButonu urunId={urun.id} girisli={girisli} benimTakibimVar={urun.benimTakibimVar} />
         </div>
         <div className="mt-3">
           <PaylasButonlari

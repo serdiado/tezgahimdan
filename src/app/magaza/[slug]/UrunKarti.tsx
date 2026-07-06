@@ -4,9 +4,10 @@ import { createElement, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Flag, Images } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { BegeniButonu } from "@/components/BegeniButonu";
+import { TakipButonu } from "@/components/TakipButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { SikayetModal } from "@/components/SikayetModal";
 import { RezerveModal } from "./RezerveModal";
@@ -31,11 +32,14 @@ export type UrunKartiVeri = {
   durum: string;
   fotograflar: string[];
   kategori: { id: string; ad: string };
-  // Begeni sayisi HERKESE ACIK (girissiz ziyaretciye de gosterilir); takip
-  // (bildirim aboneligi) SADECE UrunDetayModal'da gosterilir, kartta yok.
+  // Begeni sayisi HERKESE ACIK (girissiz ziyaretciye de gosterilir). Takip
+  // (bildirim aboneligi) hem kartta hem UrunDetayModal'da gosterilir.
   begeniSayisi: number;
   benimBegenimVar: boolean;
   benimTakibimVar: boolean;
+  stokAdedi: number;
+  aktifSayisi: number;
+  yedekSayisi: number;
 };
 
 export function UrunKarti({
@@ -73,7 +77,14 @@ export function UrunKarti({
   // react-hooks/static-components) - lookup lowercase tutulup createElement ile
   // render edilir.
   const kategoriIkonu = kategoriIkonuSec(urun.kategori.ad);
-  const fotograf = urun.fotograflar[0];
+  // Kart-seviyesinde kucuk bir galeri: oklar/noktalar aktifFotoIndex'i degistirir,
+  // modali ACMAZ (ayri, kardes buton - detayTikla'yi tetikleyen alttaki tam-kapli
+  // butonun USTUNE binmez, aralarinda parent-child iliskisi yok, invalid nested
+  // <button> olusmaz). Paylasim her zaman kapak (ilk) fotografi kullanir, o an
+  // gosterilen fotografi degil - tutarli bir "kapak" kavrami.
+  const [aktifFotoIndex, setAktifFotoIndex] = useState(0);
+  const aktifFoto = urun.fotograflar[aktifFotoIndex];
+  const kapakFoto = urun.fotograflar[0];
   const durumStil = DURUM_STIL[urun.durum] ?? { etiket: urun.durum, className: "bg-neutral-200 text-neutral-600" };
   // Kapasite (stok+5) dolunca rezervasyon kapanir (PLAN.md SS3); 'doldu'
   // durumu tam bu esikte, rezervasyon API'sinin icinde atomik olarak atanir.
@@ -111,6 +122,14 @@ export function UrunKarti({
     setSikayetModalAcik(true);
   }
 
+  function oncekiFoto() {
+    setAktifFotoIndex((i) => (i - 1 + urun.fotograflar.length) % urun.fotograflar.length);
+  }
+
+  function sonrakiFoto() {
+    setAktifFotoIndex((i) => (i + 1) % urun.fotograflar.length);
+  }
+
   // Detay goruntuleme girissiz de acik (kesif serbest, KP-1 yalniz "Rezerve
   // Et"i kimlik ister). Detaydan "Rezerve Et"e basilinca detay kapanir ve
   // AYNI rezerveTikla() cagrilir - giris/telefon mantigi tek yerde kalir.
@@ -131,26 +150,74 @@ export function UrunKarti({
         vurgulu ? "ring-2 ring-primary-500 ring-offset-2" : ""
       }`}
     >
-      <button
-        type="button"
-        onClick={detayTikla}
-        className={`relative aspect-square w-full cursor-pointer ${fotograf ? "bg-neutral-100" : renk.bg}`}
-      >
-        {fotograf ? (
-          <Image src={fotograf} alt={urun.baslik} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            {createElement(kategoriIkonu, { className: `h-10 w-10 ${renk.text}`, strokeWidth: 1.5 })}
-          </div>
-        )}
+      <div className="relative aspect-square w-full">
+        <button
+          type="button"
+          onClick={detayTikla}
+          className={`absolute inset-0 cursor-pointer ${aktifFoto ? "bg-neutral-100" : renk.bg}`}
+        >
+          {aktifFoto ? (
+            <Image src={aktifFoto} alt={urun.baslik} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              {createElement(kategoriIkonu, { className: `h-10 w-10 ${renk.text}`, strokeWidth: 1.5 })}
+            </div>
+          )}
+        </button>
         {urun.fotograflar.length > 1 && (
-          <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white">
-            <Images className="h-3 w-3" strokeWidth={2} />
-            {urun.fotograflar.length}
-          </span>
+          <>
+            <button
+              type="button"
+              onClick={oncekiFoto}
+              aria-label="Önceki fotoğraf"
+              className="absolute left-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              onClick={sonrakiFoto}
+              aria-label="Sonraki fotoğraf"
+              className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+          </>
         )}
-      </button>
+      </div>
+      {urun.fotograflar.length > 1 && (
+        <div className="flex justify-center gap-1.5 pt-2">
+          {urun.fotograflar.map((foto, i) => (
+            <button
+              key={foto}
+              type="button"
+              onClick={() => setAktifFotoIndex(i)}
+              aria-label={`${i + 1}. fotoğraf`}
+              className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                i === aktifFotoIndex ? "bg-primary-600" : "bg-neutral-300"
+              }`}
+            />
+          ))}
+        </div>
+      )}
       <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="flex items-center justify-end gap-3">
+          <BegeniButonu
+            urunId={urun.id}
+            girisli={girisli}
+            begeniSayisi={urun.begeniSayisi}
+            benimBegenimVar={urun.benimBegenimVar}
+          />
+          <TakipButonu urunId={urun.id} girisli={girisli} benimTakibimVar={urun.benimTakibimVar} kompakt />
+          <button
+            type="button"
+            onClick={sikayetTikla}
+            aria-label="Bildir"
+            className="flex items-center text-neutral-400 hover:text-neutral-600"
+          >
+            <Flag className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
         {magaza && (
           <Link
             href={`/magaza/${magaza.slug}`}
@@ -173,41 +240,34 @@ export function UrunKarti({
           Detayları gör
         </button>
         <p className="text-lg font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
-        <BegeniButonu
-          urunId={urun.id}
-          girisli={girisli}
-          begeniSayisi={urun.begeniSayisi}
-          benimBegenimVar={urun.benimBegenimVar}
-        />
+        <p className="text-xs text-neutral-500">Stok: {urun.stokAdedi} adet</p>
         <span className={`mb-2 w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${durumStil.className}`}>
           {durumStil.etiket}
         </span>
-        <button
-          type="button"
-          disabled={rezervasyonKapali}
-          onClick={rezerveTikla}
-          className={`mt-auto w-full rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
-            rezervasyonKapali
-              ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
-              : "bg-primary-500 text-white hover:bg-primary-600"
-          }`}
-        >
-          {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
-        </button>
+        <div className="mt-auto flex items-center gap-2">
+          <button
+            type="button"
+            disabled={rezervasyonKapali}
+            onClick={rezerveTikla}
+            className={`flex-1 rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
+              rezervasyonKapali
+                ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
+                : "bg-primary-500 text-white hover:bg-primary-600"
+            }`}
+          >
+            {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
+          </button>
+          <span className="shrink-0 text-xs text-neutral-500">
+            Rezerv: {urun.aktifSayisi} · Yedek: {urun.yedekSayisi}
+          </span>
+        </div>
         <PaylasButonlari
           baslik={urun.baslik}
           fiyat={urun.fiyat}
           urunLink={`/magaza/${magazaSlug}?urun=${urun.id}`}
-          kapakFotoUrl={fotograf}
+          kapakFotoUrl={kapakFoto}
+          tamGenislik
         />
-        <button
-          type="button"
-          onClick={sikayetTikla}
-          className="flex items-center gap-1 self-start text-xs font-medium text-neutral-400 hover:text-neutral-600"
-        >
-          <Flag className="h-3 w-3" strokeWidth={2} />
-          Bildir
-        </button>
       </div>
       {modalAcik && (
         <RezerveModal

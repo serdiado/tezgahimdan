@@ -11,6 +11,29 @@ export const MAX_YEDEK = 5;
 // kod-ici sabit (admin panelinden ayarlanabilir bir esik degil, simdilik).
 export const GUVENILIRLIK_ESIGI = 3;
 
+// Kart/vitrin gosterimi icin salt-okunur ozet (karar-kritik degil, kilit
+// GEREKTIRMEZ - rezervasyonOlustur/vazgec/sonuclandir'in FOR UPDATE'li kilit
+// akisina hic dokunmaz). begeniSayilariHaritasi (lib/favori.ts) ile ayni
+// groupBy+Map deseni, N+1 onler.
+export async function kuyrukSayilariHaritasi(
+  urunIdler: string[],
+): Promise<Map<string, { aktif: number; yedek: number }>> {
+  const harita = new Map<string, { aktif: number; yedek: number }>();
+  if (urunIdler.length === 0) return harita;
+  const satirlar = await prisma.rezervasyon.groupBy({
+    by: ["urunId", "tip"],
+    where: { urunId: { in: urunIdler }, durum: "bekliyor" },
+    _count: true,
+  });
+  for (const satir of satirlar) {
+    const mevcut = harita.get(satir.urunId) ?? { aktif: 0, yedek: 0 };
+    if (satir.tip === "aktif") mevcut.aktif = satir._count;
+    else mevcut.yedek = satir._count;
+    harita.set(satir.urunId, mevcut);
+  }
+  return harita;
+}
+
 export type RezervasyonSonucu =
   | { tur: "olusturuldu"; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string }
   | { tur: "zaten-var"; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string }

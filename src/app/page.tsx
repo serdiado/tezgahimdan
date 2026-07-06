@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
 import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
+import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { HaftalikRitim } from "./HaftalikRitim";
@@ -57,9 +58,10 @@ export default async function AnaSayfa() {
   ]);
 
   const yeniUrunIdler = yeniUrunler.map((u) => u.id);
-  const [begeniSayilari, benimFavorilerim] = await Promise.all([
+  const [begeniSayilari, benimFavorilerim, kuyrukSayilari] = await Promise.all([
     begeniSayilariHaritasi(yeniUrunIdler),
     kullaniciFavoriHaritasi(session?.user?.id, yeniUrunIdler),
+    kuyrukSayilariHaritasi(yeniUrunIdler),
   ]);
 
   return (
@@ -97,6 +99,9 @@ export default async function AnaSayfa() {
                   begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
                   benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
                   benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
+                  stokAdedi: urun.stokAdedi,
+                  aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
+                  yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
                 }))}
               />
             </div>
