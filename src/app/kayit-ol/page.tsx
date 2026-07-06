@@ -1,13 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const inputClass =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
 
+// useSearchParams() bir client hook'u oldugu icin Next.js prod build'de bu
+// bilesenin bir Suspense sinirina sarilmasini zorunlu kilar (yoksa /kayit-ol
+// prerender asamasinda hata verir - bkz. next.js.org/docs "missing-suspense-with-csr-bailout").
 export default function KayitOlPage() {
+  return (
+    <Suspense>
+      <KayitOlForm />
+    </Suspense>
+  );
+}
+
+function KayitOlForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   // Redirect-back (KP-1): girissiz "Rezerve Et"ten gelen next'i giris sonrasina

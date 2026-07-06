@@ -56,6 +56,21 @@ Her otomatik ceza `DurumGecmisi`'nde admin-okunabilir (`rezervasyon_gelmedi:otom
 - (e) farklı hafta (gelecek `pazarHaftasi`) + farklı pazar (kapanışı gelmemiş) → dokunulmadı ✓
 - TZ: başlangıç eşiği 06:00Z (=Istanbul 09:00) doğru; 05:00Z cezalı / 12:00Z cezasız net ayrıştı ✓
 
+## Test kanıtı — çok-pazarlı izolasyon
+
+`pazarlariSifirla` her ürünü **kendi** `magaza.pazar`'ının kapanış anına göre değerlendirdiği için, farklı `sifirlamaGunu`/`saatDilimi` sahip pazarlara bağlı mağazaların aynı cron çağrısında karışmaması bekleniyor. Bu daha önce yalnızca tek pazarla kanıtlanmıştı (yukarıdaki bölüm); bugünkü mağaza-açılışında pazar seçimi eklenince (SP-4) ilk kez birden fazla pazar aynı anda üretimde var oldu.
+
+**Kurulum:** 2 farklı pazar (Seferihisar: Çarşamba 20:00, Yeşilyurt: Salı 20:00), her birine ayrı bir mağaza+ürün+bekleyen aktif rezervasyon bağlandı. Seferihisar'ınki geçmişte kalan bir `pazarHaftasi` ile (kapanışı çoktan geçmiş, `aktifOlmaZamani` başlangıç anından önce → no-show bekleniyor), Yeşilyurt'unki gelecekte bir `pazarHaftasi` ile (kapanışı henüz gelmemiş) kuruldu.
+
+**Gerçek cron çağrısı** (`POST /api/cron/pazar-sifirlama`, doğru `CRON_SECRET`) → `{"islenenUrun":1,"toplamEtkilenen":1}`.
+
+**Bağımsız doğrulama (`psql`):**
+- Seferihisar'ın rezervasyonu → `gelmedi`, ürün → `sergide` ✓ (no-show cezası doğru pazarın kendi `baslangicAni`'sine göre uygulandı)
+- Yeşilyurt'un rezervasyonu → hâlâ `bekliyor`, tamamen dokunulmamış ✓
+- `PazarSifirlama` tablosunda **yalnızca** Seferihisar için kayıt var, Yeşilyurt için hiç kayıt yok ✓
+
+Sonuç: çok-pazarlı ortamda sıfırlama beklenen izolasyonu koruyor, regresyon yok.
+
 ## Veri modeli (migration `20260703035648_haftalik_sifirlama`)
 - **Pazar**: `baslangicGunu` + `baslangicSaati` (ceza eşiği; mevcut `sifirlama*` = kapanış).
 - **Rezervasyon**: `aktifOlmaZamani`, `bildirimGonderildi`, `bildirimKanali`.

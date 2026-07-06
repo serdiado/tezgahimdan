@@ -60,6 +60,39 @@ yedek |  5   | {1,2,3,4,5}
 
 `pazarHaftasi` alanı İstanbul saat dilimine göre doğru sonraki Çarşamba'yı hesaplıyor. `DurumGecmisi` tablosuna 8 Rezervasyon + 1 Urun(doldu) audit kaydı düştü.
 
+## Güvenilirlik kısıtlaması (PLAN §3)
+
+`GUVENILIRLIK_ESIGI` (=3) veya daha fazla `gelmedi` biriktiren bir alıcı, **halihazırda (herhangi bir üründe) bir aktif rezervasyonu varsa** yeni rezervasyon alamaz (`guvenilirlik-kisitli`). Kontrol ürün kilidi altında, kapasite hesabından **önce** yapılır — kısıtlı alıcı kapasiteyi hiç işgal etmez, kuyruğa dokunmaz.
+
+**Kapsam bilinçli olarak pazar/mağaza sınırı taşımıyor:** `gelmediSayisi` ve `aktifRezervasyonVarMi` sorguları yalnızca `aliciId`'ye göre filtrelenir, `urunId`/pazar hiç girmez. Yani A pazarındaki bir mağazada biriken `gelmedi` geçmişi, B pazarındaki alakasız bir mağazada da alıcıyı kısıtlar — güvenilirlik, tüm platform genelinde tek bir kişiye bağlı bir özellik, pazara özel değil.
+
+**Rozet ile motor kapısı arasındaki fark (bilinçli, kod değişikliği gerektirmeyen ayrım):** Satıcı panelindeki "Kısıtlı" rozeti yalnızca `gelmedi>=3`'e bakar (`aliciGuvenilirlikHaritasi`). Motorun asıl kapısı bunun ÜSTÜNE "şu an aktif bir rezervasyonu var mı" şartını da arar. Sonuç: rozette "Kısıtlı" görünen bir alıcının elinde aktif/yedek hiçbir şey yoksa yeni rezervasyon yapması **engellenmez** — rozet geçmişe dönük bir güvenilirlik uyarısı, motor kapısı ise "aynı anda kaç taahhüt tutabilir" kuralı; farklı amaçlar, aynı eşiği (3) paylaşmaları tesadüfi.
+
+**Test kanıtı — 8-paralel testin güvenilirlik varyasyonu:** Stok=1 ürüne, 8 gerçek giriş yapmış farklı alıcıdan biri (alici_3) önceden 3×`gelmedi` + 1×`bekliyor/aktif` (başka bir ürün) geçmişiyle kurulup, aynı anda `Promise.all` ile 8 paralel istek ateşlendi:
+
+```
+alici_1 -> 201 {"tip":"aktif","siraNo":1}
+alici_2 -> 201 {"tip":"yedek","siraNo":4}
+alici_3 -> 409 {"hata":"Şu an aktif bir rezervasyonunuz var..."}   <- kısıtlı alıcı
+alici_4 -> 201 {"tip":"yedek","siraNo":1}
+alici_5 -> 201 {"tip":"yedek","siraNo":3}
+alici_6 -> 409 {"hata":"kapasite dolu"}
+alici_7 -> 201 {"tip":"yedek","siraNo":2}
+alici_8 -> 201 {"tip":"yedek","siraNo":5}
+```
+
+Beklenen dağılım tam çıktı: kısıtlı alıcı çıkınca geriye kalan 7 kişi kapasite 6'yı (1 aktif + 5 yedek) paylaştı, 1'i "dolu" aldı.
+
+**Bağımsız doğrulama (`psql`):** test ürününde toplam 6 kayıt (1 aktif + 5 yedek, `siraNo` boşluksuz `{1}`/`{1,2,3,4,5}`), 6 benzersiz kod + 6 benzersiz alıcı; kısıtlı alıcının bu üründe **0** kaydı var; ürün `doldu`; kısıtlı alıcının geçmişi (3 gelmedi + 1 bekliyor) test sırasında değişmedi (yan etki yok).
+
+**Test kanıtı — pazarlar-arası kapsam (SP-4 çok-pazarlı mağaza açılışı sonrası):** Bir alıcı, **Seferihisar** pazarındaki bir mağazada 3×`gelmedi` + 1×aktif `bekliyor` geçmişi biriktirdi. Aynı alıcı, tamamen alakasız **Yeşilyurt** pazarındaki farklı bir mağazanın ürününde yeni rezervasyon denedi → `409 guvenilirlik-kisitli` (gerçek giriş + HTTP isteğiyle doğrulandı). `psql`: o üründe bu alıcı adına **0** kayıt açıldı. Kısıtlamanın pazar/mağaza sınırı taşımadığı iddiası canlı olarak kanıtlandı.
+
+**Test kanıtı — rozet/motor kapı farkı:** Aynı alıcı, tek engel olan aktif rezervasyonunu vazgeçti (gelmedi sayısı hâlâ 3, değişmedi). Hemen ardından aynı alıcı yeni bir rezervasyon denedi → **201 başarılı** (motor izin verdi), oysa satıcı panelindeki rozet (`kisitliMi = gelmedi >= 3`, bkz. `panel/rezervasyonlar/page.tsx`) bu alıcıyı hâlâ "Kısıtlı" gösterecektir. Rozet geçmişe dönük uyarı, motor kapısı ayrı bir "şu an kaç taahhüt tutuyor" kuralı — ayrım koddan değil canlı davranıştan doğrulandı.
+
+**Test kanıtı — admin gizli mağazaya ürün ekleme (bilinçli tutarsızlık, bug değil):** Admin bir mağazayı gizledi (`gizliMi=true`), sonra AYNI mağazaya ürün ekledi → **201 başarılı** (`urunEkle()` `gizliMi`'ye hiç bakmıyor). Farklı bir alıcı bu yeni ürünü rezerve etmeyi denedi → **409 magaza-gizli** (motorun kendi ön-kontrolü devrede, `rezervasyonOlustur`'daki `magaza.gizliMi` kontrolü). `psql`: ürün gerçekten oluşmuş (0 rezervasyon). Sonuç: tutarsız ama zararsız — ürün DB'de var olur ama hiçbir zaman rezerve edilemez; admin arayüzünde bunu engelleyen/uyaran bir kontrol yok, ileride eklenebilir.
+
+**Test kanıtı — satıcı kendi ürününü rezerve edebiliyor (mevcut bilinen sınır, aşağıdaki "İleride ele alınacaklar" ile aynı):** Canlı olarak doğrulandı — satıcı kendi mağazasındaki bir ürünü kendi hesabıyla `201` ile rezerve edebildi. Davranış değiştirilmedi, sadece teyit edildi.
+
 ## Kritik bağımlılık uyarısı
 
 Ürünü `doldu` durumuna çeviren tek yer bu akış. **Slot boşaltan her gelecek özellik** (Vazgeç, haftalık otomatik sıfırlama, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı — unutulursa ürün fiilen boşalmış olsa bile "Rezerve Et" butonu kapalı kalır.

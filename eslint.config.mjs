@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Prisma tarafindan uretilen kod - elle yazilmadi, lint kurallarina tabi degil.
+    "src/generated/**",
+    // Standalone CommonJS seed script (node ile calisir, Next.js ESM derlemesinin disinda).
+    "prisma/seed.js",
   ]),
 ]);
 
