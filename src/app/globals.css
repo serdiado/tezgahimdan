@@ -55,3 +55,22 @@ body {
     transform: translateX(-50%);
   }
 }
+
+/* Uzun icerikli modallar (ör. UrunDetayModal) icin ince/sade kaydirma cubugu -
+   varsayilan kalin tarayici cubugu masaustunde "fazlalik" gorunuyordu (kaydirma
+   islevi hala var, sadece gorseli inceltiliyor). Mobilde zaten tarayici kendi
+   ince cubugunu kullaniyor, bu kural etkisiz kalir. */
+.ince-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-neutral-300, #d4d4d4) transparent;
+}
+.ince-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.ince-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ince-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-neutral-300, #d4d4d4);
+  border-radius: 9999px;
+}

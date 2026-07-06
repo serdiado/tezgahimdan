@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Flag, X, ZoomIn, type LucideIcon } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
@@ -163,7 +163,7 @@ function ZoomluGorsel({
           // hic cikmaz, disideki gesture mantigi devreye girmez.
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={zoom > 1 ? "Uzaklaştır" : "Yakınlaştır"}
-          className="absolute bottom-2 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+          className="absolute bottom-2 left-2 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
         >
           <ZoomIn className="h-4 w-4" strokeWidth={2} />
         </button>
@@ -197,13 +197,24 @@ export function UrunDetayModal({
   const rezervasyonKapali = urun.durum !== "sergide";
   const aktifFoto = urun.fotograflar[aktifIndex];
 
+  // Modal acikken arka sayfa kaymasin: fare tekerlegiyle zoom yaparken
+  // preventDefault tek basina yetmeyebiliyor (scroll chaining) - body'nin
+  // kendi kaydirmasini tamamen kilitleyip kapaninca eski degerine donduruyoruz.
+  useEffect(() => {
+    const oncekiOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = oncekiOverflow;
+    };
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-lg"
+        className="ince-scrollbar relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <button
