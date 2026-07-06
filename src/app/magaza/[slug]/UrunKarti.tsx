@@ -112,7 +112,7 @@ export function UrunKarti({
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
+      <div className="flex flex-1 flex-col gap-2 p-4">
         {magaza && (
           <Link
             href={`/magaza/${magaza.slug}`}

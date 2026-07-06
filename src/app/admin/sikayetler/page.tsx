@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { MessageSquareWarning } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -77,7 +78,10 @@ export default async function AdminSikayetlerPage({
         </div>
 
         {sikayetler.length === 0 ? (
-          <p className="mt-4 text-neutral-600">Bu filtrede şikayet yok.</p>
+          <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-white p-8 text-center shadow-sm">
+            <MessageSquareWarning className="h-8 w-8 text-neutral-300" strokeWidth={1.5} />
+            <p className="text-neutral-500">Bu filtrede şikayet yok.</p>
+          </div>
         ) : (
           <div className="mt-4 space-y-3">
             {sikayetler.map((s) => {

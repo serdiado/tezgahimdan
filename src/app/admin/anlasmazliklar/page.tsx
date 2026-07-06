@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ShieldAlert } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -71,7 +72,10 @@ export default async function AdminAnlasmazliklarPage() {
         <AdminNav aktif="anlasmazliklar" />
 
         {kayitlar.length === 0 ? (
-          <p className="mt-4 text-neutral-600">Kayıtlı anlaşmazlık yok.</p>
+          <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-white p-8 text-center shadow-sm">
+            <ShieldAlert className="h-8 w-8 text-neutral-300" strokeWidth={1.5} />
+            <p className="text-neutral-500">Kayıtlı anlaşmazlık yok.</p>
+          </div>
         ) : (
           <div className="mt-4 space-y-3">
             {kayitlar.map((k) => {
