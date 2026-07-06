@@ -45,6 +45,37 @@ eklenmeli (bugün yalnız `getMagazaBySlug` filtreliyor).
 
 ---
 
+## Mağaza takibi + fiyat düşüşü bildirimi + en çok beğenilenler vitrini
+
+Favori/Beğeni sisteminin 3 küçük genişlemesi. **Mağaza takibi**: `UrunFavori`'yi
+genişletmek yerine ayrı `MagazaTakip` tablosu (farklı hedef varlık, `begeniMi`
+karşılığı yok — genişletmek her mevcut favori sorgusunu "urunId null olabilir"
+ihtimaline karşı gözden geçirmeyi gerektirirdi). **Fiyat düşüşü**: yeni fonksiyon
+yok, mevcut `bildirimGonderTakipcilere` yeniden kullanıldı, karşılaştırma motor
+kilidi DIŞINDA. **En çok beğenilenler**: Prisma'nın resmi desteklediği
+`groupBy`+`orderBy:{_count}` ile sıralama, görünürlük filtresi ayrı bir
+`Urun.findMany`'de uygulanıyor (test: gizli mağazanın çok-beğenilen ürünü
+vitrinde çıkmıyor). Üçü de rezervasyon motoruna HİÇ dokunmuyor.
+
+→ Detay: [`docs/mimari/magaza-takip.md`](./mimari/magaza-takip.md)
+
+---
+
+## Değerlendirme/yorum sistemi
+
+PLAN.md'nin bilinçli Faz-2 ertelemesiydi. Kullanıcı kararı: **SADECE gerçekten
+satın alan** (`Rezervasyon.durum="satildi"` VE `aliciId`=kullanıcı) değerlendirme
+bırakabilir — bu kural DB'de zorlanmaz, API katmanında salt-okunur
+`Rezervasyon.findFirst` ile doğrulanır (motora hiç çağrı yok). Puan/yorum
+SONRADAN güncellenebilir (upsert, tek satır — begeni/takip toggle'ıyla aynı
+mantık). "Değerlendir" butonu bilinçli olarak `/rezervasyonum`'da (ürün
+kartında değil) — satın-alma kontrolü o sayfada zaten bedava, karta koymak
+her render'da gizli bir yetki sorgusu gerektirirdi.
+
+→ Detay: [`docs/mimari/degerlendirme-sistemi.md`](./mimari/degerlendirme-sistemi.md)
+
+---
+
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
 - **Rate-limit yok:** Deploy öncesi en azından IP bazlı limit değerlendirilmeli. (KP-1 üyelik zorunluluğuyla sahte-numarayla kitle rezervasyonu riski büyük ölçüde azaldı — rezervasyon için hesap gerekir; yine de rate-limit tamamen ikame etmez.)

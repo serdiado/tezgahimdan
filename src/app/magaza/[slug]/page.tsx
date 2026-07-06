@@ -4,10 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { getMagazaBySlug } from "@/lib/magaza";
 import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
+import { kullaniciMagazaTakipDurumu } from "@/lib/magaza-takip";
+import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
+import { MagazaTakipButonu } from "@/components/MagazaTakipButonu";
 import { MagazaHero } from "./MagazaHero";
 import { MagazaIcerik } from "./MagazaIcerik";
 import { MagazaSikayetButonu } from "./MagazaSikayetButonu";
+
+const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 
 export default async function MagazaSayfasi({
   params,
@@ -49,11 +54,15 @@ export default async function MagazaSayfasi({
   // "benim begenim/takibim" sadece girisliyse dolu gelir (kullaniciId yoksa
   // haritalar bos doner).
   const urunIdler = urunler.map((u) => u.id);
-  const [begeniSayilari, benimFavorilerim, kuyrukSayilari] = await Promise.all([
-    begeniSayilariHaritasi(urunIdler),
-    kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
-    kuyrukSayilariHaritasi(urunIdler),
-  ]);
+  const [begeniSayilari, benimFavorilerim, kuyrukSayilari, benimMagazaTakibimVar, degerlendirmeOzeti, yorumlar] =
+    await Promise.all([
+      begeniSayilariHaritasi(urunIdler),
+      kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
+      kuyrukSayilariHaritasi(urunIdler),
+      kullaniciMagazaTakipDurumu(session?.user?.id, magaza.id),
+      degerlendirmeOzetiHaritasi(urunIdler),
+      urunYorumlariHaritasi(urunIdler),
+    ]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -67,7 +76,10 @@ export default async function MagazaSayfasi({
               pazar: { ad: magaza.pazar.ad, sifirlamaGunu: magaza.pazar.sifirlamaGunu },
             }}
           />
-          <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
+          <div className="mt-2 flex items-center justify-between">
+            <MagazaTakipButonu girisli={girisli} magazaId={magaza.id} benimTakibimVar={benimMagazaTakibimVar} />
+            <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
+          </div>
         </div>
 
         <MagazaIcerik
@@ -88,6 +100,15 @@ export default async function MagazaSayfasi({
             stokAdedi: urun.stokAdedi,
             aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
             yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
+            degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
+            degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
+            yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({
+              id: y.id,
+              kullaniciAd: y.kullaniciAd,
+              puan: y.puan,
+              yorum: y.yorum,
+              tarih: tarihFormat.format(y.createdAt),
+            })),
           }))}
         />
       </main>

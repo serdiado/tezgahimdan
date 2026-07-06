@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
 import { urunEkle } from "@/lib/urun";
+import { bildirimGonderMagazaTakipcilerine } from "@/lib/bildirim";
 
 // Admin, bir saticinin adina urun ekler (PLAN.md SS2D). urunEkle() ayni
 // dogrulama/yukleme/olusturma mantigini kullanir (src/lib/urun.ts) - tek fark
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   if (!magazaId) {
     return NextResponse.json({ hata: "magazaId zorunlu" }, { status: 400 });
   }
-  const magaza = await prisma.magaza.findUnique({ where: { id: magazaId }, select: { id: true, silindiMi: true } });
+  const magaza = await prisma.magaza.findUnique({ where: { id: magazaId }, select: { id: true, ad: true, silindiMi: true } });
   if (!magaza || magaza.silindiMi) {
     return NextResponse.json({ hata: "mağaza bulunamadı" }, { status: 404 });
   }
@@ -74,6 +75,14 @@ export async function POST(request: Request) {
       varlikId: sonuc.urun.id,
       olay: "urun_eklendi:admin_adina",
     },
+  });
+
+  // urunEkle() SAF kalir - bildirim burada, basariyla dondukten SONRA tetiklenir.
+  await bildirimGonderMagazaTakipcilerine({
+    magazaId: magaza.id,
+    urunId: sonuc.urun.id,
+    mesaj: `Takip ettiğiniz "${magaza.ad}" mağazasına yeni bir ürün eklendi: "${baslik.trim()}"`,
+    haricKullaniciId: session.user.id,
   });
 
   return NextResponse.json({ id: sonuc.urun.id, fotograflar: sonuc.urun.fotograflar }, { status: 201 });

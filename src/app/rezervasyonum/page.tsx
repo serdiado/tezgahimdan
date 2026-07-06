@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { kullaniciDegerlendirmeleriHaritasi } from "@/lib/degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
 import { RezervasyonumIcerik } from "./RezervasyonumIcerik";
 
@@ -25,6 +26,17 @@ export default async function RezervasyonumSayfasi() {
     return b.createdAt.getTime() - a.createdAt.getTime();
   });
 
+  // "Degerlendir" butonu SADECE durum="satildi" rezervasyonlarda cikar - o
+  // urunlerin mevcut degerlendirmesi varsa (daha once yapilmis) formu
+  // onceden doldurmak icin toplu (N+1'siz) sorgu.
+  const satilanUrunIdler = Array.from(
+    new Set(sirali.filter((r) => r.durum === "satildi").map((r) => r.urunId)),
+  );
+  const benimDegerlendirmelerim = await kullaniciDegerlendirmeleriHaritasi(
+    session.user.id,
+    satilanUrunIdler,
+  );
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
@@ -37,9 +49,12 @@ export default async function RezervasyonumSayfasi() {
             tip: r.tip,
             siraNo: r.siraNo,
             durum: r.durum,
+            urunId: r.urunId,
             urunBaslik: r.urun.baslik,
             magazaAd: r.urun.magaza.ad,
             magazaSlug: r.urun.magaza.slug,
+            mevcutPuan: benimDegerlendirmelerim.get(r.urunId)?.puan ?? null,
+            mevcutYorum: benimDegerlendirmelerim.get(r.urunId)?.yorum ?? null,
           }))}
         />
       </main>

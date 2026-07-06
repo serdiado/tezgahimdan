@@ -7,8 +7,10 @@ import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
 import { gercekDosyaTuruDogrula } from "@/lib/dosya";
 import { IZINLI_TIPLER, MAX_BOYUT_BYTE, MAX_FOTOGRAF } from "@/lib/urun-sabitleri";
+import { bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "urunler");
+const fiyatFormat = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" });
 
 export async function POST(request: Request) {
   const { yetkili, session } = await getSaticiSession();
@@ -211,6 +213,20 @@ export async function POST(request: Request) {
         unlink(path.join(process.cwd(), "public", yol)).catch(() => undefined),
       ),
     );
+
+    // Fiyat dususu bildirimi: mevcutUrun.fiyat transaction ONCESI (kilitsiz)
+    // okunmustu - burada karsilastirma motor kilidinin DISINDA yapiliyor,
+    // bildirim.ts'teki "motor cagrisi basariyla dondukten SONRA" ilkesiyle
+    // tutarli (bildirim audit degil, UX sinyali - kritik bolge suresini
+    // uzatmamak onceliki). Sadece DUSUSTE (<) tetiklenir.
+    const eskiFiyat = Number(mevcutUrun.fiyat);
+    if (fiyatSayisal < eskiFiyat) {
+      await bildirimGonderTakipcilere({
+        urunId: id,
+        mesaj: `Takip ettiğiniz "${mevcutUrun.baslik}" için fiyat düştü: ${fiyatFormat.format(eskiFiyat)} → ${fiyatFormat.format(fiyatSayisal)}`,
+        haricKullaniciId: session.user.id,
+      });
+    }
 
     return NextResponse.json({ id, fotograflar: yeniFotograflar });
   } catch (err) {

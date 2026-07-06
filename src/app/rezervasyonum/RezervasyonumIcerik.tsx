@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { DegerlendirmeFormu } from "@/components/DegerlendirmeFormu";
 
 type Rezervasyon = {
   id: string;
@@ -10,9 +11,12 @@ type Rezervasyon = {
   tip: "aktif" | "yedek";
   siraNo: number;
   durum: string;
+  urunId: string;
   urunBaslik: string;
   magazaAd: string;
   magazaSlug: string;
+  mevcutPuan: number | null;
+  mevcutYorum: string | null;
 };
 
 const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
@@ -31,6 +35,7 @@ export function RezervasyonumIcerik({ rezervasyonlar }: { rezervasyonlar: Rezerv
   const [onayId, setOnayId] = useState<string | null>(null);
   const [bekleyenId, setBekleyenId] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
+  const [degerlendirilenRezervId, setDegerlendirilenRezervId] = useState<string | null>(null);
 
   async function vazgec(rezervId: string) {
     setHata(null);
@@ -126,6 +131,26 @@ export function RezervasyonumIcerik({ rezervasyonlar }: { rezervasyonlar: Rezerv
                   Vazgeç
                 </button>
               ))}
+
+            {r.durum === "satildi" && (
+              <button
+                type="button"
+                onClick={() => setDegerlendirilenRezervId(r.id)}
+                className="mt-3 w-full rounded-md border border-primary-300 px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+              >
+                {r.mevcutPuan ? "Değerlendirmeni Düzenle" : "Değerlendir"}
+              </button>
+            )}
+
+            {degerlendirilenRezervId === r.id && (
+              <DegerlendirmeFormu
+                urunId={r.urunId}
+                urunBaslik={r.urunBaslik}
+                mevcutPuan={r.mevcutPuan}
+                mevcutYorum={r.mevcutYorum}
+                onClose={() => setDegerlendirilenRezervId(null)}
+              />
+            )}
           </div>
         );
       })}

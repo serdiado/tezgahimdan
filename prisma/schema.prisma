@@ -77,12 +77,14 @@ model Kullanici {
   emailVerified DateTime?
   sifreHash     String?
 
-  magazalar      Magaza[]
-  rezervasyonlar Rezervasyon[]
-  durumGecmisi   DurumGecmisi[]
-  sikayetler     Sikayet[]
-  urunFavorileri UrunFavori[]
-  bildirimler    Bildirim[]
+  magazalar        Magaza[]
+  rezervasyonlar   Rezervasyon[]
+  durumGecmisi     DurumGecmisi[]
+  sikayetler       Sikayet[]
+  urunFavorileri   UrunFavori[]
+  bildirimler      Bildirim[]
+  magazaTakipleri  MagazaTakip[]
+  degerlendirmeler Degerlendirme[]
 }
 
 model Kategori {
@@ -98,28 +100,29 @@ model Kategori {
 }
 
 model Magaza {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   sahip      Kullanici @relation(fields: [sahipId], references: [id])
   sahipId    String
   ad         String
-  slug       String   @unique
+  slug       String    @unique
   aciklama   String?
   // Basit "magaza olustur" akisinda toplanmiyor (sadece ad+slug); sonradan
   // magaza ayarlarindan doldurulur. Bos string yerine gercek NULL taniyoruz.
   whatsappNo String?
-  pazar      Pazar    @relation(fields: [pazarId], references: [id])
+  pazar      Pazar     @relation(fields: [pazarId], references: [id])
   pazarId    String
-  silindiMi  Boolean  @default(false)
+  silindiMi  Boolean   @default(false)
   // Admin moderasyon bayragi: magaza vitrinsen GIZLENIR ama sahibinin erisimi ve
   // tek-aktif-magaza kisiti bozulmaz (silindiMi'den ayri tutulmasinin nedeni:
   // silindiMi getOwnMagaza'yi da filtreler ve WHERE silindiMi=false unique index'i
   // yuzunden gizlenen satici ikinci magaza acabilirdi). Self-servis onboarding'in
   // "fren pedali": herkes aninda satici olur, admin gerekirse tek bayrakla gizler.
-  gizliMi    Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  gizliMi    Boolean   @default(false)
+  createdAt  DateTime  @default(now())
 
   urunler    Urun[]
   sikayetler Sikayet[]
+  takipciler MagazaTakip[]
 }
 
 enum UrunDurumu {
@@ -143,10 +146,11 @@ model Urun {
   silindiMi   Boolean    @default(false)
   createdAt   DateTime   @default(now())
 
-  rezervasyonlar Rezervasyon[]
-  sikayetler     Sikayet[]
-  favoriler      UrunFavori[]
-  bildirimler    Bildirim[]
+  rezervasyonlar   Rezervasyon[]
+  sikayetler       Sikayet[]
+  favoriler        UrunFavori[]
+  bildirimler      Bildirim[]
+  degerlendirmeler Degerlendirme[]
 }
 
 enum RezervasyonTipi {
@@ -162,25 +166,25 @@ enum RezervasyonDurumu {
 }
 
 model Rezervasyon {
-  id           String             @id @default(uuid())
-  urun         Urun               @relation(fields: [urunId], references: [id])
-  urunId       String
-  alici        Kullanici          @relation(fields: [aliciId], references: [id])
-  aliciId      String
-  tip          RezervasyonTipi
-  siraNo       Int
-  durum        RezervasyonDurumu  @default(bekliyor)
-  rezervKodu   String             @unique
-  pazarHaftasi DateTime           @db.Date
+  id                 String            @id @default(uuid())
+  urun               Urun              @relation(fields: [urunId], references: [id])
+  urunId             String
+  alici              Kullanici         @relation(fields: [aliciId], references: [id])
+  aliciId            String
+  tip                RezervasyonTipi
+  siraNo             Int
+  durum              RezervasyonDurumu @default(bekliyor)
+  rezervKodu         String            @unique
+  pazarHaftasi       DateTime          @db.Date
   // Kayit aktife her gectiginde (olusturmada aktif atanma / yedekten yukselme /
   // geri alma) set edilir. Sifirlama cezasi: aktifOlmaZamani < pazarBaslangicAni
   // olan (yani pazar baslangicinda zaten aktif olan) ve hala bekleyenler no-show.
-  aktifOlmaZamani DateTime?
+  aktifOlmaZamani    DateTime?
   // Sifirlamada temizlenen kuyruga birakilan iz (gonderim YOK, Faz 2). Urun
   // tekrar acilinca eski uyelere "oncelikli davet" bildirimi icin.
-  bildirimGonderildi Boolean @default(false)
+  bildirimGonderildi Boolean           @default(false)
   bildirimKanali     String?
-  createdAt          DateTime @default(now())
+  createdAt          DateTime          @default(now())
 }
 
 // Genel amacli audit/istatistik log'u; tek bir tabloya baglanmaz (varlikTuru + varlikId ile
@@ -249,4 +253,46 @@ model Bildirim {
   createdAt   DateTime  @default(now())
 
   @@index([kullaniciId, okunduMu])
+}
+
+// Magaza takibi: UrunFavori'den AYRI tablo - farkli varlik (Magaza, Urun degil),
+// begeniMi karsiligi yok (sadece bildirim aboneligi, tek bayrak). Kullanici
+// magazayi takip edince o magazaya YENI urun eklendiginde bildirim alir
+// (urunEkle() basarili olduktan SONRA, route katmaninda tetiklenir - motor/lib
+// fonksiyonu saf kalir, bkz. bildirim.ts deseni). takipMi: Boolean (silmek
+// yerine false yapilir) - UrunFavori ile simetrik, "hicbir kayit kalici
+// silinmez" ilkesiyle tutarli.
+model MagazaTakip {
+  id          String    @id @default(uuid())
+  kullanici   Kullanici @relation(fields: [kullaniciId], references: [id])
+  kullaniciId String
+  magaza      Magaza    @relation(fields: [magazaId], references: [id])
+  magazaId    String
+  takipMi     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  @@unique([kullaniciId, magazaId])
+}
+
+// Degerlendirme/yorum: SADECE gercekten satin alanlar (Rezervasyon.durum=
+// "satildi" VE aliciId=kullanici) birakabilir - bu kural DB'de ZORLANMAZ (FK
+// ile "satin aldi mi" ifade edilemez), API route'unda (src/app/api/degerlendirme
+// /route.ts) Rezervasyon.findFirst ile dogrulanir. Kullanici puanini/yorumunu
+// SONRADAN guncelleyebilir - upsert (begeni/takip toggle'i gibi), tek satir
+// (kullaniciId+urunId unique) - "hicbir kayit kalici silinmez" ilkesiyle
+// tutarli: guncelleme = ayni satirin uzerine yazma, yeni satir degil. puan
+// (1-5) DB seviyesinde kisitlanmaz - proje genelinde diger validasyonlar
+// (fiyat>0, stok>=1) gibi SADECE API route'unda kontrol edilir.
+model Degerlendirme {
+  id                String    @id @default(uuid())
+  kullanici         Kullanici @relation(fields: [kullaniciId], references: [id])
+  kullaniciId       String
+  urun              Urun      @relation(fields: [urunId], references: [id])
+  urunId            String
+  puan              Int
+  yorum             String?
+  createdAt         DateTime  @default(now())
+  guncellenmeZamani DateTime  @updatedAt
+
+  @@unique([kullaniciId, urunId])
 }

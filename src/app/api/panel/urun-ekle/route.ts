@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
 import { urunEkle } from "@/lib/urun";
+import { bildirimGonderMagazaTakipcilerine } from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   const { yetkili, session } = await getSaticiSession();
@@ -44,6 +45,14 @@ export async function POST(request: Request) {
 
   switch (sonuc.tur) {
     case "eklendi":
+      // urunEkle() SAF kalir (motor/lib fonksiyonu) - bildirim burada, basariyla
+      // dondukten SONRA tetiklenir (bildirim.ts deseni).
+      await bildirimGonderMagazaTakipcilerine({
+        magazaId: magaza.id,
+        urunId: sonuc.urun.id,
+        mesaj: `Takip ettiğiniz "${magaza.ad}" mağazasına yeni bir ürün eklendi: "${baslik.trim()}"`,
+        haricKullaniciId: session.user.id,
+      });
       return NextResponse.json({ id: sonuc.urun.id, fotograflar: sonuc.urun.fotograflar }, { status: 201 });
     case "gecersiz-baslik":
       return NextResponse.json({ hata: "baslik zorunlu (en fazla 200 karakter)" }, { status: 400 });

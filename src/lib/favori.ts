@@ -64,3 +64,19 @@ export async function begeniSayilariHaritasi(urunIdler: string[]): Promise<Map<s
   for (const satir of satirlar) harita.set(satir.urunId, satir._count);
   return harita;
 }
+
+// En cok begenilen (begeniMi:true sayisi en yuksek) N urunun id'sini, SIRAYLA
+// dondurur - Prisma'nin groupBy+orderBy:{_count} destegi (resmi, tahmin degil).
+// GORUNURLUK FILTRESI (silindiMi/durum/magaza.gizliMi) UYGULAMAZ - sadece
+// begeni sayisina gore ID sirasi doner, cagiran taraf (page.tsx) kendi
+// gorunurluk filtresini eklemeli (ayni "Bu Hafta Eklenenler" sorgusundaki gibi).
+export async function enCokBegenilenUrunIdleriGetir(limit: number): Promise<string[]> {
+  const gruplar = await prisma.urunFavori.groupBy({
+    by: ["urunId"],
+    where: { begeniMi: true },
+    _count: true,
+    orderBy: { _count: { urunId: "desc" } },
+    take: limit,
+  });
+  return gruplar.map((g) => g.urunId);
+}

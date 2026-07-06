@@ -1,7 +1,9 @@
+import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
-import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
+import { begeniSayilariHaritasi, enCokBegenilenUrunIdleriGetir, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
+import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { HaftalikRitim } from "./HaftalikRitim";
@@ -10,6 +12,18 @@ import { MagazaVitrini } from "./MagazaVitrini";
 import { MagazaAcCTA } from "./MagazaAcCTA";
 
 const YENI_URUN_LIMIT = 12;
+const EN_COK_BEGENILEN_LIMIT = 12;
+const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+
+// Gorunurluk filtresi "Bu Hafta Eklenenler" sorgusuyla BIREBIR ayni
+// (silindiMi/durum/magaza.silindiMi/magaza.gizliMi) - iki farkli sorgunun
+// (createdAt-sirali vs begeni-sirali) ayni vitrin kurallarina uymasi icin
+// tek yerde tutulur.
+const VITRIN_GORUNURLUK_FILTRESI: Prisma.UrunWhereInput = {
+  silindiMi: false,
+  durum: { in: ["sergide", "doldu"] },
+  magaza: { silindiMi: false, gizliMi: false },
+};
 
 export default async function AnaSayfa() {
   const { session, rol } = await oturumRolOku();
@@ -26,7 +40,7 @@ export default async function AnaSayfa() {
     kullaniciTelefonVar = !!kullanici?.telefon;
   }
 
-  const [pazarlar, magazalar, yeniUrunler] = await Promise.all([
+  const [pazarlar, magazalar, yeniUrunler, enCokBegenilenIdler] = await Promise.all([
     prisma.pazar.findMany({ where: { aktifMi: true }, orderBy: { createdAt: "asc" } }),
     prisma.magaza.findMany({
       // Ileri-referans notu (docs/mimari/satici-onboarding.md): herkese acik her
@@ -43,11 +57,7 @@ export default async function AnaSayfa() {
     // gizliMi/silindiMi kurali burada da gecerli, yoksa gizlenmis/kaldirilmis
     // bir magazanin urunu ana sayfada sizar.
     prisma.urun.findMany({
-      where: {
-        silindiMi: false,
-        durum: { in: ["sergide", "doldu"] },
-        magaza: { silindiMi: false, gizliMi: false },
-      },
+      where: VITRIN_GORUNURLUK_FILTRESI,
       include: {
         kategori: true,
         magaza: { select: { ad: true, slug: true } },
@@ -55,14 +65,67 @@ export default async function AnaSayfa() {
       orderBy: { createdAt: "desc" },
       take: YENI_URUN_LIMIT,
     }),
+    // Sadece begeni-sirali ID listesi - gorunurluk filtresi UYGULANMAZ (bkz.
+    // src/lib/favori.ts), asagida ayri bir sorguyla uygulanir.
+    enCokBegenilenUrunIdleriGetir(EN_COK_BEGENILEN_LIMIT),
   ]);
 
-  const yeniUrunIdler = yeniUrunler.map((u) => u.id);
-  const [begeniSayilari, benimFavorilerim, kuyrukSayilari] = await Promise.all([
-    begeniSayilariHaritasi(yeniUrunIdler),
-    kullaniciFavoriHaritasi(session?.user?.id, yeniUrunIdler),
-    kuyrukSayilariHaritasi(yeniUrunIdler),
+  // Iki asamali: once begeni-sirali ID'ler, sonra o ID'lerle gorunurluk
+  // filtreli Urun.findMany. findMany({id:{in:...}}) sira garantisi VERMEZ -
+  // donen satirlar Map'e konup orijinal begeni-sirasina gore geri dizilir
+  // (kuyrukSayilariHaritasi/begeniSayilariHaritasi deseninin mantigi).
+  let enCokBegenilenler: typeof yeniUrunler = [];
+  if (enCokBegenilenIdler.length > 0) {
+    const bulunanlar = await prisma.urun.findMany({
+      where: { id: { in: enCokBegenilenIdler }, ...VITRIN_GORUNURLUK_FILTRESI },
+      include: { kategori: true, magaza: { select: { ad: true, slug: true } } },
+    });
+    const urunMap = new Map(bulunanlar.map((u) => [u.id, u]));
+    enCokBegenilenler = enCokBegenilenIdler
+      .map((id) => urunMap.get(id))
+      .filter((u): u is NonNullable<typeof u> => !!u);
+  }
+
+  const tumUrunIdler = Array.from(
+    new Set([...yeniUrunler.map((u) => u.id), ...enCokBegenilenler.map((u) => u.id)]),
+  );
+  const [begeniSayilari, benimFavorilerim, kuyrukSayilari, degerlendirmeOzeti, yorumlar] = await Promise.all([
+    begeniSayilariHaritasi(tumUrunIdler),
+    kullaniciFavoriHaritasi(session?.user?.id, tumUrunIdler),
+    kuyrukSayilariHaritasi(tumUrunIdler),
+    degerlendirmeOzetiHaritasi(tumUrunIdler),
+    urunYorumlariHaritasi(tumUrunIdler),
   ]);
+
+  // Hem "Bu Hafta Eklenenler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
+  // seklini kurar - kod tekrari yerine tek yardimci.
+  function urunKartiVeriYap(urun: (typeof yeniUrunler)[number]) {
+    return {
+      id: urun.id,
+      baslik: urun.baslik,
+      aciklama: urun.aciklama,
+      fiyat: Number(urun.fiyat),
+      durum: urun.durum,
+      fotograflar: urun.fotograflar,
+      kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
+      magaza: { ad: urun.magaza.ad, slug: urun.magaza.slug },
+      begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
+      benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
+      benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
+      stokAdedi: urun.stokAdedi,
+      aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
+      yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
+      degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
+      degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
+      yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({
+        id: y.id,
+        kullaniciAd: y.kullaniciAd,
+        puan: y.puan,
+        yorum: y.yorum,
+        tarih: tarihFormat.format(y.createdAt),
+      })),
+    };
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -87,22 +150,20 @@ export default async function AnaSayfa() {
               <YeniEklenenler
                 girisli={girisli}
                 kullaniciTelefonVar={kullaniciTelefonVar}
-                urunler={yeniUrunler.map((urun) => ({
-                  id: urun.id,
-                  baslik: urun.baslik,
-                  aciklama: urun.aciklama,
-                  fiyat: Number(urun.fiyat),
-                  durum: urun.durum,
-                  fotograflar: urun.fotograflar,
-                  kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
-                  magaza: { ad: urun.magaza.ad, slug: urun.magaza.slug },
-                  begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
-                  benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
-                  benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
-                  stokAdedi: urun.stokAdedi,
-                  aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
-                  yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
-                }))}
+                urunler={yeniUrunler.map(urunKartiVeriYap)}
+              />
+            </div>
+          </div>
+        )}
+
+        {enCokBegenilenler.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-lg font-bold text-neutral-900">En Çok Beğenilenler</h2>
+            <div className="mt-4">
+              <YeniEklenenler
+                girisli={girisli}
+                kullaniciTelefonVar={kullaniciTelefonVar}
+                urunler={enCokBegenilenler.map(urunKartiVeriYap)}
               />
             </div>
           </div>

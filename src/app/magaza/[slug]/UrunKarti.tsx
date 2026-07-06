@@ -10,6 +10,7 @@ import { BegeniButonu } from "@/components/BegeniButonu";
 import { TakipButonu } from "@/components/TakipButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { SikayetModal } from "@/components/SikayetModal";
+import { YildizGosterge } from "@/components/YildizGosterge";
 import { RezerveModal } from "./RezerveModal";
 import { UrunDetayModal } from "./UrunDetayModal";
 
@@ -40,6 +41,12 @@ export type UrunKartiVeri = {
   stokAdedi: number;
   aktifSayisi: number;
   yedekSayisi: number;
+  // Degerlendirme: sayi 0 ise ortalama anlamsiz (null) - YildizGosterge bu
+  // durumda hic render etmez. yorumlar SADECE detay modalinda gosterilir,
+  // kartta degil (kart alani sinirli).
+  degerlendirmeOrtalamasi: number | null;
+  degerlendirmeSayisi: number;
+  yorumlar: { id: string; kullaniciAd: string; puan: number; yorum: string; tarih: string }[];
 };
 
 export function UrunKarti({
@@ -247,6 +254,7 @@ export function UrunKarti({
           Detayları gör
         </button>
         <p className="text-lg font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
+        <YildizGosterge ortalama={urun.degerlendirmeOrtalamasi ?? 0} sayi={urun.degerlendirmeSayisi} />
         <p className="text-xs text-neutral-500">Stok: {urun.stokAdedi} adet</p>
         <span className={`mb-2 w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${durumStil.className}`}>
           {durumStil.etiket}

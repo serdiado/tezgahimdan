@@ -7,6 +7,7 @@ import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { BegeniButonu } from "@/components/BegeniButonu";
 import { TakipButonu } from "@/components/TakipButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
+import { YildizGosterge } from "@/components/YildizGosterge";
 import { DURUM_STIL, type UrunKartiVeri } from "./UrunKarti";
 
 const fiyatFormat = new Intl.NumberFormat("tr-TR", {
@@ -284,6 +285,9 @@ export function UrunDetayModal({
         </div>
         <h2 className="mt-2 text-lg font-bold text-neutral-900">{urun.baslik}</h2>
         <p className="mt-1 text-xl font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
+        <div className="mt-1">
+          <YildizGosterge ortalama={urun.degerlendirmeOrtalamasi ?? 0} sayi={urun.degerlendirmeSayisi} boyut="md" />
+        </div>
         <p className="text-xs text-neutral-500">Stok: {urun.stokAdedi} adet</p>
         {urun.aciklama && (
           <p className="mt-3 whitespace-pre-wrap text-sm text-neutral-700">{urun.aciklama}</p>
@@ -315,6 +319,24 @@ export function UrunDetayModal({
             tamGenislik
           />
         </div>
+
+        {urun.yorumlar.length > 0 && (
+          <div className="mt-4 border-t border-neutral-200 pt-4">
+            <h3 className="text-sm font-semibold text-neutral-900">Değerlendirmeler</h3>
+            <div className="mt-2 space-y-2">
+              {urun.yorumlar.map((y) => (
+                <div key={y.id} className="rounded-xl bg-neutral-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-neutral-800">{y.kullaniciAd}</span>
+                    <YildizGosterge ortalama={y.puan} sayi={1} />
+                  </div>
+                  <p className="mt-1 text-sm text-neutral-700">{y.yorum}</p>
+                  <p className="mt-1 text-xs text-neutral-400">{y.tarih}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
