@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { rezervasyonVazgec } from "@/lib/rezervasyon";
-import { bildirimGonderTakipcilere } from "@/lib/bildirim";
+import { bildirimGonderTakipcilere, bildirimGonderYukselenKullaniciya } from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   // KP-1: kimlik dogrulama artik (kod + telefon) degil, giris yapmis kullanicinin
@@ -28,10 +28,23 @@ export async function POST(request: Request) {
           select: { baslik: true },
         });
         if (urun) {
+          // Yedekten aktife yukselen biri varsa once ona kisisel bildirim
+          // gonderilir; donen aliciId genel takipci bildiriminin haric
+          // listesine eklenir (aksi halde yukselen kisi, urunu takip
+          // ediyorsa, ayni olay icin cift/yaniltici bildirim alirdi).
+          const haricListesi = [session.user.id];
+          if (sonuc.yukselenKodu) {
+            const yukselenAliciId = await bildirimGonderYukselenKullaniciya({
+              yukselenKodu: sonuc.yukselenKodu,
+              urunId: sonuc.urunId,
+              urunBaslik: urun.baslik,
+            });
+            if (yukselenAliciId) haricListesi.push(yukselenAliciId);
+          }
           await bildirimGonderTakipcilere({
             urunId: sonuc.urunId,
             mesaj: `Takip ettiğiniz "${urun.baslik}" için aktif bir rezervasyon iptal edildi.`,
-            haricKullaniciId: session.user.id,
+            haricKullaniciIdler: haricListesi,
           });
         }
       }

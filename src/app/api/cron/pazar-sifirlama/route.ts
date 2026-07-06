@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       await bildirimGonderTakipcilere({
         urunId: noShow.urunId,
         mesaj: `Takip ettiğiniz "${baslik}" için hak sahibi gelmedi, yeni bir hak açıldı.`,
-        haricKullaniciId: noShow.aliciId,
+        haricKullaniciIdler: [noShow.aliciId],
       });
     }
   }

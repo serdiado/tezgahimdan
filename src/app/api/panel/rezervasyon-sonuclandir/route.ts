@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSaticiSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { rezervasyonSonuclandir } from "@/lib/rezervasyon";
-import { bildirimGonderTakipcilere } from "@/lib/bildirim";
+import { bildirimGonderTakipcilere, bildirimGonderYukselenKullaniciya } from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   const { session, yetkili } = await getSaticiSession();
@@ -28,11 +28,25 @@ export async function POST(request: Request) {
       // Her zaman aktif-tier (yedek sonuclandirilamaz) - kosulsuz bildirim.
       const urun = await prisma.urun.findUnique({ where: { id: cikti.urunId }, select: { baslik: true } });
       if (urun) {
+        // yukselenKodu SADECE "gelmedi" dalinda dolu olur (motor kodu garanti
+        // ediyor - "satildi" dalinda hicbir zaman yedek yukselmez), bu yuzden
+        // ekstra bir cikti.sonuc==="gelmedi" kontrolune gerek yok - tek basina
+        // if(yukselenKodu) hem yeterli hem DRY (motor sozlesmesi route
+        // katmaninda tekrar edilmemis olur).
+        const haricListesi = [session.user.id];
+        if (cikti.yukselenKodu) {
+          const yukselenAliciId = await bildirimGonderYukselenKullaniciya({
+            yukselenKodu: cikti.yukselenKodu,
+            urunId: cikti.urunId,
+            urunBaslik: urun.baslik,
+          });
+          if (yukselenAliciId) haricListesi.push(yukselenAliciId);
+        }
         const mesaj =
           cikti.sonuc === "satildi"
             ? `Takip ettiğiniz "${urun.baslik}" satıldı.`
             : `Takip ettiğiniz "${urun.baslik}" için hak sahibi gelmedi, yeni bir hak açıldı.`;
-        await bildirimGonderTakipcilere({ urunId: cikti.urunId, mesaj, haricKullaniciId: session.user.id });
+        await bildirimGonderTakipcilere({ urunId: cikti.urunId, mesaj, haricKullaniciIdler: haricListesi });
       }
       return NextResponse.json({
         sonuc: cikti.sonuc,

@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         await bildirimGonderTakipcilere({
           urunId: cikti.urunId,
           mesaj: `Takip ettiğiniz "${urun.baslik}" için bir işlem geri alındı.`,
-          haricKullaniciId: session.user.id,
+          haricKullaniciIdler: [session.user.id],
         });
       }
       return NextResponse.json({ siraNo: cikti.siraNo, dusenYedekKodu: cikti.dusenYedekKodu });

@@ -73,7 +73,7 @@ export async function POST(request: Request) {
           await bildirimGonderTakipcilere({
             urunId,
             mesaj: `Takip ettiğiniz "${urun.baslik}" için yeni bir rezervasyon alındı.`,
-            haricKullaniciId: session.user.id,
+            haricKullaniciIdler: [session.user.id],
           });
         }
       }

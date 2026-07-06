@@ -76,11 +76,24 @@ her render'da gizli bir yetki sorgusu gerektirirdi.
 
 ---
 
+## "Rezervasyonun yükseldi" bildirimi
+
+Favori/Bildirim sisteminin bilinçli olarak en sona bırakılan tek eklentisi:
+bir kullanıcının YEDEK sıradaki rezervasyonu aktife yükselince ona özel
+"sıra sana geldi" bildirimi. Motor (`rezervasyon.ts`) zaten `yukselenKodu`
+döndürüyordu, tek satır değişmedi — route katmanı bu veriyi tüketti. Yükselen
+kişi ürünü takip ediyorsa çift/yanıltıcı bildirim almaması için
+`bildirimGonderTakipcilere` tek kullanıcı yerine bir dizi kullanıcı hariç
+tutacak şekilde genişletildi.
+
+→ Detay: [`docs/mimari/rezervasyon-yukseldi-bildirimi.md`](./mimari/rezervasyon-yukseldi-bildirimi.md)
+
+---
+
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
 - **Rate-limit yok:** Deploy öncesi en azından IP bazlı limit değerlendirilmeli. (KP-1 üyelik zorunluluğuyla sahte-numarayla kitle rezervasyonu riski büyük ölçüde azaldı — rezervasyon için hesap gerekir; yine de rate-limit tamamen ikame etmez.)
 - **~~Telefonla mevcut rezerv kodu ifşası~~ (KP-1 ile kapandı):** Kod+telefon arama (`/api/rezervasyon/sorgula`) kaldırıldı; kullanıcı yalnız giriş yapıp kendi rezervasyonlarını görür.
-- **Yükselen yedeğe bildirim yok:** Yedekten aktife yükselen kişiye şu an bildirim gitmiyor — no-show riskini artırır, bildirim/SMS fazında ele alınacak.
 - **Satıcı kendi ürününe rezervasyon yapabiliyor:** Şu an engellenmiyor, kural tanımsız.
 - **Stok sonradan düşürülürse:** Mevcut aktif rezervasyon sayısı yeni stoktan büyük kalabilir. Ürün düzenleme akışı yazılırken ele alınacak.
 - **Geri alma redlerinin doğası:** Geri alma redleri (`DurumGecmisi`'ndeki `geri_alma_reddedildi` kayıtları) kalıcı (gerçekten dolu/satıldı) ya da yarış kaynaklı geçici olabilir. Admin paneli bu kayıtları listelerken bu ayrımı yapmalı.

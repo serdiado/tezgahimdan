@@ -224,7 +224,7 @@ export async function POST(request: Request) {
       await bildirimGonderTakipcilere({
         urunId: id,
         mesaj: `Takip ettiğiniz "${mevcutUrun.baslik}" için fiyat düştü: ${fiyatFormat.format(eskiFiyat)} → ${fiyatFormat.format(fiyatSayisal)}`,
-        haricKullaniciId: session.user.id,
+        haricKullaniciIdler: [session.user.id],
       });
     }
 
