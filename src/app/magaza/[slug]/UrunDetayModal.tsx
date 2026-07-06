@@ -2,7 +2,7 @@
 
 import { createElement, useRef, useState } from "react";
 import Image from "next/image";
-import { X, ZoomIn, type LucideIcon } from "lucide-react";
+import { Flag, X, ZoomIn, type LucideIcon } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { BegeniButonu } from "@/components/BegeniButonu";
 import { TakipButonu } from "@/components/TakipButonu";
@@ -155,8 +155,15 @@ function ZoomluGorsel({
         <button
           type="button"
           onClick={zoomAcKapa}
+          // Disaridaki div'in onPointerDown'i (gesture/pinch takibi icin)
+          // TUM alt agacta tetiklenir ve setPointerCapture cagirir - bu,
+          // pointerup'i butonun ustunde degil YAKALAYAN elemente yonlendirip
+          // native "click" sentezini kirar (buton hic tiklanmiyormus gibi
+          // gorunur). stopPropagation ile bu butona gelen pointerdown disari
+          // hic cikmaz, disideki gesture mantigi devreye girmez.
+          onPointerDown={(e) => e.stopPropagation()}
           aria-label={zoom > 1 ? "Uzaklaştır" : "Yakınlaştır"}
-          className="absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+          className="absolute bottom-2 left-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
         >
           <ZoomIn className="h-4 w-4" strokeWidth={2} />
         </button>
@@ -174,12 +181,14 @@ export function UrunDetayModal({
   girisli,
   onClose,
   onRezerveEt,
+  onSikayetEt,
 }: {
   urun: UrunKartiVeri;
   magazaSlug: string;
   girisli: boolean;
   onClose: () => void;
   onRezerveEt: () => void;
+  onSikayetEt: () => void;
 }) {
   const [aktifIndex, setAktifIndex] = useState(0);
   const renk = kategoriRengiSec(urun.kategori.id);
@@ -212,6 +221,26 @@ export function UrunDetayModal({
           kategoriIkonu={kategoriIkonu}
           renkYazi={renk.text}
         />
+
+        {/* Begen+Takip+Bildir: gorselin hemen altinda, disinda, saga yasli
+            kompakt satir - UrunKarti.tsx'teki kart tasarimiyla birebir ayni. */}
+        <div className="mt-2 flex items-center justify-end gap-3">
+          <BegeniButonu
+            urunId={urun.id}
+            girisli={girisli}
+            begeniSayisi={urun.begeniSayisi}
+            benimBegenimVar={urun.benimBegenimVar}
+          />
+          <TakipButonu urunId={urun.id} girisli={girisli} benimTakibimVar={urun.benimTakibimVar} kompakt />
+          <button
+            type="button"
+            onClick={onSikayetEt}
+            aria-label="Bildir"
+            className="flex items-center text-neutral-400 hover:text-neutral-600"
+          >
+            <Flag className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
 
         {/* Kucuk resim seridi: max 5 foto oldugu icin (urun-sabitleri.ts) harici
             bir carousel kutuphanesi gerekmiyor, basit state ile yeterli. */}
@@ -265,15 +294,6 @@ export function UrunDetayModal({
           <span className="shrink-0 text-xs text-neutral-500">
             Rezerv: {urun.aktifSayisi} · Yedek: {urun.yedekSayisi}
           </span>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <BegeniButonu
-            urunId={urun.id}
-            girisli={girisli}
-            begeniSayisi={urun.begeniSayisi}
-            benimBegenimVar={urun.benimBegenimVar}
-          />
-          <TakipButonu urunId={urun.id} girisli={girisli} benimTakibimVar={urun.benimTakibimVar} />
         </div>
         <div className="mt-3">
           <PaylasButonlari

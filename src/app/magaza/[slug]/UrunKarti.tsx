@@ -142,6 +142,13 @@ export function UrunKarti({
     rezerveTikla();
   }
 
+  // Ayni desen: detaydan "Bildir"e basilinca detay kapanir, AYNI sikayetTikla()
+  // cagrilir - giris kontrolu tek yerde kalir.
+  function detaySikayetEt() {
+    setDetayModalAcik(false);
+    sikayetTikla();
+  }
+
   return (
     <div
       ref={kartRef}
@@ -292,6 +299,7 @@ export function UrunKarti({
           girisli={girisli}
           onClose={() => setDetayModalAcik(false)}
           onRezerveEt={detayRezerveEt}
+          onSikayetEt={detaySikayetEt}
         />
       )}
     </div>
