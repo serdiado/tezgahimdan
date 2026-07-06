@@ -77,14 +77,15 @@ model Kullanici {
   emailVerified DateTime?
   sifreHash     String?
 
-  magazalar        Magaza[]
-  rezervasyonlar   Rezervasyon[]
-  durumGecmisi     DurumGecmisi[]
-  sikayetler       Sikayet[]
-  urunFavorileri   UrunFavori[]
-  bildirimler      Bildirim[]
-  magazaTakipleri  MagazaTakip[]
-  degerlendirmeler Degerlendirme[]
+  magazalar               Magaza[]
+  rezervasyonlar          Rezervasyon[]
+  durumGecmisi            DurumGecmisi[]
+  sikayetler              Sikayet[]
+  urunFavorileri          UrunFavori[]
+  bildirimler             Bildirim[]
+  magazaTakipleri         MagazaTakip[]
+  degerlendirmeler        Degerlendirme[]
+  magazaDegerlendirmeleri MagazaDegerlendirme[]
 }
 
 model Kategori {
@@ -109,6 +110,14 @@ model Magaza {
   // Basit "magaza olustur" akisinda toplanmiyor (sadece ad+slug); sonradan
   // magaza ayarlarindan doldurulur. Bos string yerine gercek NULL taniyoruz.
   whatsappNo String?
+  // Serbest metin tarif ("12", "A Blok 5", "giristen 3. sagdaki tezgah") - sayiyla
+  // sinirlanmaz, max 100 karakter SADECE API/server action katmaninda kontrol edilir
+  // (puan 1-5 gibi diger validasyonlar da DB'de degil route'ta kisitlaniyor).
+  tezgahBilgisi String?
+  // Saticinin KENDI magazasi icin yukledigi TEK fotograf (tezgahinin fotografi ya da
+  // elle cizdigi kroki) - admin-yonetimli ortak pazar haritasi DEGIL, urunEkle() ile
+  // ayni upload altyapisinin tek-fotograf versiyonu (bkz. src/lib/magaza-kroki.ts).
+  krokiFotoUrl  String?
   pazar      Pazar     @relation(fields: [pazarId], references: [id])
   pazarId    String
   silindiMi  Boolean   @default(false)
@@ -120,9 +129,10 @@ model Magaza {
   gizliMi    Boolean   @default(false)
   createdAt  DateTime  @default(now())
 
-  urunler    Urun[]
-  sikayetler Sikayet[]
-  takipciler MagazaTakip[]
+  urunler                 Urun[]
+  sikayetler              Sikayet[]
+  takipciler              MagazaTakip[]
+  degerlendirmeler        MagazaDegerlendirme[]
 }
 
 enum UrunDurumu {
@@ -295,4 +305,27 @@ model Degerlendirme {
   guncellenmeZamani DateTime  @updatedAt
 
   @@unique([kullaniciId, urunId])
+}
+
+// Magaza-seviyesi degerlendirme/yorum: Degerlendirme (urun-seviyesi) ile AYNI
+// desen (upsert, DB'de kisitlanmayan puan, hic hard-delete yok) ama AYRI tablo
+// - Degerlendirme.urunId NOT NULL oldugu icin ayni tabloda tutmak urunId'yi
+// nullable yapip Sikayet'teki hedefUrunId/hedefMagazaId XOR desenine gecmeyi
+// gerektirirdi (zayif DB garantisi + her mevcut urun-degerlendirme sorgusunun
+// gozden gecirilmesi). Kim degerlendirebilir: bu magazadan (HANGI urun olursa
+// olsun) en az bir Rezervasyon.durum="satildi" kaydi olan herkes - kontrol API
+// katmaninda (src/lib/magaza-degerlendirme.ts) Urun uzerinden dolayli join ile
+// yapilir, DB'de zorlanmaz (Degerlendirme'deki ayni yaklasimla tutarli).
+model MagazaDegerlendirme {
+  id                String    @id @default(uuid())
+  kullanici         Kullanici @relation(fields: [kullaniciId], references: [id])
+  kullaniciId       String
+  magaza            Magaza    @relation(fields: [magazaId], references: [id])
+  magazaId          String
+  puan              Int
+  yorum             String?
+  createdAt         DateTime  @default(now())
+  guncellenmeZamani DateTime  @updatedAt
+
+  @@unique([kullaniciId, magazaId])
 }

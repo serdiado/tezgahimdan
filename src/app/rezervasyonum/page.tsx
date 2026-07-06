@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { kullaniciDegerlendirmeleriHaritasi } from "@/lib/degerlendirme";
+import { kullaniciMagazaDegerlendirmeleriHaritasi } from "@/lib/magaza-degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
 import { RezervasyonumIcerik } from "./RezervasyonumIcerik";
 
@@ -15,7 +16,7 @@ export default async function RezervasyonumSayfasi() {
 
   const rezervasyonlar = await prisma.rezervasyon.findMany({
     where: { aliciId: session.user.id },
-    include: { urun: { select: { baslik: true, magaza: { select: { ad: true, slug: true } } } } },
+    include: { urun: { select: { baslik: true, magaza: { select: { id: true, ad: true, slug: true } } } } },
   });
 
   // Bekleyenler once (yonetilebilir), sonra sonuclananlar; her grup en yeniden eskiye.
@@ -37,6 +38,20 @@ export default async function RezervasyonumSayfasi() {
     satilanUrunIdler,
   );
 
+  // Mağaza değerlendirmesi buton bazlı DEĞİL, MAĞAZA bazlı - aynı mağazadan 3 ürün
+  // alınmışsa 3 değil 1 buton çıksın diye satın alınan mağazalardan Map ile tekil
+  // liste çıkarıyoruz (satilanUrunIdler'i çıkarma mantığına paralel).
+  const satilanMagazalarHaritasi = new Map<string, { ad: string; slug: string }>();
+  for (const r of sirali) {
+    if (r.durum === "satildi") {
+      satilanMagazalarHaritasi.set(r.urun.magaza.id, { ad: r.urun.magaza.ad, slug: r.urun.magaza.slug });
+    }
+  }
+  const benimMagazaDegerlendirmelerim = await kullaniciMagazaDegerlendirmeleriHaritasi(
+    session.user.id,
+    Array.from(satilanMagazalarHaritasi.keys()),
+  );
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
@@ -56,6 +71,15 @@ export default async function RezervasyonumSayfasi() {
             mevcutPuan: benimDegerlendirmelerim.get(r.urunId)?.puan ?? null,
             mevcutYorum: benimDegerlendirmelerim.get(r.urunId)?.yorum ?? null,
           }))}
+          degerlendirilebilirMagazalar={Array.from(satilanMagazalarHaritasi.entries()).map(
+            ([magazaId, magaza]) => ({
+              magazaId,
+              magazaAd: magaza.ad,
+              magazaSlug: magaza.slug,
+              mevcutPuan: benimMagazaDegerlendirmelerim.get(magazaId)?.puan ?? null,
+              mevcutYorum: benimMagazaDegerlendirmelerim.get(magazaId)?.yorum ?? null,
+            }),
+          )}
         />
       </main>
     </div>

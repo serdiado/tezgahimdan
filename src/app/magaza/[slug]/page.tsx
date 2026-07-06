@@ -6,8 +6,11 @@ import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
 import { kullaniciMagazaTakipDurumu } from "@/lib/magaza-takip";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
+import { magazaDegerlendirmeOzeti, magazaYorumlariGetir } from "@/lib/magaza-degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaTakipButonu } from "@/components/MagazaTakipButonu";
+import { MagazaYorumlari } from "@/components/MagazaYorumlari";
+import { YildizGosterge } from "@/components/YildizGosterge";
 import { MagazaHero } from "./MagazaHero";
 import { MagazaIcerik } from "./MagazaIcerik";
 import { MagazaSikayetButonu } from "./MagazaSikayetButonu";
@@ -54,15 +57,25 @@ export default async function MagazaSayfasi({
   // "benim begenim/takibim" sadece girisliyse dolu gelir (kullaniciId yoksa
   // haritalar bos doner).
   const urunIdler = urunler.map((u) => u.id);
-  const [begeniSayilari, benimFavorilerim, kuyrukSayilari, benimMagazaTakibimVar, degerlendirmeOzeti, yorumlar] =
-    await Promise.all([
-      begeniSayilariHaritasi(urunIdler),
-      kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
-      kuyrukSayilariHaritasi(urunIdler),
-      kullaniciMagazaTakipDurumu(session?.user?.id, magaza.id),
-      degerlendirmeOzetiHaritasi(urunIdler),
-      urunYorumlariHaritasi(urunIdler),
-    ]);
+  const [
+    begeniSayilari,
+    benimFavorilerim,
+    kuyrukSayilari,
+    benimMagazaTakibimVar,
+    degerlendirmeOzeti,
+    yorumlar,
+    magazaDegerlendirmeSonucu,
+    magazaYorumlari,
+  ] = await Promise.all([
+    begeniSayilariHaritasi(urunIdler),
+    kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
+    kuyrukSayilariHaritasi(urunIdler),
+    kullaniciMagazaTakipDurumu(session?.user?.id, magaza.id),
+    degerlendirmeOzetiHaritasi(urunIdler),
+    urunYorumlariHaritasi(urunIdler),
+    magazaDegerlendirmeOzeti(magaza.id),
+    magazaYorumlariGetir(magaza.id),
+  ]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -73,13 +86,28 @@ export default async function MagazaSayfasi({
             magaza={{
               ad: magaza.ad,
               aciklama: magaza.aciklama,
+              whatsappNo: magaza.whatsappNo,
+              tezgahBilgisi: magaza.tezgahBilgisi,
+              krokiFotoUrl: magaza.krokiFotoUrl,
               pazar: { ad: magaza.pazar.ad, sifirlamaGunu: magaza.pazar.sifirlamaGunu },
             }}
           />
           <div className="mt-2 flex items-center justify-between">
             <MagazaTakipButonu girisli={girisli} magazaId={magaza.id} benimTakibimVar={benimMagazaTakibimVar} />
-            <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
+            <div className="flex items-center gap-3">
+              <YildizGosterge ortalama={magazaDegerlendirmeSonucu.ortalama} sayi={magazaDegerlendirmeSonucu.sayi} boyut="md" />
+              <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
+            </div>
           </div>
+          <MagazaYorumlari
+            yorumlar={magazaYorumlari.map((y) => ({
+              id: y.id,
+              kullaniciAd: y.kullaniciAd,
+              puan: y.puan,
+              yorum: y.yorum,
+              tarih: tarihFormat.format(y.createdAt),
+            }))}
+          />
         </div>
 
         <MagazaIcerik
