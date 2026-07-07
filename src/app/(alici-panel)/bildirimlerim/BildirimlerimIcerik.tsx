@@ -13,6 +13,7 @@ type BildirimSatir = {
   urunId: string | null;
   urunBaslik: string | null;
   magazaSlug: string | null;
+  hedefYolu: string | null;
 };
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", {
@@ -44,18 +45,33 @@ export function BildirimlerimIcerik({ bildirimler }: { bildirimler: BildirimSati
 
   return (
     <div className="mt-4 space-y-3">
-      {bildirimler.map((b) => (
-        <Link
-          key={b.id}
-          href={b.urunId ? `/magaza/${b.magazaSlug}?urun=${b.urunId}` : "/sikayetlerim"}
-          className={`block rounded-2xl p-4 shadow-sm ${
-            b.yeniMi ? "bg-primary-50 ring-1 ring-primary-200" : "bg-white"
-          }`}
-        >
-          <p className="text-sm text-neutral-800">{b.mesaj}</p>
-          <p className="mt-1 text-xs text-neutral-500">{tarihFormat.format(new Date(b.createdAt))}</p>
-        </Link>
-      ))}
+      {bildirimler.map((b) => {
+        // Hedef sirasi: urun varsa urune, yoksa (ör. sikayet sonucu) verilen
+        // hedefYolu'na. Ikisi de yoksa (ör. toplu duyuru) kart TIKLANAMAZ -
+        // eskiden hedefsiz her bildirim sabit /sikayetlerim'e gidiyordu, bu
+        // duyurular icin yanlisti (kullanici testinde bulundu).
+        const href = b.urunId ? `/magaza/${b.magazaSlug}?urun=${b.urunId}` : b.hedefYolu;
+        const icerik = (
+          <>
+            <p className="text-sm text-neutral-800">{b.mesaj}</p>
+            <p className="mt-1 text-xs text-neutral-500">{tarihFormat.format(new Date(b.createdAt))}</p>
+          </>
+        );
+        const sinif = `block rounded-2xl p-4 shadow-sm ${b.yeniMi ? "bg-primary-50 ring-1 ring-primary-200" : "bg-white"}`;
+
+        if (!href) {
+          return (
+            <div key={b.id} className={sinif}>
+              {icerik}
+            </div>
+          );
+        }
+        return (
+          <Link key={b.id} href={href} className={sinif}>
+            {icerik}
+          </Link>
+        );
+      })}
     </div>
   );
 }

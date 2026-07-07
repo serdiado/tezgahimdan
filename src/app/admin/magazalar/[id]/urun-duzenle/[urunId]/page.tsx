@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../../../../AdminNav";
 import { AdminUrunDuzenleForm } from "./AdminUrunDuzenleForm";
+import { UrunGeriGetirButonu } from "../../UrunGeriGetirButonu";
 
 const DURUM_ETIKETI: Record<string, string> = {
   sergide: "Sergide",
@@ -62,22 +63,34 @@ export default async function AdminUrunDuzenlePage({
         <Link href={`/admin/magazalar/${magaza.id}`} className="mt-3 inline-block text-sm text-primary-600 hover:underline">
           ← {magaza.ad} sayfasına dön
         </Link>
-        <div className="mt-4 max-w-2xl">
-          <AdminUrunDuzenleForm
-            magazaId={magaza.id}
-            urun={{
-              id: urun.id,
-              kategoriId: urun.kategoriId,
-              baslik: urun.baslik,
-              aciklama: urun.aciklama,
-              fiyat: Number(urun.fiyat),
-              stokAdedi: urun.stokAdedi,
-              fotograflar: urun.fotograflar,
-            }}
-            kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))}
-            minStok={aktifSayisi + satildiSayisi}
-          />
-        </div>
+        {urun.silindiMi ? (
+          <div className="mt-4 max-w-2xl rounded-2xl bg-white p-5 shadow-sm">
+            <p className="text-sm text-neutral-700">
+              <span className="font-semibold">{urun.baslik}</span> kaldırılmış durumda. Düzenlemek için
+              önce geri getirmen gerekiyor.
+            </p>
+            <div className="mt-3">
+              <UrunGeriGetirButonu urunId={urun.id} />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 max-w-2xl">
+            <AdminUrunDuzenleForm
+              magazaId={magaza.id}
+              urun={{
+                id: urun.id,
+                kategoriId: urun.kategoriId,
+                baslik: urun.baslik,
+                aciklama: urun.aciklama,
+                fiyat: Number(urun.fiyat),
+                stokAdedi: urun.stokAdedi,
+                fotograflar: urun.fotograflar,
+              }}
+              kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))}
+              minStok={aktifSayisi + satildiSayisi}
+            />
+          </div>
+        )}
       </>
     );
   }

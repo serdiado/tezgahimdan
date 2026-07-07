@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../../AdminNav";
 import { MagazaGizleButonu } from "./MagazaGizleButonu";
+import { UrunGeriGetirButonu } from "./UrunGeriGetirButonu";
 
 const URUN_DURUM_ETIKETI: Record<string, string> = {
   sergide: "Sergide",
@@ -201,18 +202,23 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
                     <th className="px-2 py-1.5 font-medium">Fiyat</th>
                     <th className="px-2 py-1.5 font-medium">Stok</th>
                     <th className="px-2 py-1.5 font-medium">Durum</th>
+                    <th className="px-2 py-1.5 font-medium"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {magaza.urunler.map((u) => (
                     <tr key={u.id} className="border-b border-neutral-50 last:border-0">
                       <td className="px-2 py-1.5">
-                        <Link
-                          href={`/admin/magazalar/${magaza.id}/urun-duzenle/${u.id}`}
-                          className="font-medium text-primary-600 hover:underline"
-                        >
-                          {u.baslik}
-                        </Link>
+                        {u.silindiMi ? (
+                          <span className="font-medium text-neutral-500">{u.baslik}</span>
+                        ) : (
+                          <Link
+                            href={`/admin/magazalar/${magaza.id}/urun-duzenle/${u.id}`}
+                            className="font-medium text-primary-600 hover:underline"
+                          >
+                            {u.baslik}
+                          </Link>
+                        )}
                       </td>
                       <td className="px-2 py-1.5 text-neutral-600">{u.kategori.ad}</td>
                       <td className="px-2 py-1.5 text-neutral-600">{u.fiyat.toString()} ₺</td>
@@ -221,6 +227,9 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
                         <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
                           {u.silindiMi ? "Kaldırıldı" : URUN_DURUM_ETIKETI[u.durum]}
                         </span>
+                      </td>
+                      <td className="px-2 py-1.5">
+                        {u.silindiMi && <UrunGeriGetirButonu urunId={u.id} />}
                       </td>
                     </tr>
                   ))}

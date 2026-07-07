@@ -1,13 +1,20 @@
 import { prisma } from "@/lib/prisma";
 
-// Urune bagli OLMAYAN tek-kullanici bildirimi (ör. sikayet sonucu) -
-// bildirimGonderTakipcilere/bildirimGonderMagazaTakipcilerine'nin aksine
-// takip/favori sartina bakmaz, ne urunId gerektirir. Bildirim.urunId bu yuzden
-// opsiyonel (bkz. schema.prisma); /bildirimlerim urunId null oldugunda
-// /sikayetlerim'e link verir.
-export async function bildirimGonderKullaniciya(params: { kullaniciId: string; mesaj: string }): Promise<void> {
+// Urune bagli OLMAYAN tek-kullanici bildirimi (ör. sikayet sonucu, admin
+// duyurusu) - bildirimGonderTakipcilere/bildirimGonderMagazaTakipcilerine'nin
+// aksine takip/favori sartina bakmaz, ne urunId gerektirir. hedefYolu
+// opsiyonel: sikayet sonucu gibi belirli bir hedefe yonlendirmesi gereken
+// bildirimler icin verilir (ör. "/sikayetlerim"); toplu duyuru gibi hedefsiz
+// genel bildirimlerde BOS BIRAKILIR - /bildirimlerim boyle bir karti
+// tiklanamaz gosterir (2026-07-08: onceden hepsi sabit /sikayetlerim'e
+// gidiyordu, duyuru eklenince yanlis hedefe tiklamaya donustu).
+export async function bildirimGonderKullaniciya(params: {
+  kullaniciId: string;
+  mesaj: string;
+  hedefYolu?: string;
+}): Promise<void> {
   await prisma.bildirim.create({
-    data: { kullaniciId: params.kullaniciId, mesaj: params.mesaj },
+    data: { kullaniciId: params.kullaniciId, mesaj: params.mesaj, hedefYolu: params.hedefYolu },
   });
 }
 

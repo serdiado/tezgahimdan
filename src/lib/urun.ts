@@ -291,6 +291,20 @@ export async function urunGuncelle(params: {
   }
 }
 
+export type UrunGeriGetirSonucu = { tur: "geri-getirildi" } | { tur: "bulunamadi" };
+
+// src/app/api/panel/urun-geri-getir/route.ts'ten cikarildi - urunGuncelle/
+// urunKaldir ile AYNI gerekce. Kilit gerekmiyor (kapasite kontrolu yok, sadece
+// bayrak geri aliniyor - urunKaldir zaten bekleyen rezervasyon varsa kaldirmayi
+// engelledigi icin geri getirmede yeniden kontrol gerekmez).
+export async function urunGeriGetir(params: { id: string }): Promise<UrunGeriGetirSonucu> {
+  const urun = await prisma.urun.findUnique({ where: { id: params.id }, select: { id: true } });
+  if (!urun) return { tur: "bulunamadi" };
+
+  await prisma.urun.update({ where: { id: params.id }, data: { silindiMi: false } });
+  return { tur: "geri-getirildi" };
+}
+
 export type UrunKaldirSonucu = { tur: "kaldirildi" } | { tur: "bulunamadi" } | { tur: "bekleyen-var"; sayi: number };
 
 // src/app/api/panel/urun-kaldir/route.ts'ten cikarildi - urunGuncelle() ile

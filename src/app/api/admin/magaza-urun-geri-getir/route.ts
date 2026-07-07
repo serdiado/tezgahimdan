@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSaticiSession } from "@/lib/yetki";
-import { getOwnMagaza } from "@/lib/magaza";
+import { getAdminSession } from "@/lib/yetki";
 import { urunGeriGetir } from "@/lib/urun";
 
+// api/panel/urun-geri-getir ile AYNI urunGeriGetir() lib fonksiyonunu kullanir
+// - sahiplik kontrolu yok. Faz 2.2'de admin urun kaldirma eklendi ama geri
+// getirme unutulmustu (kullanici testinde bulundu) - bu route o eksigi kapatir.
 export async function POST(request: Request) {
-  const { session, yetkili } = await getSaticiSession();
+  const { session, yetkili } = await getAdminSession();
   if (!yetkili || !session) {
     return NextResponse.json({ hata: "yetkisiz" }, { status: 403 });
   }
@@ -16,19 +18,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: "id zorunlu" }, { status: 400 });
   }
 
-  const magaza = await getOwnMagaza(session.user.id);
-  if (!magaza) {
-    return NextResponse.json({ hata: "once magaza olusturulmali" }, { status: 409 });
-  }
-
-  const urun = await prisma.urun.findUnique({ where: { id }, select: { id: true, magazaId: true } });
-  if (!urun) {
+  const sonuc = await urunGeriGetir({ id });
+  if (sonuc.tur === "bulunamadi") {
     return NextResponse.json({ hata: "urun bulunamadi" }, { status: 404 });
   }
-  if (urun.magazaId !== magaza.id) {
-    return NextResponse.json({ hata: "bu urun sizin magazaniza ait degil" }, { status: 403 });
-  }
 
-  await urunGeriGetir({ id });
+  await prisma.durumGecmisi.create({
+    data: {
+      kullaniciId: session.user.id,
+      varlikTuru: "Urun",
+      varlikId: id,
+      olay: "urun_geri_getirildi:admin_adina",
+    },
+  });
+
   return NextResponse.json({ tur: "geri-getirildi" });
 }

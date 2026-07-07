@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     const hedefAdi = sikayet.hedefMagaza?.ad ?? sikayet.hedefUrun?.baslik ?? "hedef";
     const sonucMetni = SONUC_METNI[durum as (typeof SONUC_DURUMLARI)[number]];
     const mesaj = `"${hedefAdi}" hakkındaki şikayetiniz ${sonucMetni}.${sikayet.yanit ? ` ${sikayet.yanit}` : ""}`;
-    await bildirimGonderKullaniciya({ kullaniciId: sikayet.sikayetciId, mesaj });
+    await bildirimGonderKullaniciya({ kullaniciId: sikayet.sikayetciId, mesaj, hedefYolu: "/sikayetlerim" });
   }
 
   return NextResponse.json({ tur: "guncellendi", durum });
