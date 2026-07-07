@@ -36,7 +36,7 @@ export async function magazaDegerlendirmeOzeti(
   magazaId: string,
 ): Promise<{ ortalama: number; sayi: number }> {
   const sonuc = await prisma.magazaDegerlendirme.aggregate({
-    where: { magazaId },
+    where: { magazaId, gizliMi: false },
     _avg: { puan: true },
     _count: true,
   });
@@ -54,7 +54,7 @@ export async function magazaDegerlendirmeOzetiHaritasi(
 
   const satirlar = await prisma.magazaDegerlendirme.groupBy({
     by: ["magazaId"],
-    where: { magazaId: { in: magazaIdler } },
+    where: { magazaId: { in: magazaIdler }, gizliMi: false },
     _avg: { puan: true },
     _count: true,
   });
@@ -133,7 +133,7 @@ export async function magazaYorumlariGetir(
   opsiyonlar?: { take?: number },
 ): Promise<MagazaYorumSatiri[]> {
   const satirlar = await prisma.magazaDegerlendirme.findMany({
-    where: { magazaId, yorum: { not: null } },
+    where: { magazaId, yorum: { not: null }, gizliMi: false },
     select: { id: true, puan: true, yorum: true, createdAt: true, kullanici: { select: { ad: true } } },
     orderBy: { createdAt: "desc" },
     take: opsiyonlar?.take,

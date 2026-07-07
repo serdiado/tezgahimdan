@@ -39,7 +39,7 @@ export async function degerlendirmeOzetiHaritasi(
 
   const satirlar = await prisma.degerlendirme.groupBy({
     by: ["urunId"],
-    where: { urunId: { in: urunIdler } },
+    where: { urunId: { in: urunIdler }, gizliMi: false },
     _avg: { puan: true },
     _count: true,
   });
@@ -90,7 +90,7 @@ export async function urunYorumlariHaritasi(urunIdler: string[]): Promise<Map<st
   if (urunIdler.length === 0) return harita;
 
   const satirlar = await prisma.degerlendirme.findMany({
-    where: { urunId: { in: urunIdler }, yorum: { not: null } },
+    where: { urunId: { in: urunIdler }, yorum: { not: null }, gizliMi: false },
     select: {
       id: true,
       urunId: true,
@@ -174,7 +174,7 @@ export type MagazaUrunYorumSatiri = YorumSatiri & { urunId: string; urunBaslik: 
 // magaza sayfasindaki 'satildi' urun degisikligi).
 export async function magazaUrunYorumlariGetir(magazaId: string): Promise<MagazaUrunYorumSatiri[]> {
   const satirlar = await prisma.degerlendirme.findMany({
-    where: { yorum: { not: null }, urun: { magazaId, silindiMi: false } },
+    where: { yorum: { not: null }, gizliMi: false, urun: { magazaId, silindiMi: false } },
     select: {
       id: true,
       puan: true,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Store, Landmark, Tags, MessageSquareWarning, ShieldAlert, History, Users } from "lucide-react";
+import { Store, Landmark, Tags, MessageSquareWarning, ShieldAlert, History, Users, Star } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -91,6 +91,12 @@ export default async function AdminSayfasi() {
             ikon={MessageSquareWarning}
             baslik="Şikayetler"
             aciklama="Moderasyon"
+          />
+          <AdminKart
+            href="/admin/degerlendirmeler"
+            ikon={Star}
+            baslik="Değerlendirmeler"
+            aciklama="Yorum moderasyonu"
           />
           <AdminKart
             href="/admin/anlasmazliklar"

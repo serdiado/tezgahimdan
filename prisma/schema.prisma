@@ -301,6 +301,10 @@ model Degerlendirme {
   urunId            String
   puan              Int
   yorum             String?
+  // Admin moderasyon bayragi: Magaza.gizliMi ile AYNI desen. true ise vitrinde
+  // (urun karti ozeti, tum-yorumlar sayfasi) gosterilmez ve ortalama puana
+  // katilmaz; sahibi kendi degerlendirmesini (/degerlendirmelerim) HALA gorur.
+  gizliMi           Boolean   @default(false)
   createdAt         DateTime  @default(now())
   guncellenmeZamani DateTime  @updatedAt
 
@@ -324,6 +328,8 @@ model MagazaDegerlendirme {
   magazaId          String
   puan              Int
   yorum             String?
+  // Degerlendirme.gizliMi ile AYNI desen/gerekce.
+  gizliMi           Boolean   @default(false)
   createdAt         DateTime  @default(now())
   guncellenmeZamani DateTime  @updatedAt
 
