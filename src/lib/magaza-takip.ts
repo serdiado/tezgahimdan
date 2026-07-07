@@ -38,3 +38,46 @@ export async function kullaniciMagazaTakipDurumu(
   });
   return satir?.takipMi ?? false;
 }
+
+export type TakipEdilenMagaza = {
+  id: string;
+  ad: string;
+  slug: string;
+  aciklama: string | null;
+  pazarAd: string;
+  urunSayisi: number;
+};
+
+// "Takip Ettigim Magazalar" sayfasi icin - ana sayfadaki (src/app/page.tsx)
+// magaza karti veri sekliyle AYNI (urunSayisi icin _count, degerlendirme
+// ozeti ayri magazaDegerlendirmeOzetiHaritasi cagrisiyla sayfa tarafinda
+// eklenir - burada DEGIL, cunku bu fonksiyon magaza-takip domain'inde,
+// degerlendirme domain'ine bagimli olmamali).
+export async function kullaniciTakipEttigiMagazalarGetir(
+  kullaniciId: string,
+): Promise<TakipEdilenMagaza[]> {
+  const satirlar = await prisma.magazaTakip.findMany({
+    where: { kullaniciId, takipMi: true, magaza: { silindiMi: false, gizliMi: false } },
+    select: {
+      magaza: {
+        select: {
+          id: true,
+          ad: true,
+          slug: true,
+          aciklama: true,
+          pazar: { select: { ad: true } },
+          _count: { select: { urunler: { where: { silindiMi: false } } } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return satirlar.map((s) => ({
+    id: s.magaza.id,
+    ad: s.magaza.ad,
+    slug: s.magaza.slug,
+    aciklama: s.magaza.aciklama,
+    pazarAd: s.magaza.pazar.ad,
+    urunSayisi: s.magaza._count.urunler,
+  }));
+}

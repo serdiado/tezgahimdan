@@ -1,4 +1,4 @@
-import { MagazaKarti, type MagazaKartiVeri } from "./MagazaKarti";
+import { MagazaKarti, type MagazaKartiVeri } from "@/components/MagazaKarti";
 
 export function MagazaVitrini({ magazalar }: { magazalar: MagazaKartiVeri[] }) {
   if (magazalar.length === 0) {
