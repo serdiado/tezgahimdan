@@ -170,7 +170,12 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
           </div>
 
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <h2 className="font-semibold text-neutral-900">Rezervasyon Özeti</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-neutral-900">Rezervasyon Özeti</h2>
+              <Link href={`/admin/rezervasyonlar?magazaId=${magaza.id}`} className="text-xs font-semibold text-primary-600 hover:underline">
+                Tümünü Gör
+              </Link>
+            </div>
             <dl className="mt-2 space-y-1 text-sm">
               {Object.entries(REZERVASYON_DURUM_ETIKETI).map(([durum, etiket]) => (
                 <div key={durum} className="flex justify-between gap-4">
