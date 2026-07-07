@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { SiteHeader } from "@/components/SiteHeader";
 import { BildirimlerimIcerik } from "./BildirimlerimIcerik";
 
 // /rezervasyonum ile ayni desen: girisli kullanicinin kendi listesi, girissiz
@@ -26,22 +25,19 @@ export default async function BildirimlerimSayfasi() {
   });
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <SiteHeader />
-      <main className="mx-auto max-w-md px-4 py-6">
-        <h1 className="text-xl font-bold text-neutral-900">Bildirimlerim</h1>
-        <BildirimlerimIcerik
-          bildirimler={bildirimler.map((b) => ({
-            id: b.id,
-            mesaj: b.mesaj,
-            createdAt: b.createdAt.toISOString(),
-            yeniMi: !b.okunduMu,
-            urunId: b.urunId,
-            urunBaslik: b.urun.baslik,
-            magazaSlug: b.urun.magaza.slug,
-          }))}
-        />
-      </main>
-    </div>
+    <>
+      <h1 className="text-xl font-bold text-neutral-900">Bildirimlerim</h1>
+      <BildirimlerimIcerik
+        bildirimler={bildirimler.map((b) => ({
+          id: b.id,
+          mesaj: b.mesaj,
+          createdAt: b.createdAt.toISOString(),
+          yeniMi: !b.okunduMu,
+          urunId: b.urunId,
+          urunBaslik: b.urun.baslik,
+          magazaSlug: b.urun.magaza.slug,
+        }))}
+      />
+    </>
   );
 }

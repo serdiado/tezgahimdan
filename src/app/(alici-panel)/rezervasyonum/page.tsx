@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { kullaniciDegerlendirmeleriHaritasi } from "@/lib/degerlendirme";
 import { kullaniciMagazaDegerlendirmeleriHaritasi } from "@/lib/magaza-degerlendirme";
-import { SiteHeader } from "@/components/SiteHeader";
 import { RezervasyonumIcerik } from "./RezervasyonumIcerik";
 
 // KP-1: Kullanici Paneli'nin ilk ekrani. Kod+telefon aramasi YOK - girisli
@@ -53,35 +52,32 @@ export default async function RezervasyonumSayfasi() {
   );
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <SiteHeader />
-      <main className="mx-auto max-w-md px-4 py-6">
-        <h1 className="text-xl font-bold text-neutral-900">Rezervasyonlarım</h1>
-        <RezervasyonumIcerik
-          rezervasyonlar={sirali.map((r) => ({
-            id: r.id,
-            rezervKodu: r.rezervKodu,
-            tip: r.tip,
-            siraNo: r.siraNo,
-            durum: r.durum,
-            urunId: r.urunId,
-            urunBaslik: r.urun.baslik,
-            magazaAd: r.urun.magaza.ad,
-            magazaSlug: r.urun.magaza.slug,
-            mevcutPuan: benimDegerlendirmelerim.get(r.urunId)?.puan ?? null,
-            mevcutYorum: benimDegerlendirmelerim.get(r.urunId)?.yorum ?? null,
-          }))}
-          degerlendirilebilirMagazalar={Array.from(satilanMagazalarHaritasi.entries()).map(
-            ([magazaId, magaza]) => ({
-              magazaId,
-              magazaAd: magaza.ad,
-              magazaSlug: magaza.slug,
-              mevcutPuan: benimMagazaDegerlendirmelerim.get(magazaId)?.puan ?? null,
-              mevcutYorum: benimMagazaDegerlendirmelerim.get(magazaId)?.yorum ?? null,
-            }),
-          )}
-        />
-      </main>
-    </div>
+    <>
+      <h1 className="text-xl font-bold text-neutral-900">Rezervasyonlarım</h1>
+      <RezervasyonumIcerik
+        rezervasyonlar={sirali.map((r) => ({
+          id: r.id,
+          rezervKodu: r.rezervKodu,
+          tip: r.tip,
+          siraNo: r.siraNo,
+          durum: r.durum,
+          urunId: r.urunId,
+          urunBaslik: r.urun.baslik,
+          magazaAd: r.urun.magaza.ad,
+          magazaSlug: r.urun.magaza.slug,
+          mevcutPuan: benimDegerlendirmelerim.get(r.urunId)?.puan ?? null,
+          mevcutYorum: benimDegerlendirmelerim.get(r.urunId)?.yorum ?? null,
+        }))}
+        degerlendirilebilirMagazalar={Array.from(satilanMagazalarHaritasi.entries()).map(
+          ([magazaId, magaza]) => ({
+            magazaId,
+            magazaAd: magaza.ad,
+            magazaSlug: magaza.slug,
+            mevcutPuan: benimMagazaDegerlendirmelerim.get(magazaId)?.puan ?? null,
+            mevcutYorum: benimMagazaDegerlendirmelerim.get(magazaId)?.yorum ?? null,
+          }),
+        )}
+      />
+    </>
   );
 }

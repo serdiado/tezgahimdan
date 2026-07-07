@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { SiteHeader } from "@/components/SiteHeader";
 import { FavorilerimIcerik } from "./FavorilerimIcerik";
 
 // /rezervasyonum ile ayni desen: girisli kullanicinin kendi listesi, girissiz
@@ -35,24 +34,21 @@ export default async function FavorilerimSayfasi() {
   });
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <SiteHeader />
-      <main className="mx-auto max-w-md px-4 py-6">
-        <h1 className="text-xl font-bold text-neutral-900">Favorilerim</h1>
-        <FavorilerimIcerik
-          favoriler={favoriler.map((f) => ({
-            urunId: f.urunId,
-            urunBaslik: f.urun.baslik,
-            fiyat: Number(f.urun.fiyat),
-            durum: f.urun.durum,
-            fotograf: f.urun.fotograflar[0] ?? null,
-            magazaAd: f.urun.magaza.ad,
-            magazaSlug: f.urun.magaza.slug,
-            begeniMi: f.begeniMi,
-            takipMi: f.takipMi,
-          }))}
-        />
-      </main>
-    </div>
+    <>
+      <h1 className="text-xl font-bold text-neutral-900">Favorilerim</h1>
+      <FavorilerimIcerik
+        favoriler={favoriler.map((f) => ({
+          urunId: f.urunId,
+          urunBaslik: f.urun.baslik,
+          fiyat: Number(f.urun.fiyat),
+          durum: f.urun.durum,
+          fotograf: f.urun.fotograflar[0] ?? null,
+          magazaAd: f.urun.magaza.ad,
+          magazaSlug: f.urun.magaza.slug,
+          begeniMi: f.begeniMi,
+          takipMi: f.takipMi,
+        }))}
+      />
+    </>
   );
 }
