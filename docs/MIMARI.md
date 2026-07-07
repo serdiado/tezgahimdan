@@ -106,6 +106,24 @@ değerlendirebilir: bu mağazadan (hangi ürün olursa olsun) satın almış her
 
 ---
 
+## Alıcı kullanıcı paneli (sol menü + yeni sayfalar)
+
+Projede İLK sidebar deseni (satıcı/admin panelinde de yoktu). `(alici-panel)`
+route group ile `/rezervasyonum`, `/favorilerim`, `/bildirimlerim` URL'leri
+DEĞİŞMEDEN ortak `layout.tsx` + `AliciPanelMenu.tsx`'e (tek bileşen: masaüstü
+sol sabit menü, mobilde üstte yatay kaydırılabilir sekme çubuğu) taşındı. Auth
+gate BİLEREK layout'a taşınmadı (layout'lar hangi alt-rota aktif olduğunu
+next= için güvenilir bilemez), her sayfa kendi redirect kontrolünü korudu. 4
+yeni sayfa eklendi: Ürün/Mağaza Değerlendirmelerim (mevcut form bileşenleri
+aynen yeniden kullanıldı), Takip Ettiğim Mağazalar (`MagazaKarti` paylaşılan
+bileşene taşındı + `altAksiyon` prop'u), Ayarlar (ad/telefon/şifre — "şifremi
+unuttum"/"hesabımı sil" email altyapısı+migration gerektirdiği için Faz 2'ye
+bilinçli ertelendi).
+
+→ Detay: [`docs/mimari/alici-kullanici-paneli.md`](./mimari/alici-kullanici-paneli.md)
+
+---
+
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
 - **Rate-limit yok:** Deploy öncesi en azından IP bazlı limit değerlendirilmeli. (KP-1 üyelik zorunluluğuyla sahte-numarayla kitle rezervasyonu riski büyük ölçüde azaldı — rezervasyon için hesap gerekir; yine de rate-limit tamamen ikame etmez.)
