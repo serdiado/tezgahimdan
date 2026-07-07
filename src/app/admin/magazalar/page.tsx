@@ -18,9 +18,9 @@ function yediGunEsigi(): Date {
 export default async function AdminMagazalarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ durum?: string; yeni?: string }>;
+  searchParams: Promise<{ durum?: string; yeni?: string; q?: string }>;
 }) {
-  const { durum, yeni } = await searchParams;
+  const { durum, yeni, q } = await searchParams;
   const { session, yetkili } = await getAdminSession();
   if (!session) {
     redirect("/giris");
@@ -36,18 +36,30 @@ export default async function AdminMagazalarPage({
     );
   } else {
     const yeniFiltre = yeni === "1";
+    const arama = q?.trim();
 
     // Uc durum: aktif (varsayilan, silindiMi=false - gizli olsun olmasin hepsi
     // rozetiyle gorunur), gizli (yalniz gizliMi=true), silindi (silindiMi=true).
     // "?yeni=1" son 7 gunde acilanlarla kesisir - hangi durum filtresiyle birlikte
-    // kullanilirsa kullanilsin.
+    // kullanilirsa kullanilsin. "?q=" ad/slug arasinda serbest metin arama, digerleriyle birlesir.
     const durumWhere =
       durum === "gizli"
         ? { silindiMi: false, gizliMi: true }
         : durum === "silindi"
           ? { silindiMi: true }
           : { silindiMi: false };
-    const where = yeniFiltre ? { ...durumWhere, createdAt: { gte: yediGunEsigi() } } : durumWhere;
+    const where = {
+      ...durumWhere,
+      ...(yeniFiltre ? { createdAt: { gte: yediGunEsigi() } } : {}),
+      ...(arama
+        ? {
+            OR: [
+              { ad: { contains: arama, mode: "insensitive" as const } },
+              { slug: { contains: arama, mode: "insensitive" as const } },
+            ],
+          }
+        : {}),
+    };
 
     const magazalar = await prisma.magaza.findMany({
       where,
@@ -63,6 +75,7 @@ export default async function AdminMagazalarPage({
       const params = new URLSearchParams();
       if (yeniDurum) params.set("durum", yeniDurum);
       if (yeniFiltre) params.set("yeni", "1");
+      if (arama) params.set("q", arama);
       const qs = params.toString();
       return `/admin/magazalar${qs ? `?${qs}` : ""}`;
     };
@@ -70,6 +83,7 @@ export default async function AdminMagazalarPage({
       const params = new URLSearchParams();
       if (durum) params.set("durum", durum);
       if (!yeniFiltre) params.set("yeni", "1");
+      if (arama) params.set("q", arama);
       const qs = params.toString();
       return `/admin/magazalar${qs ? `?${qs}` : ""}`;
     };
@@ -80,6 +94,24 @@ export default async function AdminMagazalarPage({
       <>
         <h1 className="text-xl font-bold text-neutral-900">Mağazalar</h1>
         <AdminNav aktif="magazalar" />
+
+        <form method="get" className="mt-3 flex gap-2">
+          {durum && <input type="hidden" name="durum" value={durum} />}
+          {yeniFiltre && <input type="hidden" name="yeni" value="1" />}
+          <input
+            type="text"
+            name="q"
+            defaultValue={arama}
+            placeholder="Mağaza adı veya bağlantı ara"
+            className="w-full max-w-xs rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-primary-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-primary-600"
+          >
+            Ara
+          </button>
+        </form>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-medium">
           <Link href={filtreLink()} className={linkSinif(!durum)}>

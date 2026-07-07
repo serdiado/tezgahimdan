@@ -6,7 +6,12 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../AdminNav";
 import { PazarKartAdmin } from "./PazarKartAdmin";
 
-export default async function AdminPazarlarPage() {
+export default async function AdminPazarlarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
   const { session, yetkili } = await getAdminSession();
   if (!session) {
     redirect("/giris");
@@ -21,7 +26,16 @@ export default async function AdminPazarlarPage() {
       </>
     );
   } else {
+    const arama = q?.trim();
     const pazarlar = await prisma.pazar.findMany({
+      where: arama
+        ? {
+            OR: [
+              { ad: { contains: arama, mode: "insensitive" } },
+              { bolge: { contains: arama, mode: "insensitive" } },
+            ],
+          }
+        : {},
       include: { _count: { select: { magazalar: true } } },
       orderBy: { createdAt: "asc" },
     });
@@ -39,8 +53,32 @@ export default async function AdminPazarlarPage() {
         </div>
         <AdminNav aktif="pazarlar" />
 
+        <form method="get" className="mt-3 flex gap-2">
+          <input
+            type="text"
+            name="q"
+            defaultValue={arama}
+            placeholder="Pazar adı veya bölge ara"
+            className="w-full max-w-xs rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-primary-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-primary-600"
+          >
+            Ara
+          </button>
+          {arama && (
+            <Link
+              href="/admin/pazarlar"
+              className="rounded-lg border border-neutral-300 px-4 py-1.5 text-sm font-medium text-neutral-600 hover:bg-neutral-100"
+            >
+              Temizle
+            </Link>
+          )}
+        </form>
+
         {pazarlar.length === 0 ? (
-          <p className="mt-4 text-neutral-600">Henüz pazar yok.</p>
+          <p className="mt-4 text-neutral-600">{arama ? "Bu aramayla eşleşen pazar yok." : "Henüz pazar yok."}</p>
         ) : (
           <div className="mt-4 space-y-3">
             {pazarlar.map((p) => (
