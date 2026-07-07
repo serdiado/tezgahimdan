@@ -1,21 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSaticiSession } from "@/lib/yetki";
-import { getOwnMagaza } from "@/lib/magaza";
+import { getAdminSession } from "@/lib/yetki";
 import { urunGuncelle } from "@/lib/urun";
 import { bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 const fiyatFormat = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" });
 
+// api/panel/urun-duzenle ile AYNI urunGuncelle() lib fonksiyonunu kullanir
+// (bkz. src/lib/urun.ts) - api/admin/magaza-urun-ekle'nin duzenleme muadili.
+// Sahiplik kontrolu YOK (admin herhangi bir saticinin urununu duzenleyebilir,
+// moderasyon amacli) - tek fark budur.
 export async function POST(request: Request) {
-  const { yetkili, session } = await getSaticiSession();
+  const { session, yetkili } = await getAdminSession();
   if (!yetkili || !session) {
     return NextResponse.json({ hata: "yetkisiz" }, { status: 403 });
-  }
-
-  const magaza = await getOwnMagaza(session.user.id);
-  if (!magaza) {
-    return NextResponse.json({ hata: "once magaza olusturulmali" }, { status: 409 });
   }
 
   const formData = await request.formData();
@@ -23,18 +21,6 @@ export async function POST(request: Request) {
   const id = typeof formData.get("id") === "string" ? (formData.get("id") as string) : "";
   if (!id) {
     return NextResponse.json({ hata: "id zorunlu" }, { status: 400 });
-  }
-
-  // magazaId istemciden ALINMAZ - urun oturumdaki saticinin kendi magazasindan
-  // mi diye burada dogrulanir, aksi halde bir satici baskasinin urununu
-  // duzenleyebilirdi. urunGuncelle() bu kontrolu yapmaz (admin varyantinda
-  // gerekmiyor), o yuzden sahiplik burada, cagiran tarafta kaliyor.
-  const mevcutUrun = await prisma.urun.findUnique({ where: { id }, select: { magazaId: true } });
-  if (!mevcutUrun) {
-    return NextResponse.json({ hata: "urun bulunamadi" }, { status: 404 });
-  }
-  if (mevcutUrun.magazaId !== magaza.id) {
-    return NextResponse.json({ hata: "bu urun sizin magazaniza ait degil" }, { status: 403 });
   }
 
   const kategoriId = formData.get("kategoriId");
@@ -64,10 +50,17 @@ export async function POST(request: Request) {
   });
 
   switch (sonuc.tur) {
-    case "guncellendi":
-      // urunGuncelle() SAF kalir (motor/lib fonksiyonu) - bildirim burada,
-      // basariyla dondukten SONRA tetiklenir (bildirim.ts deseni). Sadece
-      // DUSUSTE (<) tetiklenir.
+    case "guncellendi": {
+      // Admin izi: kullaniciId etkilenen magazanin sahibi DEGIL, eylemi yapan
+      // ADMIN'in kendisi - magaza-urun-ekle ile ayni kural.
+      await prisma.durumGecmisi.create({
+        data: {
+          kullaniciId: session.user.id,
+          varlikTuru: "Urun",
+          varlikId: sonuc.urun.id,
+          olay: "urun_guncellendi:admin_adina",
+        },
+      });
       if (sonuc.urun.fiyat < sonuc.eskiFiyat) {
         await bildirimGonderTakipcilere({
           urunId: sonuc.urun.id,
@@ -75,7 +68,8 @@ export async function POST(request: Request) {
           haricKullaniciIdler: [session.user.id],
         });
       }
-      return NextResponse.json({ id: sonuc.urun.id, fotograflar: sonuc.urun.fotograflar });
+      return NextResponse.json({ id: sonuc.urun.id, fotograflar: sonuc.urun.fotograflar, magazaId: sonuc.urun.magazaId });
+    }
     case "bulunamadi":
       return NextResponse.json({ hata: "urun bulunamadi" }, { status: 404 });
     case "gecersiz-kategori":
