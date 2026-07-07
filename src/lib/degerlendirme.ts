@@ -110,6 +110,59 @@ export async function urunYorumlariHaritasi(urunIdler: string[]): Promise<Map<st
   return harita;
 }
 
+export type KullaniciUrunDegerlendirmesi = {
+  id: string;
+  urunId: string;
+  urunBaslik: string;
+  magazaAd: string;
+  magazaSlug: string;
+  puan: number;
+  yorum: string | null;
+  guncellenmeZamani: Date;
+};
+
+// "Ürün Değerlendirmelerim" sayfasi icin - kullanicinin YAPTIGI tum urun
+// degerlendirmelerini (hangi urune, hangi magazaya ait oldugu bilgisiyle)
+// TEK listede doner. urunIdler onceden bilinmedigi icin
+// kullaniciDegerlendirmeleriHaritasi (belirli urunIdler ister) burada uygun
+// degil - bu fonksiyon kullaniciId'ye gore DOGRUDAN sorgu yapar. Silinmis
+// urunlerin degerlendirmesi (kayit HIC silinmez, sadece urun.silindiMi=true)
+// listede DAHIL edilir ama "urun kaldirildi" notuyla - favorilerim'deki
+// WHERE-ile-tamamen-filtreleme yerine burada gosterilmesi tercih edildi
+// cunku kullanici KENDI gecmis degerlendirmesini gormek isteyebilir.
+export async function kullaniciTumUrunDegerlendirmeleriGetir(
+  kullaniciId: string,
+): Promise<KullaniciUrunDegerlendirmesi[]> {
+  const satirlar = await prisma.degerlendirme.findMany({
+    where: { kullaniciId },
+    select: {
+      id: true,
+      puan: true,
+      yorum: true,
+      guncellenmeZamani: true,
+      urun: {
+        select: {
+          id: true,
+          baslik: true,
+          silindiMi: true,
+          magaza: { select: { ad: true, slug: true } },
+        },
+      },
+    },
+    orderBy: { guncellenmeZamani: "desc" },
+  });
+  return satirlar.map((s) => ({
+    id: s.id,
+    urunId: s.urun.id,
+    urunBaslik: s.urun.silindiMi ? `${s.urun.baslik} (kaldırıldı)` : s.urun.baslik,
+    magazaAd: s.urun.magaza.ad,
+    magazaSlug: s.urun.magaza.slug,
+    puan: s.puan,
+    yorum: s.yorum,
+    guncellenmeZamani: s.guncellenmeZamani,
+  }));
+}
+
 export type MagazaUrunYorumSatiri = YorumSatiri & { urunId: string; urunBaslik: string };
 
 // `/magaza/[slug]/yorumlar` sayfasinin "Ürün Yorumları" sekmesi icin: bir
