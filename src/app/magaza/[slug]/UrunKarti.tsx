@@ -12,6 +12,7 @@ import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { SikayetModal } from "@/components/SikayetModal";
 import { YildizGosterge } from "@/components/YildizGosterge";
 import { RezerveModal } from "./RezerveModal";
+import { RezervasyonDurumuButon } from "./RezervasyonDurumuButon";
 import { UrunDetayModal } from "./UrunDetayModal";
 
 export const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
@@ -47,6 +48,10 @@ export type UrunKartiVeri = {
   degerlendirmeOrtalamasi: number | null;
   degerlendirmeSayisi: number;
   yorumlar: { id: string; kullaniciAd: string; puan: number; yorum: string; tarih: string }[];
+  // Kullanicinin bu urunde halihazirda 'bekliyor' rezervasyonu varsa doludur -
+  // varsa "Rezerve Et" yerine kendi sira durumu gosterilir (bkz. rezervasyon.ts
+  // benimRezervasyonlarimHaritasi). id: vazgec butonu icin.
+  benimRezervasyonum: { id: string; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string } | null;
 };
 
 export function UrunKarti({
@@ -178,6 +183,28 @@ export function UrunKarti({
             </div>
           )}
         </button>
+        {/* Mobil kompakt kartta begeni/takip satiri gizli (bkz. asagida) -
+            erisimi kaybetmesin diye fotografin sag-ust kosesine bindirilir.
+            Masaustunde (sm:+) zaten alttaki tam satir gorunur, cift gosterim
+            olmasin diye burada gizlenir. Bildir ikonu kasitli DAHIL DEGIL -
+            kullanici sadece begen+takip istedi, bildir detay modalinde kalir. */}
+        <div className="absolute right-2 top-2 z-10 flex gap-1.5 sm:hidden">
+          <BegeniButonu
+            urunId={urun.id}
+            girisli={girisli}
+            begeniSayisi={urun.begeniSayisi}
+            benimBegenimVar={urun.benimBegenimVar}
+            kompakt
+            gorselUzerinde
+          />
+          <TakipButonu
+            urunId={urun.id}
+            girisli={girisli}
+            benimTakibimVar={urun.benimTakibimVar}
+            kompakt
+            gorselUzerinde
+          />
+        </div>
         {urun.fotograflar.length > 1 && (
           <>
             <button
@@ -214,8 +241,11 @@ export function UrunKarti({
           ))}
         </div>
       )}
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-center justify-end gap-3">
+      <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
+        {/* Begen/Takip/Bildir: mobilde 2 sutunlu kompakt kartta yer acmak icin
+            gizli, detay modalinda ayni satir zaten var - ikincil aksiyonlar
+            kaybolmaz, sadece kucuk ekranda kart disina (modale) tasinir. */}
+        <div className="hidden items-center justify-end gap-3 sm:flex">
           <BegeniButonu
             urunId={urun.id}
             girisli={girisli}
@@ -245,44 +275,50 @@ export function UrunKarti({
         >
           {urun.kategori.ad}
         </span>
-        <h3 className="font-medium text-neutral-900">{urun.baslik}</h3>
+        <h3 className="line-clamp-2 font-medium text-neutral-900">{urun.baslik}</h3>
         <button
           type="button"
           onClick={detayTikla}
-          className="w-fit text-xs font-medium text-primary-600 hover:underline"
+          className="hidden w-fit text-xs font-medium text-primary-600 hover:underline sm:block"
         >
           Detayları gör
         </button>
         <p className="text-lg font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
         <YildizGosterge ortalama={urun.degerlendirmeOrtalamasi ?? 0} sayi={urun.degerlendirmeSayisi} />
-        <p className="text-xs text-neutral-500">Stok: {urun.stokAdedi} adet</p>
+        <p className="hidden text-xs text-neutral-500 sm:block">Stok: {urun.stokAdedi} adet</p>
         <span className={`mb-2 w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${durumStil.className}`}>
           {durumStil.etiket}
         </span>
         <div className="mt-auto flex items-center gap-2">
-          <button
-            type="button"
-            disabled={rezervasyonKapali}
-            onClick={rezerveTikla}
-            className={`flex-1 rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
-              rezervasyonKapali
-                ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
-                : "bg-primary-500 text-white hover:bg-primary-600"
-            }`}
-          >
-            {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
-          </button>
-          <span className="shrink-0 text-xs text-neutral-500">
+          {urun.benimRezervasyonum ? (
+            <RezervasyonDurumuButon rezervasyon={urun.benimRezervasyonum} />
+          ) : (
+            <button
+              type="button"
+              disabled={rezervasyonKapali}
+              onClick={rezerveTikla}
+              className={`flex-1 rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
+                rezervasyonKapali
+                  ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
+                  : "bg-primary-500 text-white hover:bg-primary-600"
+              }`}
+            >
+              {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
+            </button>
+          )}
+          <span className="hidden shrink-0 text-xs text-neutral-500 sm:inline">
             Rezerv: {urun.aktifSayisi} · Yedek: {urun.yedekSayisi}
           </span>
         </div>
-        <PaylasButonlari
-          baslik={urun.baslik}
-          fiyat={urun.fiyat}
-          urunLink={`/magaza/${magazaSlug}?urun=${urun.id}`}
-          kapakFotoUrl={kapakFoto}
-          tamGenislik
-        />
+        <div className="hidden sm:block">
+          <PaylasButonlari
+            baslik={urun.baslik}
+            fiyat={urun.fiyat}
+            urunLink={`/magaza/${magazaSlug}?urun=${urun.id}`}
+            kapakFotoUrl={kapakFoto}
+            tamGenislik
+          />
+        </div>
       </div>
       {modalAcik && (
         <RezerveModal

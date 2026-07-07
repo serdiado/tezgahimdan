@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getMagazaBySlug } from "@/lib/magaza";
 import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
-import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
+import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
 import { kullaniciMagazaTakipDurumu } from "@/lib/magaza-takip";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { magazaDegerlendirmeOzeti, magazaYorumlariGetir } from "@/lib/magaza-degerlendirme";
@@ -65,6 +65,7 @@ export default async function MagazaSayfasi({
     begeniSayilari,
     benimFavorilerim,
     kuyrukSayilari,
+    benimRezervasyonlarim,
     benimMagazaTakibimVar,
     degerlendirmeOzeti,
     yorumlar,
@@ -74,6 +75,7 @@ export default async function MagazaSayfasi({
     begeniSayilariHaritasi(urunIdler),
     kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
     kuyrukSayilariHaritasi(urunIdler),
+    benimRezervasyonlarimHaritasi(session?.user?.id, urunIdler),
     kullaniciMagazaTakipDurumu(session?.user?.id, magaza.id),
     degerlendirmeOzetiHaritasi(urunIdler),
     urunYorumlariHaritasi(urunIdler),
@@ -134,6 +136,7 @@ export default async function MagazaSayfasi({
             stokAdedi: urun.stokAdedi,
             aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
             yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
+            benimRezervasyonum: benimRezervasyonlarim.get(urun.id) ?? null,
             degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
             degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
             yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({

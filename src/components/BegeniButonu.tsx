@@ -12,11 +12,19 @@ export function BegeniButonu({
   girisli,
   begeniSayisi,
   benimBegenimVar,
+  kompakt = false,
+  gorselUzerinde = false,
 }: {
   urunId: string;
   girisli: boolean;
   begeniSayisi: number;
   benimBegenimVar: boolean;
+  // kompakt: sayi olmadan sadece ikon (TakipButonu'ndaki ayni desen).
+  kompakt?: boolean;
+  // gorselUzerinde: mobil kompakt kartta fotografin sag-ust kosesine
+  // bindirilen versiyon - koyu yari-saydam arka plan + varsayilan beyaz ikon
+  // (normal beyaz-zeminli text-neutral-500 burada okunmaz).
+  gorselUzerinde?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -60,6 +68,22 @@ export function BegeniButonu({
     } finally {
       setGonderiliyor(false);
     }
+  }
+
+  if (kompakt) {
+    return (
+      <button
+        type="button"
+        onClick={tikla}
+        disabled={gonderiliyor}
+        aria-label={begenildi ? "Beğenmekten vazgeç" : "Beğen"}
+        className={`flex items-center justify-center disabled:opacity-60 ${
+          gorselUzerinde ? "h-7 w-7 rounded-full bg-black/40 text-white hover:bg-black/60" : ""
+        }`}
+      >
+        <Heart className={`h-5 w-5 ${begenildi ? "fill-red-500 text-red-500" : ""}`} strokeWidth={2} />
+      </button>
+    );
   }
 
   return (

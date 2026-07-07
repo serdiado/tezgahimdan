@@ -80,7 +80,7 @@ export function MagazaIcerik({
       ) : (
         <>
           {aktifUrunler.length > 0 && (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
               {aktifUrunler.map((urun) => (
                 <UrunKarti
                   key={urun.id}
@@ -96,7 +96,7 @@ export function MagazaIcerik({
           {satilanUrunler.length > 0 && (
             <div className={aktifUrunler.length > 0 ? "mt-10" : ""}>
               <h2 className="mb-4 text-base font-semibold text-neutral-700">Daha Önce Satılanlar</h2>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
                 {satilanUrunler.map((urun) => (
                   <UrunKarti
                     key={urun.id}

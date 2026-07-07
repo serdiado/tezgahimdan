@@ -15,11 +15,15 @@ export function TakipButonu({
   girisli,
   benimTakibimVar,
   kompakt = false,
+  gorselUzerinde = false,
 }: {
   urunId: string;
   girisli: boolean;
   benimTakibimVar: boolean;
   kompakt?: boolean;
+  // gorselUzerinde: BegeniButonu'ndaki ayni desen - mobil kompakt kartta
+  // fotografin uzerine bindirilen versiyon.
+  gorselUzerinde?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -54,15 +58,21 @@ export function TakipButonu({
   }
 
   if (kompakt) {
+    const renk = gorselUzerinde
+      ? takipEdiliyor
+        ? "text-primary-400"
+        : "text-white"
+      : takipEdiliyor
+        ? "text-primary-600"
+        : "text-neutral-500 hover:text-primary-600";
+    const cerceve = gorselUzerinde ? "h-7 w-7 rounded-full bg-black/40 hover:bg-black/60" : "";
     return (
       <button
         type="button"
         onClick={tikla}
         disabled={gonderiliyor}
         aria-label={takipEdiliyor ? "Takibi bırak" : "Takip Et"}
-        className={`flex items-center disabled:opacity-60 ${
-          takipEdiliyor ? "text-primary-600" : "text-neutral-500 hover:text-primary-600"
-        }`}
+        className={`flex items-center justify-center disabled:opacity-60 ${cerceve} ${renk}`}
       >
         {takipEdiliyor ? (
           <BellRing className="h-5 w-5" strokeWidth={2} />

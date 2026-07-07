@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DegerlendirmeFormu } from "@/components/DegerlendirmeFormu";
+import { siraMesaji } from "@/lib/rezervasyon-metin";
 
 type Rezervasyon = {
   id: string;
@@ -25,10 +26,6 @@ const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
   gelmedi: { etiket: "Gelmedi", className: "bg-amber-100 text-amber-700" },
   iptal: { etiket: "İptal edildi", className: "bg-neutral-200 text-neutral-600" },
 };
-
-function siraMesaji(tip: "aktif" | "yedek", siraNo: number): string {
-  return tip === "aktif" ? `${siraNo}. sırada (aktif hak sahibi)` : `${siraNo}. sıra yedekte`;
-}
 
 // Magaza-bazli degerlendirme blogu buradan CIKARILDI, /degerlendirmelerim/magazalar
 // sayfasina tasindi (tek sorumluluk: bu sayfa SADECE rezervasyon listesi).

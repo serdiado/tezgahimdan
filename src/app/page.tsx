@@ -2,7 +2,7 @@ import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
 import { begeniSayilariHaritasi, enCokBegenilenUrunIdleriGetir, kullaniciFavoriHaritasi } from "@/lib/favori";
-import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
+import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { magazaDegerlendirmeOzetiHaritasi } from "@/lib/magaza-degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -90,15 +90,23 @@ export default async function AnaSayfa() {
   const tumUrunIdler = Array.from(
     new Set([...yeniUrunler.map((u) => u.id), ...enCokBegenilenler.map((u) => u.id)]),
   );
-  const [begeniSayilari, benimFavorilerim, kuyrukSayilari, degerlendirmeOzeti, yorumlar, magazaDegerlendirmeOzeti] =
-    await Promise.all([
-      begeniSayilariHaritasi(tumUrunIdler),
-      kullaniciFavoriHaritasi(session?.user?.id, tumUrunIdler),
-      kuyrukSayilariHaritasi(tumUrunIdler),
-      degerlendirmeOzetiHaritasi(tumUrunIdler),
-      urunYorumlariHaritasi(tumUrunIdler),
-      magazaDegerlendirmeOzetiHaritasi(magazalar.map((m) => m.id)),
-    ]);
+  const [
+    begeniSayilari,
+    benimFavorilerim,
+    kuyrukSayilari,
+    benimRezervasyonlarim,
+    degerlendirmeOzeti,
+    yorumlar,
+    magazaDegerlendirmeOzeti,
+  ] = await Promise.all([
+    begeniSayilariHaritasi(tumUrunIdler),
+    kullaniciFavoriHaritasi(session?.user?.id, tumUrunIdler),
+    kuyrukSayilariHaritasi(tumUrunIdler),
+    benimRezervasyonlarimHaritasi(session?.user?.id, tumUrunIdler),
+    degerlendirmeOzetiHaritasi(tumUrunIdler),
+    urunYorumlariHaritasi(tumUrunIdler),
+    magazaDegerlendirmeOzetiHaritasi(magazalar.map((m) => m.id)),
+  ]);
 
   // Hem "Bu Hafta Eklenenler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
   // seklini kurar - kod tekrari yerine tek yardimci.
@@ -118,6 +126,7 @@ export default async function AnaSayfa() {
       stokAdedi: urun.stokAdedi,
       aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
       yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
+      benimRezervasyonum: benimRezervasyonlarim.get(urun.id) ?? null,
       degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
       degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
       yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({

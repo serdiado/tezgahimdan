@@ -34,6 +34,36 @@ export async function kuyrukSayilariHaritasi(
   return harita;
 }
 
+// id: kart/modaldaki vazgec butonunun /api/rezervasyon/vazgec'e gonderecegi
+// rezervId (2026-07-07: gosterge artik tiklanabilir, dogrudan iptal edebiliyor).
+export type BenimRezervasyonum = { id: string; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string };
+
+// UrunKarti/UrunDetayModal'in "Rezerve Et" yerine kullanicinin KENDI sira
+// durumunu gostermesi icin (2026-07-07 onaylanan istek) - kuyrukSayilariHaritasi
+// ile AYNI toplu-Map deseni (N+1 onler). Partial unique index (asagida,
+// rezervasyonOlustur) her (urunId, aliciId) icin en fazla 1 'bekliyor' kaydi
+// garantiledigi icin harita degeri her zaman TEKIL.
+export async function benimRezervasyonlarimHaritasi(
+  aliciId: string | null | undefined,
+  urunIdler: string[],
+): Promise<Map<string, BenimRezervasyonum>> {
+  const harita = new Map<string, BenimRezervasyonum>();
+  if (!aliciId || urunIdler.length === 0) return harita;
+  const satirlar = await prisma.rezervasyon.findMany({
+    where: { urunId: { in: urunIdler }, aliciId, durum: "bekliyor" },
+    select: { id: true, urunId: true, tip: true, siraNo: true, rezervKodu: true },
+  });
+  for (const satir of satirlar) {
+    harita.set(satir.urunId, {
+      id: satir.id,
+      tip: satir.tip,
+      siraNo: satir.siraNo,
+      rezervKodu: satir.rezervKodu,
+    });
+  }
+  return harita;
+}
+
 export type RezervasyonSonucu =
   | { tur: "olusturuldu"; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string }
   | { tur: "zaten-var"; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string }

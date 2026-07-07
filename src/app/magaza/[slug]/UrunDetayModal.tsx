@@ -10,6 +10,7 @@ import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { YildizGosterge } from "@/components/YildizGosterge";
 import { ZoomluGorsel } from "@/components/ZoomluGorsel";
 import { DURUM_STIL, type UrunKartiVeri } from "./UrunKarti";
+import { RezervasyonDurumuButon } from "./RezervasyonDurumuButon";
 
 const fiyatFormat = new Intl.NumberFormat("tr-TR", {
   style: "currency",
@@ -137,18 +138,22 @@ export function UrunDetayModal({
         )}
 
         <div className="mt-5 flex items-center gap-2">
-          <button
-            type="button"
-            disabled={rezervasyonKapali}
-            onClick={onRezerveEt}
-            className={`flex-1 rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
-              rezervasyonKapali
-                ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
-                : "bg-primary-500 text-white hover:bg-primary-600"
-            }`}
-          >
-            {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
-          </button>
+          {urun.benimRezervasyonum ? (
+            <RezervasyonDurumuButon rezervasyon={urun.benimRezervasyonum} />
+          ) : (
+            <button
+              type="button"
+              disabled={rezervasyonKapali}
+              onClick={onRezerveEt}
+              className={`flex-1 rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
+                rezervasyonKapali
+                  ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
+                  : "bg-primary-500 text-white hover:bg-primary-600"
+              }`}
+            >
+              {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
+            </button>
+          )}
           <span className="shrink-0 text-xs text-neutral-500">
             Rezerv: {urun.aktifSayisi} · Yedek: {urun.yedekSayisi}
           </span>

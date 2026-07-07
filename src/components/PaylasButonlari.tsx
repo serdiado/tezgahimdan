@@ -116,7 +116,7 @@ export function PaylasButonlari({
         className={`${butonTaban} ${butonGenislik} bg-[#25D366] text-white hover:brightness-95`}
       >
         <WhatsappIkon className="h-4 w-4" />
-        WhatsApp&apos;ta Paylaş
+        Paylaş
       </button>
 
       {paylasVar ? (
