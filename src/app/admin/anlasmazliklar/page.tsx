@@ -5,6 +5,7 @@ import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../AdminNav";
+import { AnlasmazlikNotu } from "./AnlasmazlikNotu";
 
 const SEBEP_STIL: Record<string, { etiket: string; aciklama: string; className: string }> = {
   urun_satildi: {
@@ -27,9 +28,12 @@ const tarihFormat = new Intl.DateTimeFormat("tr-TR", {
   minute: "2-digit",
 });
 
-// AP-6 karari: read-only triyaj - admin override (yeniden geri alma / no-show
-// itirazi) burada YOK, rezervasyon motoruna (rezervasyonGeriAl) hicbir yazma
-// yapilmiyor, yalniz mevcut redlerin GORULEBILIR olmasi saglaniyor.
+// AP-6 karari: rezervasyon motoruna (rezervasyonGeriAl) hicbir yazma
+// yapilmiyor - admin override (yeniden geri alma / no-show itirazi) burada
+// YOK, yalniz mevcut redlerin GORULEBILIR olmasi saglaniyor. Tek istisna: kisa
+// bir triyaj notu eklenebilir (DurumGecmisi.not, bkz. AnlasmazlikNotu.tsx +
+// api/admin/anlasmazlik-not) - bu motora hic dokunmuyor, sadece kaydin
+// kendisini aciklyor.
 export default async function AdminAnlasmazliklarPage() {
   const { session, yetkili } = await getAdminSession();
   if (!session) {
@@ -67,7 +71,8 @@ export default async function AdminAnlasmazliklarPage() {
       <>
         <h1 className="text-xl font-bold text-neutral-900">Anlaşmazlıklar</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Reddedilen geri alma talepleri (salt okunur triyaj — buradan bir işlem yapılamaz).
+          Reddedilen geri alma talepleri (salt okunur triyaj — rezervasyona müdahale
+          edilemez, sadece kısa not eklenebilir).
         </p>
         <AdminNav aktif="anlasmazliklar" />
 
@@ -111,6 +116,7 @@ export default async function AdminAnlasmazliklarPage() {
                     {rez ? `Alıcı: ${rez.alici.ad} · ` : ""}
                     {tarihFormat.format(k.createdAt)}
                   </p>
+                  <AnlasmazlikNotu id={k.id} not={k.not} />
                 </div>
               );
             })}

@@ -206,6 +206,11 @@ model DurumGecmisi {
   varlikTuru  String
   varlikId    String
   olay        String
+  // Admin'in kayda ekledigi kisa serbest not (ör. Anlasmazliklar sayfasinda bir
+  // reddin arka planini aciklamak icin). Sadece anlasmazlik triyajinda
+  // kullaniliyor ama tabloya ozel olmasi gerekmiyor - genel amacli DurumGecmisi
+  // ile tutarli, digerlerini etkilemez (varsayilan null).
+  not         String?
   createdAt   DateTime   @default(now())
 }
 
