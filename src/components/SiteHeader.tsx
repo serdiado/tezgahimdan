@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Heart } from "lucide-react";
+import { Bell, Heart, ShoppingBag } from "lucide-react";
 import { signOut } from "@/auth";
 import { oturumRolOku } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
@@ -46,6 +46,13 @@ export async function SiteHeader() {
                     {okunmamisSayisi > 9 ? "9+" : okunmamisSayisi}
                   </span>
                 )}
+              </Link>
+              <Link
+                href="/rezervasyonum"
+                aria-label="Rezervasyonlarım"
+                className="text-neutral-500 hover:text-primary-600"
+              >
+                <ShoppingBag className="h-5 w-5" strokeWidth={2} />
               </Link>
             </>
           )}

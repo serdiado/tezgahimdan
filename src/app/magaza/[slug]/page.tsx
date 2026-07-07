@@ -43,11 +43,15 @@ export default async function MagazaSayfasi({
     kullaniciTelefonVar = !!kullanici?.telefon;
   }
 
-  // 'doldu' urunler de listelenir (buton kapali olarak) - kapasitesi dolan
-  // urun vitrinden kaybolmamali, alici dolu oldugunu gormeli. 'satildi' ve
-  // silinmis urunler gizli kalir.
+  // 'doldu' VE 'satildi' urunler de listelenir (buton kapali olarak) - bir
+  // magazanin kendi sayfasi capraz-magaza vitrinlerden (ana sayfa) farkli:
+  // gecmis satislar/yorumlar burada gorunur kalmali (alici "bu magazadan ne
+  // almisim" diye arayabilir). Sadece silinmis urunler gizli kalir. (Ana
+  // sayfadaki VITRIN_GORUNURLUK_FILTRESI kasitli olarak 'satildi' HARIC tutar
+  // - o capraz-magaza kesif akisi, satilmis urunun "yeni/begenilen" gibi
+  // yaniltici gorunmesini onler; bu iki filtre BILINCLI olarak farkli.)
   const urunler = await prisma.urun.findMany({
-    where: { magazaId: magaza.id, durum: { in: ["sergide", "doldu"] }, silindiMi: false },
+    where: { magazaId: magaza.id, durum: { in: ["sergide", "doldu", "satildi"] }, silindiMi: false },
     include: { kategori: true },
     orderBy: { createdAt: "desc" },
   });
