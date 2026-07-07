@@ -232,6 +232,10 @@ model Sikayet {
   hedefMagazaId String?
   sebep         String
   durum         SikayetDurumu @default(bekliyor)
+  // Admin'in sikayetciye yonelik kisa yaniti - opsiyonel, /sikayetlerim'de
+  // sikayetcinin kendisine gosterilir. AP-6 "salt okunur triyaj" karariyla
+  // celismez: durum tek yonlu ilerlemeye devam eder, bu sadece ek bir alan.
+  yanit         String?
   createdAt     DateTime      @default(now())
 }
 

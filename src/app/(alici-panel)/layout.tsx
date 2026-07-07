@@ -1,7 +1,7 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { AliciPanelMenu } from "./AliciPanelMenu";
 
-// (alici-panel) bir ROUTE GROUP - URL'e yansimaz, sadece bu 7 sayfaya ortak
+// (alici-panel) bir ROUTE GROUP - URL'e yansimaz, sadece bu sayfalara ortak
 // SiteHeader+sol menu iskeleti kazandirir. Auth kontrolu BILEREK burada
 // YAPILMAZ - her page.tsx kendi redirect("/giris?next=/tam/yolu") kontrolunu
 // korur (degismez): layout server component olarak hangi ALT rotanin aktif

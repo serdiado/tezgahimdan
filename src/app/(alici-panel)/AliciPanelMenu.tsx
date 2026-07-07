@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShoppingBag, Heart, Store, Star, MessageSquare, Bell, Settings } from "lucide-react";
+import { ShoppingBag, Heart, Store, Star, MessageSquare, Bell, Settings, Flag } from "lucide-react";
 
 // Tek bilesen, CSS breakpoint ile iki gorunum (drawer/off-canvas YOK):
 // mobilde (<md) ustte yatay kaydirilabilir sekme cubugu, masaustunde (md:)
@@ -17,6 +17,7 @@ const OGELER = [
   { etiket: "Takip Ettiğim Mağazalar", href: "/takip-ettigim-magazalar", ikon: Store },
   { etiket: "Ürün Değerlendirmelerim", href: "/degerlendirmelerim/urunler", ikon: Star },
   { etiket: "Mağaza Değerlendirmelerim", href: "/degerlendirmelerim/magazalar", ikon: MessageSquare },
+  { etiket: "Şikayetlerim", href: "/sikayetlerim", ikon: Flag },
   { etiket: "Bildirimlerim", href: "/bildirimlerim", ikon: Bell },
   { etiket: "Ayarlar", href: "/ayarlar", ikon: Settings },
 ];

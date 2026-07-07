@@ -103,6 +103,7 @@ export default async function AdminSikayetlerPage({
                     hedefLink,
                     sebep: s.sebep,
                     durum: s.durum,
+                    yanit: s.yanit,
                     olusturulmaTarihi: s.createdAt.toISOString(),
                   }}
                 />
