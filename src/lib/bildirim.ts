@@ -1,5 +1,16 @@
 import { prisma } from "@/lib/prisma";
 
+// Urune bagli OLMAYAN tek-kullanici bildirimi (ör. sikayet sonucu) -
+// bildirimGonderTakipcilere/bildirimGonderMagazaTakipcilerine'nin aksine
+// takip/favori sartina bakmaz, ne urunId gerektirir. Bildirim.urunId bu yuzden
+// opsiyonel (bkz. schema.prisma); /bildirimlerim urunId null oldugunda
+// /sikayetlerim'e link verir.
+export async function bildirimGonderKullaniciya(params: { kullaniciId: string; mesaj: string }): Promise<void> {
+  await prisma.bildirim.create({
+    data: { kullaniciId: params.kullaniciId, mesaj: params.mesaj },
+  });
+}
+
 // Rezervasyon motoruna (rezervasyon.ts) HIC import edilmez - motor cagrisi
 // basariyla dondukten SONRA (kilit/transaction disinda), API route katmanindan
 // cagrilir. Boylece motorun kritik-bolge (FOR UPDATE) suresi uzamaz.

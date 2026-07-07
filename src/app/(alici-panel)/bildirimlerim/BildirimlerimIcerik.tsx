@@ -10,9 +10,9 @@ type BildirimSatir = {
   mesaj: string;
   createdAt: string;
   yeniMi: boolean;
-  urunId: string;
-  urunBaslik: string;
-  magazaSlug: string;
+  urunId: string | null;
+  urunBaslik: string | null;
+  magazaSlug: string | null;
 };
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", {
@@ -47,7 +47,7 @@ export function BildirimlerimIcerik({ bildirimler }: { bildirimler: BildirimSati
       {bildirimler.map((b) => (
         <Link
           key={b.id}
-          href={`/magaza/${b.magazaSlug}?urun=${b.urunId}`}
+          href={b.urunId ? `/magaza/${b.magazaSlug}?urun=${b.urunId}` : "/sikayetlerim"}
           className={`block rounded-2xl p-4 shadow-sm ${
             b.yeniMi ? "bg-primary-50 ring-1 ring-primary-200" : "bg-white"
           }`}

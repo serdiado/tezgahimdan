@@ -271,8 +271,12 @@ model Bildirim {
   id          String    @id @default(uuid())
   kullanici   Kullanici @relation(fields: [kullaniciId], references: [id])
   kullaniciId String
-  urun        Urun      @relation(fields: [urunId], references: [id])
-  urunId      String
+  // Opsiyonel: takip/favori kaynakli bildirimler (bildirimGonderTakipcilere vb.)
+  // hep dolu gonderir, ama sikayet sonucu gibi bir urune bagli olmayan genel
+  // bildirimler (bkz. bildirimGonderKullaniciya) urunId'siz gonderir. null ise
+  // /bildirimlerim urun linkine DEGIL /sikayetlerim'e yonlendirir.
+  urun        Urun?     @relation(fields: [urunId], references: [id])
+  urunId      String?
   mesaj       String
   okunduMu    Boolean   @default(false)
   createdAt   DateTime  @default(now())

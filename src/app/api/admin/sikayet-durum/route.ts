@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
+import { bildirimGonderKullaniciya } from "@/lib/bildirim";
 
 const GECERLI_DURUMLAR = ["bekliyor", "inceleniyor", "cozuldu", "reddedildi"] as const;
+const SONUC_DURUMLARI = ["cozuldu", "reddedildi"] as const;
 
 const OLAY_ADI: Record<(typeof GECERLI_DURUMLAR)[number], string> = {
   bekliyor: "sikayet_bekliyor_olarak_isaretlendi",
   inceleniyor: "sikayet_incelemeye_alindi",
   cozuldu: "sikayet_cozuldu",
   reddedildi: "sikayet_reddedildi",
+};
+
+const SONUC_METNI: Record<(typeof SONUC_DURUMLARI)[number], string> = {
+  cozuldu: "çözüldü",
+  reddedildi: "reddedildi",
 };
 
 // AP-6 karari geregi burada admin override/yeniden-acma akisi YOK - triyaj
@@ -30,7 +37,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: "geçersiz durum" }, { status: 400 });
   }
 
-  const sikayet = await prisma.sikayet.findUnique({ where: { id }, select: { id: true, durum: true } });
+  const sikayet = await prisma.sikayet.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      durum: true,
+      yanit: true,
+      sikayetciId: true,
+      hedefUrun: { select: { baslik: true } },
+      hedefMagaza: { select: { ad: true } },
+    },
+  });
   if (!sikayet) {
     return NextResponse.json({ hata: "şikayet bulunamadı" }, { status: 404 });
   }
@@ -49,6 +66,16 @@ export async function POST(request: Request) {
       },
     }),
   ]);
+
+  // Sikayet SONUCLANDIGINDA (cozuldu/reddedildi) sikayetciye bildirim - motor
+  // çağrısı (rezervasyonOlustur sonrasi bildirimGonderTakipcilere) ile AYNI
+  // desen: transaction disinda, kritik bolgeyi uzatmaz.
+  if ((SONUC_DURUMLARI as readonly string[]).includes(durum)) {
+    const hedefAdi = sikayet.hedefMagaza?.ad ?? sikayet.hedefUrun?.baslik ?? "hedef";
+    const sonucMetni = SONUC_METNI[durum as (typeof SONUC_DURUMLARI)[number]];
+    const mesaj = `"${hedefAdi}" hakkındaki şikayetiniz ${sonucMetni}.${sikayet.yanit ? ` ${sikayet.yanit}` : ""}`;
+    await bildirimGonderKullaniciya({ kullaniciId: sikayet.sikayetciId, mesaj });
+  }
 
   return NextResponse.json({ tur: "guncellendi", durum });
 }

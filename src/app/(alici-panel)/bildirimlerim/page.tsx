@@ -34,8 +34,8 @@ export default async function BildirimlerimSayfasi() {
           createdAt: b.createdAt.toISOString(),
           yeniMi: !b.okunduMu,
           urunId: b.urunId,
-          urunBaslik: b.urun.baslik,
-          magazaSlug: b.urun.magaza.slug,
+          urunBaslik: b.urun?.baslik ?? null,
+          magazaSlug: b.urun?.magaza.slug ?? null,
         }))}
       />
     </>
