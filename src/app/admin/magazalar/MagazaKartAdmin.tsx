@@ -57,7 +57,9 @@ export function MagazaKartAdmin({ magaza }: { magaza: MagazaAdminVeri }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-neutral-900">{magaza.ad}</h3>
+            <Link href={`/admin/magazalar/${magaza.id}`} className="font-semibold text-neutral-900 hover:underline">
+              {magaza.ad}
+            </Link>
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${stil.className}`}>
               {stil.etiket}
             </span>
