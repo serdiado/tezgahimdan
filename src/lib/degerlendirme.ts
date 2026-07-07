@@ -109,3 +109,38 @@ export async function urunYorumlariHaritasi(urunIdler: string[]): Promise<Map<st
   }
   return harita;
 }
+
+export type MagazaUrunYorumSatiri = YorumSatiri & { urunId: string; urunBaslik: string };
+
+// `/magaza/[slug]/yorumlar` sayfasinin "Ürün Yorumları" sekmesi icin: bir
+// magazanin TUM urunlerindeki yorumlari (hangi urun oldugu bilgisiyle birlikte)
+// tek, kronolojik listede doner - urunYorumlariHaritasi'nin (urun-bazinda
+// gruplu) aksine burada magaza-capinda DUZ bir liste isteniyor. silindiMi urun
+// yorumlari HARIC tutulur (vitrin gorunurluk ilkesiyle tutarli); satildi/doldu
+// urunlerin yorumlari DAHIL (gecmis satislarin da gorunmesi karari, bkz.
+// magaza sayfasindaki 'satildi' urun degisikligi).
+export async function magazaUrunYorumlariGetir(magazaId: string): Promise<MagazaUrunYorumSatiri[]> {
+  const satirlar = await prisma.degerlendirme.findMany({
+    where: { yorum: { not: null }, urun: { magazaId, silindiMi: false } },
+    select: {
+      id: true,
+      puan: true,
+      yorum: true,
+      createdAt: true,
+      kullanici: { select: { ad: true } },
+      urun: { select: { id: true, baslik: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return satirlar
+    .filter((s) => s.yorum !== null)
+    .map((s) => ({
+      id: s.id,
+      kullaniciAd: s.kullanici.ad,
+      puan: s.puan,
+      yorum: s.yorum as string,
+      createdAt: s.createdAt,
+      urunId: s.urun.id,
+      urunBaslik: s.urun.baslik,
+    }));
+}

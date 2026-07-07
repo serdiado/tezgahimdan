@@ -78,7 +78,7 @@ export default async function MagazaSayfasi({
     degerlendirmeOzetiHaritasi(urunIdler),
     urunYorumlariHaritasi(urunIdler),
     magazaDegerlendirmeOzeti(magaza.id),
-    magazaYorumlariGetir(magaza.id),
+    magazaYorumlariGetir(magaza.id, { take: 4 }),
   ]);
 
   return (
@@ -104,6 +104,8 @@ export default async function MagazaSayfasi({
             </div>
           </div>
           <MagazaYorumlari
+            magazaSlug={magaza.slug}
+            toplamSayi={magazaDegerlendirmeSonucu.sayi}
             yorumlar={magazaYorumlari.map((y) => ({
               id: y.id,
               kullaniciAd: y.kullaniciAd,

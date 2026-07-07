@@ -4,6 +4,7 @@ import { oturumRolOku } from "@/lib/yetki";
 import { begeniSayilariHaritasi, enCokBegenilenUrunIdleriGetir, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
+import { magazaDegerlendirmeOzetiHaritasi } from "@/lib/magaza-degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { HaftalikRitim } from "./HaftalikRitim";
@@ -89,13 +90,15 @@ export default async function AnaSayfa() {
   const tumUrunIdler = Array.from(
     new Set([...yeniUrunler.map((u) => u.id), ...enCokBegenilenler.map((u) => u.id)]),
   );
-  const [begeniSayilari, benimFavorilerim, kuyrukSayilari, degerlendirmeOzeti, yorumlar] = await Promise.all([
-    begeniSayilariHaritasi(tumUrunIdler),
-    kullaniciFavoriHaritasi(session?.user?.id, tumUrunIdler),
-    kuyrukSayilariHaritasi(tumUrunIdler),
-    degerlendirmeOzetiHaritasi(tumUrunIdler),
-    urunYorumlariHaritasi(tumUrunIdler),
-  ]);
+  const [begeniSayilari, benimFavorilerim, kuyrukSayilari, degerlendirmeOzeti, yorumlar, magazaDegerlendirmeOzeti] =
+    await Promise.all([
+      begeniSayilariHaritasi(tumUrunIdler),
+      kullaniciFavoriHaritasi(session?.user?.id, tumUrunIdler),
+      kuyrukSayilariHaritasi(tumUrunIdler),
+      degerlendirmeOzetiHaritasi(tumUrunIdler),
+      urunYorumlariHaritasi(tumUrunIdler),
+      magazaDegerlendirmeOzetiHaritasi(magazalar.map((m) => m.id)),
+    ]);
 
   // Hem "Bu Hafta Eklenenler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
   // seklini kurar - kod tekrari yerine tek yardimci.
@@ -180,6 +183,8 @@ export default async function AnaSayfa() {
                 aciklama: magaza.aciklama,
                 pazarAd: magaza.pazar.ad,
                 urunSayisi: magaza._count.urunler,
+                degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
+                degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
               }))}
             />
           </div>

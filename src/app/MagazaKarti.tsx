@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Store } from "lucide-react";
+import { YildizGosterge } from "@/components/YildizGosterge";
 
 export type MagazaKartiVeri = {
   id: string;
@@ -8,6 +9,8 @@ export type MagazaKartiVeri = {
   aciklama: string | null;
   pazarAd: string;
   urunSayisi: number;
+  degerlendirmeOrtalamasi: number | null;
+  degerlendirmeSayisi: number;
 };
 
 export function MagazaKarti({ magaza }: { magaza: MagazaKartiVeri }) {
@@ -20,6 +23,7 @@ export function MagazaKarti({ magaza }: { magaza: MagazaKartiVeri }) {
         <Store className="h-5 w-5 text-primary-600" strokeWidth={1.75} />
         <h3 className="font-semibold text-neutral-900">{magaza.ad}</h3>
       </div>
+      <YildizGosterge ortalama={magaza.degerlendirmeOrtalamasi ?? 0} sayi={magaza.degerlendirmeSayisi} />
       {magaza.aciklama && (
         <p className="line-clamp-2 text-sm text-neutral-600">{magaza.aciklama}</p>
       )}

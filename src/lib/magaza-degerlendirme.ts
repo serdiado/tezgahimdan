@@ -43,6 +43,27 @@ export async function magazaDegerlendirmeOzeti(
   return { ortalama: sonuc._avg.puan ?? 0, sayi: sonuc._count };
 }
 
+// Ana sayfadaki "Magazalar" gibi coklu-magaza listelerinde N+1 onlemek icin
+// toplu sorgu - degerlendirmeOzetiHaritasi (urun-seviyesi) ile AYNI groupBy+
+// Map deseni.
+export async function magazaDegerlendirmeOzetiHaritasi(
+  magazaIdler: string[],
+): Promise<Map<string, { ortalama: number; sayi: number }>> {
+  const harita = new Map<string, { ortalama: number; sayi: number }>();
+  if (magazaIdler.length === 0) return harita;
+
+  const satirlar = await prisma.magazaDegerlendirme.groupBy({
+    by: ["magazaId"],
+    where: { magazaId: { in: magazaIdler } },
+    _avg: { puan: true },
+    _count: true,
+  });
+  for (const satir of satirlar) {
+    harita.set(satir.magazaId, { ortalama: satir._avg.puan ?? 0, sayi: satir._count });
+  }
+  return harita;
+}
+
 // /rezervasyonum gibi coklu-magaza listelerinde N+1 onlemek icin toplu sorgu +
 // Map (kullaniciDegerlendirmeleriHaritasi ile ayni desen).
 export async function kullaniciMagazaDegerlendirmeleriHaritasi(
@@ -62,13 +83,21 @@ export async function kullaniciMagazaDegerlendirmeleriHaritasi(
 export type MagazaYorumSatiri = { id: string; kullaniciAd: string; puan: number; yorum: string; createdAt: Date };
 
 // Tekil magaza sayfasinda yorum listesi - urunYorumlariHaritasi'nin tekil-magaza
-// karsiligi (N+1 endisesi yok, tek magaza sayfasi). Sayfalama YOK (ayni kapsam
-// karari: magaza basina yorum sayisinin kucuk kalacagi varsayimi).
-export async function magazaYorumlariGetir(magazaId: string): Promise<MagazaYorumSatiri[]> {
+// karsiligi (N+1 endisesi yok, tek magaza sayfasi). `take` opsiyonel: magaza
+// sayfasindaki hero'nun altinda "4 blok" onizleme icin (take:4), tum-yorumlar
+// sayfasinda (`/magaza/[slug]/yorumlar`) limitsiz. Sayfalama YOK (yorum sayisi
+// coksa "tum yorumlari gor" sayfasina yonlendirilir, o sayfada da sayfalama
+// YOK - ayni "kucuk kalacagi varsayimi" kapsam karari, sadece tek liste yerine
+// iki listeye (magaza/urun) bolunmus).
+export async function magazaYorumlariGetir(
+  magazaId: string,
+  opsiyonlar?: { take?: number },
+): Promise<MagazaYorumSatiri[]> {
   const satirlar = await prisma.magazaDegerlendirme.findMany({
     where: { magazaId, yorum: { not: null } },
     select: { id: true, puan: true, yorum: true, createdAt: true, kullanici: { select: { ad: true } } },
     orderBy: { createdAt: "desc" },
+    take: opsiyonlar?.take,
   });
   return satirlar
     .filter((s) => s.yorum !== null)
