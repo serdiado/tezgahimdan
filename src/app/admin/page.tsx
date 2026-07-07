@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Store, Landmark, Tags, MessageSquareWarning, ShieldAlert } from "lucide-react";
+import { Store, Landmark, Tags, MessageSquareWarning, ShieldAlert, History } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -91,6 +91,12 @@ export default async function AdminSayfasi() {
             ikon={ShieldAlert}
             baslik="Anlaşmazlıklar"
             aciklama="Salt okunur triyaj"
+          />
+          <AdminKart
+            href="/admin/denetim-kaydi"
+            ikon={History}
+            baslik="Denetim Kaydı"
+            aciklama="Kim, ne zaman, ne yaptı"
           />
         </div>
       </>

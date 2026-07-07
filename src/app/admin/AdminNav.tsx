@@ -10,6 +10,7 @@ const OGELER: { anahtar: string; etiket: string; href?: string }[] = [
   { anahtar: "kategoriler", etiket: "Kategoriler", href: "/admin/kategoriler" },
   { anahtar: "sikayetler", etiket: "Şikayetler", href: "/admin/sikayetler" },
   { anahtar: "anlasmazliklar", etiket: "Anlaşmazlıklar", href: "/admin/anlasmazliklar" },
+  { anahtar: "denetim-kaydi", etiket: "Denetim Kaydı", href: "/admin/denetim-kaydi" },
 ];
 
 export function AdminNav({ aktif }: { aktif: string }) {
