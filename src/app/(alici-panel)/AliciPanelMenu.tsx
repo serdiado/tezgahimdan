@@ -24,10 +24,7 @@ export function AliciPanelMenu() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="-mx-4 mb-4 flex gap-1.5 overflow-x-auto px-4 pb-1
-        md:mx-0 md:mb-0 md:w-56 md:shrink-0 md:flex-col md:overflow-visible md:px-0 md:pb-0"
-    >
+    <nav className="-mx-4 mb-4 flex gap-1.5 overflow-x-auto px-4 pb-1 md:mx-0 md:mb-0 md:w-56 md:shrink-0 md:flex-col md:overflow-visible md:px-0 md:pb-0">
       {OGELER.map((oge) => {
         const secili = pathname === oge.href || pathname.startsWith(`${oge.href}/`);
         const Ikon = oge.ikon;
