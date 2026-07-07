@@ -6,6 +6,7 @@ import { platformAyarlariGetir } from "@/lib/platform-ayarlari";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../../AdminNav";
 import { KullaniciYasaklaButonu } from "./KullaniciYasaklaButonu";
+import { KullaniciRolButonu } from "./KullaniciRolButonu";
 import { GuvenilirlikSifirlaButonu } from "../../guvenilirlik/GuvenilirlikSifirlaButonu";
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", year: "numeric" });
@@ -78,8 +79,11 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
           ← Kullanıcılara dön
         </Link>
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-2">
           <KullaniciYasaklaButonu kullaniciId={kullanici.id} yasakliMi={kullanici.yasakliMi} />
+          {kullanici.id !== session.user.id && (
+            <KullaniciRolButonu kullaniciId={kullanici.id} rol={kullanici.rol} />
+          )}
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
