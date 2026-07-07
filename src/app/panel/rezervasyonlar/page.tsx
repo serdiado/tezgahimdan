@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
-import { GUVENILIRLIK_ESIGI, aliciGuvenilirlikHaritasi } from "@/lib/rezervasyon";
+import { aliciGuvenilirlikHaritasi } from "@/lib/rezervasyon";
+import { platformAyarlariGetir } from "@/lib/platform-ayarlari";
 import { SiteHeader } from "@/components/SiteHeader";
 import { KuyrukKarti } from "./KuyrukKarti";
 
@@ -49,13 +50,16 @@ export default async function RezervasyonlarSayfasi() {
   for (const urun of urunler) {
     for (const r of urun.rezervasyonlar) aliciIdSeti.add(r.aliciId);
   }
-  const guvenilirlik = await aliciGuvenilirlikHaritasi([...aliciIdSeti]);
+  const [guvenilirlik, ayarlar] = await Promise.all([
+    aliciGuvenilirlikHaritasi([...aliciIdSeti]),
+    platformAyarlariGetir(),
+  ]);
   // kisitliMi hesabini burada (gercek esikle) yapiyoruz - KuyrukKarti istemci
   // bileseni oldugu icin rezervasyon.ts'den (prisma/node:crypto ithal ediyor)
   // dogrudan sabit import edemez.
   function guvenilirlikOzeti(aliciId: string) {
     const veri = guvenilirlik.get(aliciId) ?? { satildi: 0, gelmedi: 0 };
-    return { ...veri, kisitliMi: veri.gelmedi >= GUVENILIRLIK_ESIGI };
+    return { ...veri, kisitliMi: veri.gelmedi >= ayarlar.guvenilirlikEsigi };
   }
 
   return (

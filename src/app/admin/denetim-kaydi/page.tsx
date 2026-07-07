@@ -16,6 +16,7 @@ const VARLIK_TURLERI = [
   "Kullanici",
   "Degerlendirme",
   "MagazaDegerlendirme",
+  "PlatformAyarlari",
 ] as const;
 const SAYFA_BOYU = 50;
 
@@ -112,6 +113,10 @@ export default async function AdminDenetimKaydiPage({
             className={linkSinif(gecerliTur === "MagazaDegerlendirme")}
           >
             Mağaza Yorumu
+          </Link>
+          <span className="text-neutral-300">·</span>
+          <Link href={filtreLink("PlatformAyarlari")} className={linkSinif(gecerliTur === "PlatformAyarlari")}>
+            Platform Ayarları
           </Link>
         </div>
 

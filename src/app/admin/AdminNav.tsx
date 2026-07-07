@@ -9,6 +9,7 @@ const OGELER: { anahtar: string; etiket: string; href?: string }[] = [
   { anahtar: "kullanicilar", etiket: "Kullanıcılar", href: "/admin/kullanicilar" },
   { anahtar: "rezervasyonlar", etiket: "Rezervasyonlar", href: "/admin/rezervasyonlar" },
   { anahtar: "guvenilirlik", etiket: "Güvenilirlik", href: "/admin/guvenilirlik" },
+  { anahtar: "ayarlar", etiket: "Ayarlar", href: "/admin/ayarlar" },
   { anahtar: "pazarlar", etiket: "Pazarlar", href: "/admin/pazarlar" },
   { anahtar: "kategoriler", etiket: "Kategoriler", href: "/admin/kategoriler" },
   { anahtar: "sikayetler", etiket: "Şikayetler", href: "/admin/sikayetler" },

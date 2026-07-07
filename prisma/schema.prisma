@@ -359,3 +359,15 @@ model MagazaDegerlendirme {
 
   @@unique([kullaniciId, magazaId])
 }
+
+// Tek satirlik "singleton" platform-geneli ayar tablosu (varsayilanPazariGetirVeyaOlustur
+// ile AYNI find-or-create deseni, bkz. src/lib/platform-ayarlari.ts). Motor
+// (rezervasyonOlustur/rezervasyonGeriAl, src/lib/rezervasyon.ts) bu degerleri
+// HER cagrida kilit ONCESI okur - eskiden MAX_YEDEK/GUVENILIRLIK_ESIGI kod-ici
+// sabitti, artik admin panelinden (/admin/ayarlar) degistirilebilir.
+model PlatformAyarlari {
+  id                String   @id @default("singleton")
+  guvenilirlikEsigi Int      @default(3)
+  maxYedek          Int      @default(5)
+  guncellenmeZamani DateTime @updatedAt
+}

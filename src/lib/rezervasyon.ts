@@ -2,15 +2,14 @@ import { randomInt, randomUUID } from "node:crypto";
 import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
 import { pazarBaslangicAni, pazarKapanisAni, sonrakiSifirlamaTarihi } from "@/lib/pazar-haftasi";
 import { kullaniciYasakliMi } from "@/lib/yetki";
+import { platformAyarlariGetir } from "@/lib/platform-ayarlari";
 
-// PLAN.md SS3: stok kadar aktif hak sahibi + arkasinda en fazla 5 yedek;
-// toplam (stok + MAX_YEDEK) dolunca rezervasyon kapanir.
-export const MAX_YEDEK = 5;
-
-// PLAN.md SS3 "Guvenilirlik": bu sayida (veya daha fazla) 'gelmedi' biriktiren
-// alici, ayni anda yalnizca 1 aktif rezervasyon tutabilir - MAX_YEDEK gibi
-// kod-ici sabit (admin panelinden ayarlanabilir bir esik degil, simdilik).
-export const GUVENILIRLIK_ESIGI = 3;
+// PLAN.md SS3: stok kadar aktif hak sahibi + arkasinda en fazla "maxYedek"
+// yedek; toplam (stok + maxYedek) dolunca rezervasyon kapanir. Eskiden kod-ici
+// sabitti (MAX_YEDEK=5, GUVENILIRLIK_ESIGI=3) - artik PlatformAyarlari
+// tablosunda tutulur, admin /admin/ayarlar'dan degistirebilir (bkz.
+// src/lib/platform-ayarlari.ts). rezervasyonOlustur/rezervasyonGeriAl bu
+// degerleri kilit ONCESI (platformAyarlariGetir ile) okur.
 
 // Kart/vitrin gosterimi icin salt-okunur ozet (karar-kritik degil, kilit
 // GEREKTIRMEZ - rezervasyonOlustur/vazgec/sonuclandir'in FOR UPDATE'li kilit
@@ -114,6 +113,10 @@ export async function rezervasyonOlustur(params: {
   });
   const guvenilirlikBaslangici = guvenilirlik?.guvenilirlikSifirlamaTarihi ?? null;
 
+  // Platform ayarlari (guvenilirlik esigi, max yedek) - tek satirlik, sik
+  // degismeyen global config; yasakliMi/guvenilirlik ile AYNI konum/gerekce.
+  const ayarlar = await platformAyarlariGetir();
+
   // Hizli 404 + pazar bilgisi (kilide girmeden okunabilir; pazar tanimi
   // rezervasyon aninda degismez).
   const urunOn = await prisma.urun.findUnique({
@@ -173,7 +176,7 @@ export async function rezervasyonOlustur(params: {
               ...(guvenilirlikBaslangici ? { createdAt: { gt: guvenilirlikBaslangici } } : {}),
             },
           });
-          if (gelmediSayisi >= GUVENILIRLIK_ESIGI) {
+          if (gelmediSayisi >= ayarlar.guvenilirlikEsigi) {
             const aktifRezervasyonVarMi = await tx.rezervasyon.count({
               where: { aliciId: params.aliciId, durum: "bekliyor", tip: "aktif" },
             });
@@ -205,7 +208,7 @@ export async function rezervasyonOlustur(params: {
           if (aktifSayisi < kalanBirim) {
             tip = "aktif";
             siraNo = aktifSayisi + 1; // aktif icinde 1..kalanBirim
-          } else if (yedekSayisi < MAX_YEDEK) {
+          } else if (yedekSayisi < ayarlar.maxYedek) {
             tip = "yedek";
             siraNo = yedekSayisi + 1; // yedek kuyrugunda 1..5
           } else {
@@ -236,8 +239,8 @@ export async function rezervasyonOlustur(params: {
           });
 
           // Son slot da dolduysa urunu 'doldu' yap - vitrin butonu kapanir.
-          // Kapasite = kalanBirim + MAX_YEDEK (satildikca kalanBirim kucultur).
-          if (aktifSayisi + yedekSayisi + 1 >= kalanBirim + MAX_YEDEK && urun.durum === "sergide") {
+          // Kapasite = kalanBirim + maxYedek (satildikca kalanBirim kucultur).
+          if (aktifSayisi + yedekSayisi + 1 >= kalanBirim + ayarlar.maxYedek && urun.durum === "sergide") {
             await tx.urun.update({ where: { id: urun.id }, data: { durum: "doldu" } });
             await tx.durumGecmisi.create({
               data: {
@@ -297,6 +300,26 @@ export async function aliciGuvenilirlikHaritasi(
     else if (satir.durum === "gelmedi") mevcut.gelmedi = satir._count;
     harita.set(satir.aliciId, mevcut);
   }
+
+  // Guvenilirlik afi (bkz. Kullanici.guvenilirlikSifirlamaTarihi, rezervasyonOlustur):
+  // sifirlanmis kullanicilar icin "gelmedi" yukaridaki TUM-ZAMANLAR toplu
+  // groupBy'da hala eski degeriyle duruyor - sifirlama tarihi kullanici basina
+  // farkli oldugu icin tek sorguda ifade edilemez, bu yuzden SADECE sifirlanmis
+  // olanlar icin (kucuk N) ayri ayri yeniden hesaplanir. Bu fonksiyonu cagiran
+  // satici paneli (panel/rezervasyonlar) "kisitli" rozetini motorla TUTARLI
+  // gostersin diye gerekli.
+  const sifirlanmislar = await prisma.kullanici.findMany({
+    where: { id: { in: aliciIdler }, guvenilirlikSifirlamaTarihi: { not: null } },
+    select: { id: true, guvenilirlikSifirlamaTarihi: true },
+  });
+  for (const k of sifirlanmislar) {
+    const yeniGelmedi = await prisma.rezervasyon.count({
+      where: { aliciId: k.id, durum: "gelmedi", createdAt: { gt: k.guvenilirlikSifirlamaTarihi! } },
+    });
+    const mevcut = harita.get(k.id) ?? { satildi: 0, gelmedi: 0 };
+    harita.set(k.id, { ...mevcut, gelmedi: yeniGelmedi });
+  }
+
   return harita;
 }
 
@@ -612,6 +635,10 @@ export async function rezervasyonGeriAl(params: {
   if (!rezOn) return { tur: "bulunamadi" };
   if (rezOn.urun.magaza.sahipId !== params.saticiUserId) return { tur: "yetkisiz" };
 
+  // Platform ayarlari (max yedek) - rezervasyonOlustur ile AYNI konum/gerekce,
+  // kilit ONCESI okunur.
+  const ayarlar = await platformAyarlariGetir();
+
   return prisma.$transaction(
     async (tx): Promise<GeriAlSonucu> => {
       const kilitli = await tx.$queryRaw<
@@ -654,7 +681,7 @@ export async function rezervasyonGeriAl(params: {
       });
 
       // Red (kapasite_dolu): geri alma bekleyeni +1 yapar; yeni kapasiteyi asamaz.
-      if (mevcutBekleyen + 1 > yeniKalanBirim + MAX_YEDEK) {
+      if (mevcutBekleyen + 1 > yeniKalanBirim + ayarlar.maxYedek) {
         await redKaydi("kapasite_dolu");
         return { tur: "reddedildi", sebep: "kapasite_dolu" };
       }
@@ -708,7 +735,7 @@ export async function rezervasyonGeriAl(params: {
 
       // 4) Urun durumu: geri alma sonrasi kapasiteye gore doldu/sergide.
       const yeniBekleyen = mevcutBekleyen + 1;
-      const kapasite = yeniKalanBirim + MAX_YEDEK;
+      const kapasite = yeniKalanBirim + ayarlar.maxYedek;
       if (yeniBekleyen >= kapasite && urun.durum !== "doldu") {
         await tx.urun.update({ where: { id: urun.id }, data: { durum: "doldu" } });
         await tx.durumGecmisi.create({

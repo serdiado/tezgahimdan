@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { ShieldAlert } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
-import { GUVENILIRLIK_ESIGI } from "@/lib/rezervasyon";
+import { platformAyarlariGetir } from "@/lib/platform-ayarlari";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../AdminNav";
 import { GuvenilirlikSifirlaButonu } from "./GuvenilirlikSifirlaButonu";
@@ -25,17 +25,19 @@ export default async function AdminGuvenilirlikPage() {
       </>
     );
   } else {
-    // Once ham "gelmedi" sayisi GUVENILIRLIK_ESIGI'ni asan adaylari bul (tek
-    // groupBy), sonra HERKES icin ayri ayri (varsa) sifirlama tarihinden
-    // SONRAKI sayimi hesapla - motordaki (rezervasyonOlustur) mantikla birebir
-    // ayni, cunku kullanici basina sifirlama tarihi farkli olabilir (tek bir
-    // SQL sorgusunda ifade edilemez, N kucuk oldugu icin sorun degil).
+    const ayarlar = await platformAyarlariGetir();
+
+    // Once ham "gelmedi" sayisi esigi asan adaylari bul (tek groupBy), sonra
+    // HERKES icin ayri ayri (varsa) sifirlama tarihinden SONRAKI sayimi
+    // hesapla - motordaki (rezervasyonOlustur) mantikla birebir ayni, cunku
+    // kullanici basina sifirlama tarihi farkli olabilir (tek bir SQL
+    // sorgusunda ifade edilemez, N kucuk oldugu icin sorun degil).
     const adaylar = await prisma.rezervasyon.groupBy({
       by: ["aliciId"],
       where: { durum: "gelmedi" },
       _count: true,
     });
-    const adayIdler = adaylar.filter((a) => a._count >= GUVENILIRLIK_ESIGI).map((a) => a.aliciId);
+    const adayIdler = adaylar.filter((a) => a._count >= ayarlar.guvenilirlikEsigi).map((a) => a.aliciId);
 
     const kullanicilar = await prisma.kullanici.findMany({
       where: { id: { in: adayIdler } },
@@ -56,15 +58,18 @@ export default async function AdminGuvenilirlikPage() {
         }),
       )
     )
-      .filter((k) => k.gelmediSayisi >= GUVENILIRLIK_ESIGI)
+      .filter((k) => k.gelmediSayisi >= ayarlar.guvenilirlikEsigi)
       .sort((a, b) => b.gelmediSayisi - a.gelmediSayisi);
 
     icerik = (
       <>
         <h1 className="text-xl font-bold text-neutral-900">Güvenilirlik</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          {GUVENILIRLIK_ESIGI}+ &quot;gelmedi&quot; biriktiren kullanıcılar — halihazırda aktif bir
-          rezervasyonu varken yeni rezervasyon alamazlar.
+          {ayarlar.guvenilirlikEsigi}+ &quot;gelmedi&quot; biriktiren kullanıcılar — halihazırda aktif bir
+          rezervasyonu varken yeni rezervasyon alamazlar.{" "}
+          <Link href="/admin/ayarlar" className="text-primary-600 hover:underline">
+            Ayarları düzenle
+          </Link>
         </p>
         <AdminNav aktif="guvenilirlik" />
 

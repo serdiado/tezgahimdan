@@ -12,6 +12,7 @@ import {
   Star,
   ShoppingBag,
   ShieldQuestion,
+  Settings,
 } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
@@ -96,6 +97,12 @@ export default async function AdminSayfasi() {
             ikon={ShieldQuestion}
             baslik="Güvenilirlik"
             aciklama="Kısıtlı kullanıcılar, sıfırlama"
+          />
+          <AdminKart
+            href="/admin/ayarlar"
+            ikon={Settings}
+            baslik="Platform Ayarları"
+            aciklama="Güvenilirlik eşiği, yedek kuyruk"
           />
           <AdminKart
             href="/admin/pazarlar"
