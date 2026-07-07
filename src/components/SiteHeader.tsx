@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Heart, ShoppingBag } from "lucide-react";
+import { Bell, Heart, CircleUserRound } from "lucide-react";
 import { signOut } from "@/auth";
 import { oturumRolOku } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
@@ -49,10 +49,10 @@ export async function SiteHeader() {
               </Link>
               <Link
                 href="/rezervasyonum"
-                aria-label="Rezervasyonlarım"
+                aria-label="Profilim"
                 className="text-neutral-500 hover:text-primary-600"
               >
-                <ShoppingBag className="h-5 w-5" strokeWidth={2} />
+                <CircleUserRound className="h-5 w-5" strokeWidth={2} />
               </Link>
             </>
           )}

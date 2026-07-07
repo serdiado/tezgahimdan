@@ -1,5 +1,9 @@
+"use client";
+
+import { useEffect } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
+import { bildirimRozetiTazele } from "./actions";
 
 type BildirimSatir = {
   id: string;
@@ -18,10 +22,14 @@ const tarihFormat = new Intl.DateTimeFormat("tr-TR", {
   minute: "2-digit",
 });
 
-// Salt-goruntuleme liste - tiklanabilir aksiyon yok (okundu isaretlemesi
-// sayfa acilinca sunucu tarafinda otomatik olur), bu yuzden client component
-// degil.
+// Okundu isaretlemesi page.tsx'te (render sirasinda) sunucu tarafinda zaten
+// oluyor - burada SADECE Router Cache'i tazeleyip SiteHeader rozetinin baska
+// sayfalara F5 gerekmeden yansimasini sagliyoruz (bkz. actions.ts).
 export function BildirimlerimIcerik({ bildirimler }: { bildirimler: BildirimSatir[] }) {
+  useEffect(() => {
+    bildirimRozetiTazele();
+  }, []);
+
   if (bildirimler.length === 0) {
     return (
       <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-white p-8 text-center shadow-sm">
