@@ -1,5 +1,6 @@
-import Image from "next/image";
-import { MapPin, MessageCircle, Tent } from "lucide-react";
+import { MapPin, Tent } from "lucide-react";
+import { WhatsappIkon } from "@/components/PaylasButonlari";
+import { KrokiGorseli } from "./KrokiGorseli";
 
 const GUN_ETIKETI: Record<string, string> = {
   Pazartesi: "Pazartesi",
@@ -40,26 +41,18 @@ export function MagazaHero({
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {magaza.whatsappNo && (
           <a
-            href={`https://wa.me/${magaza.whatsappNo.replace(/^\+/, "")}`}
+            href={`https://wa.me/${magaza.whatsappNo.replace(/^\+/, "")}?text=${encodeURIComponent(
+              `Merhaba ${magaza.ad}, bir konuda danışmak istiyorum: `,
+            )}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md bg-white/15 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/25"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#25D366] px-3 py-1.5 text-sm font-semibold text-white hover:brightness-95"
           >
-            <MessageCircle className="h-4 w-4" strokeWidth={2} />
+            <WhatsappIkon className="h-4 w-4" />
             WhatsApp&apos;tan Yaz
           </a>
         )}
-        {magaza.krokiFotoUrl && (
-          <a
-            href={magaza.krokiFotoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="relative h-14 w-14 overflow-hidden rounded-lg border-2 border-white/30"
-            aria-label="Tezgah/kroki fotoğrafını büyüt"
-          >
-            <Image src={magaza.krokiFotoUrl} alt="Tezgah/kroki fotoğrafı" fill className="object-cover" sizes="56px" />
-          </a>
-        )}
+        {magaza.krokiFotoUrl && <KrokiGorseli krokiFotoUrl={magaza.krokiFotoUrl} />}
       </div>
     </div>
   );

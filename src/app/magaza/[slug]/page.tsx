@@ -99,7 +99,7 @@ export default async function MagazaSayfasi({
           <div className="mt-2 flex items-center justify-between">
             <MagazaTakipButonu girisli={girisli} magazaId={magaza.id} benimTakibimVar={benimMagazaTakibimVar} />
             <div className="flex items-center gap-3">
-              <YildizGosterge ortalama={magazaDegerlendirmeSonucu.ortalama} sayi={magazaDegerlendirmeSonucu.sayi} boyut="md" />
+              <YildizGosterge ortalama={magazaDegerlendirmeSonucu.ortalama} sayi={magazaDegerlendirmeSonucu.sayi} boyut="md" bosGoster />
               <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
             </div>
           </div>

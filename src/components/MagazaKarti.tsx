@@ -31,7 +31,7 @@ export function MagazaKarti({
           <Store className="h-5 w-5 text-primary-600" strokeWidth={1.75} />
           <h3 className="font-semibold text-neutral-900">{magaza.ad}</h3>
         </div>
-        <YildizGosterge ortalama={magaza.degerlendirmeOrtalamasi ?? 0} sayi={magaza.degerlendirmeSayisi} />
+        <YildizGosterge ortalama={magaza.degerlendirmeOrtalamasi ?? 0} sayi={magaza.degerlendirmeSayisi} bosGoster />
         {magaza.aciklama && (
           <p className="line-clamp-2 text-sm text-neutral-600">{magaza.aciklama}</p>
         )}
