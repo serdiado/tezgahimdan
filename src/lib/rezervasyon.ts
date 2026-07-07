@@ -103,6 +103,17 @@ export async function rezervasyonOlustur(params: {
   // kullaniciya bagli, motor kilidine ihtiyaci yok).
   if (await kullaniciYasakliMi(params.aliciId)) return { tur: "yasakli" };
 
+  // Guvenilirlik afi: admin bir sifirlama tarihi atadiysa (bkz.
+  // api/admin/kullanici-guvenilirlik-sifirla), asagidaki gelmediSayisi sayimi
+  // SADECE bu tarihten SONRAKI kayitlari sayar - kalici muafiyet degil, yeniden
+  // esigi asarsa kisit tekrar devreye girer. Tek kullaniciya bagli, kilide
+  // girmeden okunabilir (yasakliMi ile ayni konum/gerekce).
+  const guvenilirlik = await prisma.kullanici.findUnique({
+    where: { id: params.aliciId },
+    select: { guvenilirlikSifirlamaTarihi: true },
+  });
+  const guvenilirlikBaslangici = guvenilirlik?.guvenilirlikSifirlamaTarihi ?? null;
+
   // Hizli 404 + pazar bilgisi (kilide girmeden okunabilir; pazar tanimi
   // rezervasyon aninda degismez).
   const urunOn = await prisma.urun.findUnique({
@@ -156,7 +167,11 @@ export async function rezervasyonOlustur(params: {
           // bir urune de saldirmasi (iki farkli urun kilidi) ele alinmiyor -
           // dusuk ihtimalli, kabul edilen bir yaris (bkz. docs/mimari).
           const gelmediSayisi = await tx.rezervasyon.count({
-            where: { aliciId: params.aliciId, durum: "gelmedi" },
+            where: {
+              aliciId: params.aliciId,
+              durum: "gelmedi",
+              ...(guvenilirlikBaslangici ? { createdAt: { gt: guvenilirlikBaslangici } } : {}),
+            },
           });
           if (gelmediSayisi >= GUVENILIRLIK_ESIGI) {
             const aktifRezervasyonVarMi = await tx.rezervasyon.count({

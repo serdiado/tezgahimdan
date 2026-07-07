@@ -2,9 +2,13 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
+import { GUVENILIRLIK_ESIGI } from "@/lib/rezervasyon";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../../AdminNav";
 import { KullaniciYasaklaButonu } from "./KullaniciYasaklaButonu";
+import { GuvenilirlikSifirlaButonu } from "../../guvenilirlik/GuvenilirlikSifirlaButonu";
+
+const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", year: "numeric" });
 
 const ROL_ETIKETI: Record<string, string> = {
   satici: "Satıcı",
@@ -47,6 +51,16 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
     if (!kullanici) {
       notFound();
     }
+
+    // rezervasyonOlustur (src/lib/rezervasyon.ts) ile AYNI sayim mantigi -
+    // varsa sifirlama tarihinden SONRAKI gelmedi kayitlari.
+    const gelmediSayisi = await prisma.rezervasyon.count({
+      where: {
+        aliciId: kullanici.id,
+        durum: "gelmedi",
+        ...(kullanici.guvenilirlikSifirlamaTarihi ? { createdAt: { gt: kullanici.guvenilirlikSifirlamaTarihi } } : {}),
+      },
+    });
 
     icerik = (
       <>
@@ -102,6 +116,16 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
                 <dd className="text-neutral-800">{kullanici._count.rezervasyonlar}</dd>
               </div>
               <div className="flex justify-between gap-4">
+                <dt className="text-neutral-500">
+                  Gelmedi (güvenilirlik){gelmediSayisi >= GUVENILIRLIK_ESIGI && " ⚠️"}
+                </dt>
+                <dd className="text-neutral-800">
+                  {gelmediSayisi}
+                  {kullanici.guvenilirlikSifirlamaTarihi &&
+                    ` (${tarihFormat.format(kullanici.guvenilirlikSifirlamaTarihi)}'ten beri)`}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
                 <dt className="text-neutral-500">Şikayet (gönderdiği)</dt>
                 <dd className="text-neutral-800">{kullanici._count.sikayetler}</dd>
               </div>
@@ -122,6 +146,11 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
                 <dd className="text-neutral-800">{kullanici._count.magazaTakipleri}</dd>
               </div>
             </dl>
+            {gelmediSayisi > 0 && (
+              <div className="mt-3">
+                <GuvenilirlikSifirlaButonu kullaniciId={kullanici.id} />
+              </div>
+            )}
           </div>
         </div>
 

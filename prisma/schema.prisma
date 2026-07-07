@@ -73,6 +73,11 @@ model Kullanici {
   // engellenir. Enforcement noktalari icin bkz. src/lib/yetki.ts
   // kullaniciYasakliMi().
   yasakliMi Boolean       @default(false)
+  // Admin "guvenilirlik kisitlamasini kaldirdi" dediginde bu alana now() yazilir.
+  // Kalici muafiyet DEGIL: rezervasyonOlustur'daki gelmedi sayimi bu tarihten
+  // SONRAKI kayitlari sayar - yeniden GUVENILIRLIK_ESIGI'ni asarsa kisit tekrar
+  // devreye girer (bkz. src/lib/rezervasyon.ts, docs/mimari/rezervasyon-motoru.md).
+  guvenilirlikSifirlamaTarihi DateTime?
   createdAt DateTime      @default(now())
 
   // E-posta/Google girisi icin: ikisi de opsiyonel (telefon+SMS ile gelen kullanicida

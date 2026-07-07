@@ -1,7 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Store, Landmark, Tags, MessageSquareWarning, ShieldAlert, History, Users, Star, ShoppingBag } from "lucide-react";
+import {
+  Store,
+  Landmark,
+  Tags,
+  MessageSquareWarning,
+  ShieldAlert,
+  History,
+  Users,
+  Star,
+  ShoppingBag,
+  ShieldQuestion,
+} from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -79,6 +90,12 @@ export default async function AdminSayfasi() {
             ikon={ShoppingBag}
             baslik="Rezervasyonlar"
             aciklama="Platform geneli arama (salt okunur)"
+          />
+          <AdminKart
+            href="/admin/guvenilirlik"
+            ikon={ShieldQuestion}
+            baslik="Güvenilirlik"
+            aciklama="Kısıtlı kullanıcılar, sıfırlama"
           />
           <AdminKart
             href="/admin/pazarlar"
