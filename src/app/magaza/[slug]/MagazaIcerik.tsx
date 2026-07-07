@@ -31,6 +31,12 @@ export function MagazaIcerik({
     ? urunler.filter((u) => u.kategori.id === secilenKategoriId)
     : urunler;
 
+  // Satilmis urunler (gecmis satislarin gorunur kalmasi karari, bkz.
+  // docs/mimari/magaza-iletisim-ve-degerlendirme.md) sergide/doldu urunlerle
+  // AYNI izgarada karismasin diye ayri bir blokta, sonda gosterilir.
+  const aktifUrunler = gorunenUrunler.filter((u) => u.durum !== "satildi");
+  const satilanUrunler = gorunenUrunler.filter((u) => u.durum === "satildi");
+
   if (urunler.length === 0) {
     return <p className="text-neutral-500">Bu mağazada şu an sergide ürün yok.</p>;
   }
@@ -72,17 +78,38 @@ export function MagazaIcerik({
       {gorunenUrunler.length === 0 ? (
         <p className="text-neutral-500">Bu kategoride sergide ürün yok.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {gorunenUrunler.map((urun) => (
-            <UrunKarti
-              key={urun.id}
-              urun={urun}
-              girisli={girisli}
-              kullaniciTelefonVar={kullaniciTelefonVar}
-              magazaSlug={magazaSlug}
-            />
-          ))}
-        </div>
+        <>
+          {aktifUrunler.length > 0 && (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {aktifUrunler.map((urun) => (
+                <UrunKarti
+                  key={urun.id}
+                  urun={urun}
+                  girisli={girisli}
+                  kullaniciTelefonVar={kullaniciTelefonVar}
+                  magazaSlug={magazaSlug}
+                />
+              ))}
+            </div>
+          )}
+
+          {satilanUrunler.length > 0 && (
+            <div className={aktifUrunler.length > 0 ? "mt-10" : ""}>
+              <h2 className="mb-4 text-base font-semibold text-neutral-700">Daha Önce Satılanlar</h2>
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {satilanUrunler.map((urun) => (
+                  <UrunKarti
+                    key={urun.id}
+                    urun={urun}
+                    girisli={girisli}
+                    kullaniciTelefonVar={kullaniciTelefonVar}
+                    magazaSlug={magazaSlug}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

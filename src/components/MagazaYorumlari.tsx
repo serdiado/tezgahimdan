@@ -9,11 +9,14 @@ type MagazaYorumu = { id: string; kullaniciAd: string; puan: number; yorum: stri
 // akisinda (kart izgarasinin ustunde) gosterilir. Yorum yoksa hic render
 // edilmez (YildizGosterge'nin sayi===0 gizleme ilkesiyle tutarli).
 //
-// Sadece EN SON 4 yorum "blok" (2x2 grid) olarak onizlenir (yorumlar prop'u
-// zaten cagiran tarafta take:4 ile sinirlanip geliyor) - yorum sayisi
-// buyudukce (or. 100) hero'nun altinin sonsuza uzamasi yerine, tum liste
-// AYRI bir sayfada (`/magaza/[slug]/yorumlar`, magaza+urun yorumlarini iki
-// sekmede birlestiren) gosterilir. Her blok VE "Tumunu Gor" o sayfaya link.
+// Sadece EN SON 4 yorum onizlenir (yorumlar prop'u zaten cagiran tarafta
+// take:4 ile sinirlanip geliyor) - yorum sayisi buyudukce (or. 100) hero'nun
+// altinin sonsuza uzamasi yerine, tum liste AYRI bir sayfada (`/magaza/[slug]/
+// yorumlar`, magaza+urun yorumlarini iki sekmede birlestiren) gosterilir.
+// TEK SATIR: masaustunde 4 esit sutun (grid), mobilde 2 satira bolunup urun
+// izgarasini asagi itmesin diye yatay kaydirilabilir tek satir (flex+overflow-x,
+// AliciPanelMenu.tsx'teki mobil sekme cubugu deseniyle ayni). Her blok VE
+// "Tumunu Gor" o sayfaya link.
 export function MagazaYorumlari({
   yorumlar,
   magazaSlug,
@@ -37,12 +40,12 @@ export function MagazaYorumlari({
           <ChevronRight className="h-4 w-4" strokeWidth={2} />
         </Link>
       </div>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="mt-3 flex gap-3 overflow-x-auto sm:grid sm:grid-cols-4 sm:overflow-visible">
         {yorumlar.map((y) => (
           <Link
             key={y.id}
             href={`/magaza/${magazaSlug}/yorumlar`}
-            className="rounded-xl border border-neutral-100 p-3 hover:bg-neutral-50"
+            className="w-56 shrink-0 rounded-xl border border-neutral-100 p-3 hover:bg-neutral-50 sm:w-auto"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold text-neutral-800">{y.kullaniciAd}</span>
