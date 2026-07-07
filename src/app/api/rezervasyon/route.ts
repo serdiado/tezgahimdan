@@ -110,5 +110,10 @@ export async function POST(request: Request) {
         },
         { status: 409 },
       );
+    case "yasakli":
+      return NextResponse.json(
+        { hata: "Hesabınız kısıtlandığı için yeni rezervasyon oluşturamazsınız." },
+        { status: 403 },
+      );
   }
 }

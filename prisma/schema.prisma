@@ -67,6 +67,12 @@ model Kullanici {
   ad        String
   telefon   String?       @unique
   rol       KullaniciRolu @default(alici)
+  // Admin moderasyon bayragi (Magaza.gizliMi ile AYNI "fren pedali" desen):
+  // giris ve gecmis erisimi ETKILENMEZ, sadece YENI aksiyonlar (rezervasyon
+  // olusturma, magaza acma, degerlendirme/yorum birakma, sikayet olusturma)
+  // engellenir. Enforcement noktalari icin bkz. src/lib/yetki.ts
+  // kullaniciYasakliMi().
+  yasakliMi Boolean       @default(false)
   createdAt DateTime      @default(now())
 
   // E-posta/Google girisi icin: ikisi de opsiyonel (telefon+SMS ile gelen kullanicida

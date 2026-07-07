@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma";
 import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
 import { SLUG_REGEX } from "@/lib/slug";
+import { kullaniciYasakliMi } from "@/lib/yetki";
 import varsayilanPazarJson from "../../prisma/varsayilan-pazar.json";
 
 const varsayilanPazar = varsayilanPazarJson as unknown as {
@@ -34,7 +35,8 @@ export type MagazaAcSonucu =
   | { tur: "gecersiz-slug" }
   | { tur: "gecersiz-pazar" }
   | { tur: "slug-alinmis" }
-  | { tur: "zaten-magaza-var" };
+  | { tur: "zaten-magaza-var" }
+  | { tur: "yasakli" };
 
 // Self-servis onboarding'in kalbi: magazayi olusturur VE (kullanici hala alici ise)
 // ayni transaction'da rolu satici'ya terfi eder + DurumGecmisi'ne iz birakir. Admin
@@ -54,6 +56,8 @@ export async function magazaAc(params: {
   // Ana onboarding sihirbazi (magaza-ac) artik her zaman gercek bir secim gonderir.
   pazarId?: string;
 }): Promise<MagazaAcSonucu> {
+  if (await kullaniciYasakliMi(params.userId)) return { tur: "yasakli" };
+
   const ad = params.ad.trim();
   const slug = params.slug.trim().toLowerCase();
   if (!ad) return { tur: "gecersiz-ad" };

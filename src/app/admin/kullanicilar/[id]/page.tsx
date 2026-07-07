@@ -4,6 +4,7 @@ import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../../AdminNav";
+import { KullaniciYasaklaButonu } from "./KullaniciYasaklaButonu";
 
 const ROL_ETIKETI: Record<string, string> = {
   satici: "Satıcı",
@@ -49,11 +50,20 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
 
     icerik = (
       <>
-        <h1 className="text-xl font-bold text-neutral-900">{kullanici.ad}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-xl font-bold text-neutral-900">{kullanici.ad}</h1>
+          {kullanici.yasakliMi && (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Yasaklı</span>
+          )}
+        </div>
         <AdminNav aktif="kullanicilar" />
         <Link href="/admin/kullanicilar" className="mt-3 inline-block text-sm text-primary-600 hover:underline">
           ← Kullanıcılara dön
         </Link>
+
+        <div className="mt-4">
+          <KullaniciYasaklaButonu kullaniciId={kullanici.id} yasakliMi={kullanici.yasakliMi} />
+        </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="rounded-2xl bg-white p-4 shadow-sm">

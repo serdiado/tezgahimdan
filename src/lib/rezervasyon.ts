@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
 import { pazarBaslangicAni, pazarKapanisAni, sonrakiSifirlamaTarihi } from "@/lib/pazar-haftasi";
+import { kullaniciYasakliMi } from "@/lib/yetki";
 
 // PLAN.md SS3: stok kadar aktif hak sahibi + arkasinda en fazla 5 yedek;
 // toplam (stok + MAX_YEDEK) dolunca rezervasyon kapanir.
@@ -71,7 +72,8 @@ export type RezervasyonSonucu =
   | { tur: "urun-yok" }
   | { tur: "magaza-gizli" }
   | { tur: "satista-degil" }
-  | { tur: "guvenilirlik-kisitli"; gelmediSayisi: number };
+  | { tur: "guvenilirlik-kisitli"; gelmediSayisi: number }
+  | { tur: "yasakli" };
 
 // 0/O, 1/I gibi karistirilabilir karakterler yok - kod pazarda sozlu soylenecek.
 const KOD_ALFABESI = "ABCDEFGHJKMNPRSTUVYZ23456789";
@@ -96,6 +98,11 @@ export async function rezervasyonOlustur(params: {
   urunId: string;
   aliciId: string;
 }): Promise<RezervasyonSonucu> {
+  // Admin moderasyon: yasakli kullanici YENI rezervasyon alamaz (mevcut
+  // gizli-magaza on-kontrolu ile AYNI konum/gerekce - kilide girmeden, tek
+  // kullaniciya bagli, motor kilidine ihtiyaci yok).
+  if (await kullaniciYasakliMi(params.aliciId)) return { tur: "yasakli" };
+
   // Hizli 404 + pazar bilgisi (kilide girmeden okunabilir; pazar tanimi
   // rezervasyon aninda degismez).
   const urunOn = await prisma.urun.findUnique({

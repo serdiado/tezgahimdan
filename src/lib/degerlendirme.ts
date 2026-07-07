@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { kullaniciYasakliMi } from "@/lib/yetki";
 
 // Degerlendirme: SADECE gercekten satin alanlar (Rezervasyon.durum="satildi"
 // VE aliciId=kullanici) birakabilir - bu kural DB'de zorlanmaz, burada
@@ -6,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 // (rezervasyon.ts) HIC cagri yapilmaz.
 export type DegerlendirmeUpsertSonucu =
   | { tur: "kaydedildi"; puan: number; yorum: string | null }
-  | { tur: "satin-alinmadi" };
+  | { tur: "satin-alinmadi" }
+  | { tur: "yasakli" };
 
 export async function degerlendirmeUpsert(params: {
   kullaniciId: string;
@@ -14,6 +16,8 @@ export async function degerlendirmeUpsert(params: {
   puan: number;
   yorum?: string | null;
 }): Promise<DegerlendirmeUpsertSonucu> {
+  if (await kullaniciYasakliMi(params.kullaniciId)) return { tur: "yasakli" };
+
   const satinAldiMi = await prisma.rezervasyon.findFirst({
     where: { urunId: params.urunId, aliciId: params.kullaniciId, durum: "satildi" },
     select: { id: true },

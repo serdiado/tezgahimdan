@@ -61,5 +61,10 @@ export async function POST(request: Request) {
       );
     case "zaten-magaza-var":
       return NextResponse.json({ hata: "zaten bir mağazanız var" }, { status: 409 });
+    case "yasakli":
+      return NextResponse.json(
+        { hata: "Hesabınız kısıtlandığı için yeni mağaza açamazsınız." },
+        { status: 403 },
+      );
   }
 }

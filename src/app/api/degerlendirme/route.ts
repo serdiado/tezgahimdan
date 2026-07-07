@@ -47,6 +47,12 @@ export async function POST(request: Request) {
       { status: 403 },
     );
   }
+  if (sonuc.tur === "yasakli") {
+    return NextResponse.json(
+      { hata: "Hesabınız kısıtlandığı için değerlendirme bırakamazsınız." },
+      { status: 403 },
+    );
+  }
 
   return NextResponse.json({ puan: sonuc.puan, yorum: sonuc.yorum });
 }

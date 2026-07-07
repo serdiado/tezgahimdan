@@ -41,6 +41,10 @@ async function magazaOlustur(formData: FormData) {
       return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("bu slug zaten kullaniliyor")}`);
     case "zaten-magaza-var":
       return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("zaten bir magazan var")}`);
+    case "yasakli":
+      return redirect(
+        `/panel/urun-ekle?hata=${encodeURIComponent("hesabin kisitlandigi icin yeni magaza acamazsin")}`,
+      );
   }
 }
 

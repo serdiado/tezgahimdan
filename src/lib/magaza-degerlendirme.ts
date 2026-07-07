@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { kullaniciYasakliMi } from "@/lib/yetki";
 
 // Magaza-degerlendirme: Degerlendirme (urun-seviyesi) ile AYNI ilke - SADECE bu
 // magazadan (HANGI urun olursa olsun) gercekten satin almis (Rezervasyon.durum
@@ -6,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 // uzerinden DOLAYLI join ile (Rezervasyon -> Urun.magazaId) dogrulanir.
 export type MagazaDegerlendirmeUpsertSonucu =
   | { tur: "kaydedildi"; puan: number; yorum: string | null }
-  | { tur: "satin-alinmadi" };
+  | { tur: "satin-alinmadi" }
+  | { tur: "yasakli" };
 
 export async function magazaDegerlendirmeUpsert(params: {
   kullaniciId: string;
@@ -14,6 +16,8 @@ export async function magazaDegerlendirmeUpsert(params: {
   puan: number;
   yorum?: string | null;
 }): Promise<MagazaDegerlendirmeUpsertSonucu> {
+  if (await kullaniciYasakliMi(params.kullaniciId)) return { tur: "yasakli" };
+
   const satinAldiMi = await prisma.rezervasyon.findFirst({
     where: { aliciId: params.kullaniciId, durum: "satildi", urun: { magazaId: params.magazaId } },
     select: { id: true },

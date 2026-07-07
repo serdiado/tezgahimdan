@@ -42,3 +42,14 @@ export async function getAdminSession() {
   const { session, rol } = await oturumRolOku();
   return { session, yetkili: rol === "admin" };
 }
+
+// Kullanici.yasakliMi ("fren pedali" deseni, bkz. schema.prisma) icin ortak
+// kontrol - rezervasyonOlustur/magazaAc/degerlendirmeUpsert/
+// magazaDegerlendirmeUpsert/sikayet-olustur AYNI sorguyu tekrarlamak yerine
+// burayi cagirir. Sadece YENI aksiyonlari engeller, giris/gecmis erisimini
+// etkilemez - bu yuzden auth() DEGIL, dogrudan userId alir (cagiran zaten
+// kimligi biliyor).
+export async function kullaniciYasakliMi(userId: string): Promise<boolean> {
+  const kullanici = await prisma.kullanici.findUnique({ where: { id: userId }, select: { yasakliMi: true } });
+  return kullanici?.yasakliMi ?? false;
+}

@@ -6,7 +6,17 @@ import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../AdminNav";
 
-const VARLIK_TURLERI = ["Magaza", "Pazar", "Kategori", "Sikayet", "Urun", "Rezervasyon"] as const;
+const VARLIK_TURLERI = [
+  "Magaza",
+  "Pazar",
+  "Kategori",
+  "Sikayet",
+  "Urun",
+  "Rezervasyon",
+  "Kullanici",
+  "Degerlendirme",
+  "MagazaDegerlendirme",
+] as const;
 const SAYFA_BOYU = 50;
 
 export default async function AdminDenetimKaydiPage({
@@ -87,6 +97,21 @@ export default async function AdminDenetimKaydiPage({
           <span className="text-neutral-300">·</span>
           <Link href={filtreLink("Rezervasyon")} className={linkSinif(gecerliTur === "Rezervasyon")}>
             Rezervasyon
+          </Link>
+          <span className="text-neutral-300">·</span>
+          <Link href={filtreLink("Kullanici")} className={linkSinif(gecerliTur === "Kullanici")}>
+            Kullanıcı
+          </Link>
+          <span className="text-neutral-300">·</span>
+          <Link href={filtreLink("Degerlendirme")} className={linkSinif(gecerliTur === "Degerlendirme")}>
+            Ürün Yorumu
+          </Link>
+          <span className="text-neutral-300">·</span>
+          <Link
+            href={filtreLink("MagazaDegerlendirme")}
+            className={linkSinif(gecerliTur === "MagazaDegerlendirme")}
+          >
+            Mağaza Yorumu
           </Link>
         </div>
 

@@ -142,6 +142,11 @@ export default async function AdminKullanicilarPage({
                       <Link href={`/admin/kullanicilar/${k.id}`} className="font-medium text-primary-600 hover:underline">
                         {k.ad}
                       </Link>
+                      {k.yasakliMi && (
+                        <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                          Yasaklı
+                        </span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-2 text-neutral-600">{k.telefon ?? k.email ?? "—"}</td>
                     <td className="whitespace-nowrap px-4 py-2">

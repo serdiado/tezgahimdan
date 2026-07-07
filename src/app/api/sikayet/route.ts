@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { kullaniciYasakliMi } from "@/lib/yetki";
 
 const SEBEP_MAX = 500;
 
@@ -11,6 +12,12 @@ export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ hata: "şikayet oluşturmak için giriş yapmalısınız" }, { status: 401 });
+  }
+  if (await kullaniciYasakliMi(session.user.id)) {
+    return NextResponse.json(
+      { hata: "Hesabınız kısıtlandığı için yeni şikayet oluşturamazsınız." },
+      { status: 403 },
+    );
   }
 
   const body = await request.json().catch(() => null);
