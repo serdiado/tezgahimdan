@@ -95,6 +95,13 @@ export default async function AdminRezervasyonlarPage({
     };
     const linkSinif = (aktifMi: boolean) =>
       aktifMi ? "text-primary-600 underline" : "text-neutral-500 hover:text-primary-600";
+    const csvLink = (() => {
+      const params = new URLSearchParams();
+      if (gecerliDurum) params.set("durum", gecerliDurum);
+      if (magazaId) params.set("magazaId", magazaId);
+      if (arama) params.set("q", arama);
+      return `/api/admin/rezervasyonlar-csv?${params.toString()}`;
+    })();
 
     icerik = (
       <>
@@ -139,6 +146,10 @@ export default async function AdminRezervasyonlarPage({
               </Link>
             </span>
           ))}
+          <span className="text-neutral-300">·</span>
+          <a href={csvLink} className="text-neutral-500 hover:text-primary-600">
+            CSV İndir
+          </a>
         </div>
 
         {rezervasyonlar.length === 0 ? (

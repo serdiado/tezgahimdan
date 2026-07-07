@@ -44,11 +44,31 @@ export default async function AdminSayfasi() {
     );
   } else {
     const yediGunOnce = yediGunOncesi();
-    const [toplamMagaza, yeniMagaza, bekleyenSikayet, anlasmazlikSayisi] = await Promise.all([
+    const [
+      toplamMagaza,
+      yeniMagaza,
+      bekleyenSikayet,
+      anlasmazlikSayisi,
+      haftalikRezervasyon,
+      haftalikSatis,
+      enCokUrunluMagazalar,
+    ] = await Promise.all([
       prisma.magaza.count({ where: { silindiMi: false } }),
       prisma.magaza.count({ where: { silindiMi: false, createdAt: { gte: yediGunOnce } } }),
       prisma.sikayet.count({ where: { durum: "bekliyor" } }),
       prisma.durumGecmisi.count({ where: { olay: { startsWith: "geri_alma_reddedildi:" } } }),
+      prisma.rezervasyon.count({ where: { createdAt: { gte: yediGunOnce } } }),
+      prisma.rezervasyon.count({ where: { durum: "satildi", createdAt: { gte: yediGunOnce } } }),
+      prisma.$queryRaw<{ id: string; ad: string; slug: string; rezervasyonSayisi: bigint }[]>`
+        SELECT m.id, m.ad, m.slug, COUNT(r.id) AS "rezervasyonSayisi"
+        FROM "Magaza" m
+        JOIN "Urun" u ON u."magazaId" = m.id
+        JOIN "Rezervasyon" r ON r."urunId" = u.id
+        WHERE m."silindiMi" = false
+        GROUP BY m.id, m.ad, m.slug
+        ORDER BY "rezervasyonSayisi" DESC
+        LIMIT 5
+      `,
     ]);
 
     icerik = (
@@ -72,7 +92,34 @@ export default async function AdminSayfasi() {
             deger={anlasmazlikSayisi}
             altYazi="Reddedilen geri alma talepleri (bilgi amaçlı)"
           />
+          <IstatistikKarti
+            baslik="Rezervasyon (son 7 gün)"
+            deger={haftalikRezervasyon}
+            altYazi="Yeni oluşturulan"
+          />
+          <IstatistikKarti
+            baslik="Satış (son 7 gün)"
+            deger={haftalikSatis}
+            altYazi="Durum: satıldı"
+          />
         </div>
+
+        {enCokUrunluMagazalar.length > 0 && (
+          <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+            <h2 className="font-semibold text-neutral-900">En Aktif Mağazalar</h2>
+            <p className="text-xs text-neutral-400">Toplam rezervasyon sayısına göre</p>
+            <ul className="mt-2 space-y-1 text-sm">
+              {enCokUrunluMagazalar.map((m) => (
+                <li key={m.id} className="flex items-center justify-between gap-2">
+                  <Link href={`/admin/magazalar/${m.id}`} className="text-primary-600 hover:underline">
+                    {m.ad}
+                  </Link>
+                  <span className="text-neutral-500">{Number(m.rezervasyonSayisi)} rezervasyon</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <AdminKart
