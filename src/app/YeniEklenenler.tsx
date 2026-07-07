@@ -10,10 +10,14 @@ export function YeniEklenenler({
   urunler,
   girisli,
   kullaniciTelefonVar,
+  kolonSayisi = 3,
+  sunumTipi = "grid",
 }: {
   urunler: YeniUrunVeri[];
   girisli: boolean;
   kullaniciTelefonVar: boolean;
+  kolonSayisi?: 3 | 4;
+  sunumTipi?: "grid" | "slider";
 }) {
   const [secilenKategoriId, setSecilenKategoriId] = useState<string | null>(null);
 
@@ -65,18 +69,34 @@ export function YeniEklenenler({
         })}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
-        {gorunenUrunler.map((urun) => (
-          <UrunKarti
-            key={urun.id}
-            urun={urun}
-            magaza={urun.magaza}
-            magazaSlug={urun.magaza.slug}
-            girisli={girisli}
-            kullaniciTelefonVar={kullaniciTelefonVar}
-          />
-        ))}
-      </div>
+      {sunumTipi === "slider" ? (
+        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:gap-4">
+          {gorunenUrunler.map((urun) => (
+            <div key={urun.id} className="w-[68%] shrink-0 snap-start sm:w-[42%] lg:w-[29%]">
+              <UrunKarti
+                urun={urun}
+                magaza={urun.magaza}
+                magazaSlug={urun.magaza.slug}
+                girisli={girisli}
+                kullaniciTelefonVar={kullaniciTelefonVar}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className={`grid grid-cols-2 gap-3 sm:gap-6 ${kolonSayisi === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+          {gorunenUrunler.map((urun) => (
+            <UrunKarti
+              key={urun.id}
+              urun={urun}
+              magaza={urun.magaza}
+              magazaSlug={urun.magaza.slug}
+              girisli={girisli}
+              kullaniciTelefonVar={kullaniciTelefonVar}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

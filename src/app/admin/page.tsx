@@ -14,6 +14,7 @@ import {
   ShieldQuestion,
   Settings,
   Megaphone,
+  LayoutTemplate,
 } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
@@ -157,6 +158,12 @@ export default async function AdminSayfasi() {
             ikon={Megaphone}
             baslik="Duyuru Gönder"
             aciklama="Toplu site-içi bildirim"
+          />
+          <AdminKart
+            href="/admin/anasayfa"
+            ikon={LayoutTemplate}
+            baslik="Anasayfa Görünümü"
+            aciklama="Hero, modül sırası ve ayarları"
           />
           <AdminKart
             href="/admin/pazarlar"
