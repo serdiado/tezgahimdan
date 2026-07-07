@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   ShieldQuestion,
   Settings,
+  Megaphone,
 } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
@@ -103,6 +104,12 @@ export default async function AdminSayfasi() {
             ikon={Settings}
             baslik="Platform Ayarları"
             aciklama="Güvenilirlik eşiği, yedek kuyruk"
+          />
+          <AdminKart
+            href="/admin/duyuru"
+            ikon={Megaphone}
+            baslik="Duyuru Gönder"
+            aciklama="Toplu site-içi bildirim"
           />
           <AdminKart
             href="/admin/pazarlar"
