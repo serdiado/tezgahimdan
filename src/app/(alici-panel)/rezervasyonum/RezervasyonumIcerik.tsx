@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DegerlendirmeFormu } from "@/components/DegerlendirmeFormu";
-import { MagazaDegerlendirmeFormu } from "@/components/MagazaDegerlendirmeFormu";
 
 type Rezervasyon = {
   id: string;
@@ -14,14 +13,6 @@ type Rezervasyon = {
   durum: string;
   urunId: string;
   urunBaslik: string;
-  magazaAd: string;
-  magazaSlug: string;
-  mevcutPuan: number | null;
-  mevcutYorum: string | null;
-};
-
-type DegerlendirilebilirMagaza = {
-  magazaId: string;
   magazaAd: string;
   magazaSlug: string;
   mevcutPuan: number | null;
@@ -39,19 +30,15 @@ function siraMesaji(tip: "aktif" | "yedek", siraNo: number): string {
   return tip === "aktif" ? `${siraNo}. sırada (aktif hak sahibi)` : `${siraNo}. sıra yedekte`;
 }
 
-export function RezervasyonumIcerik({
-  rezervasyonlar,
-  degerlendirilebilirMagazalar,
-}: {
-  rezervasyonlar: Rezervasyon[];
-  degerlendirilebilirMagazalar: DegerlendirilebilirMagaza[];
-}) {
+// Magaza-bazli degerlendirme blogu buradan CIKARILDI, /degerlendirmelerim/magazalar
+// sayfasina tasindi (tek sorumluluk: bu sayfa SADECE rezervasyon listesi).
+// Urun-bazli "Degerlendir" butonu KALDI - rezervasyon baglaminda dogal yer.
+export function RezervasyonumIcerik({ rezervasyonlar }: { rezervasyonlar: Rezervasyon[] }) {
   const router = useRouter();
   const [onayId, setOnayId] = useState<string | null>(null);
   const [bekleyenId, setBekleyenId] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [degerlendirilenRezervId, setDegerlendirilenRezervId] = useState<string | null>(null);
-  const [degerlendirilenMagazaId, setDegerlendirilenMagazaId] = useState<string | null>(null);
 
   async function vazgec(rezervId: string) {
     setHata(null);
@@ -81,27 +68,6 @@ export function RezervasyonumIcerik({
 
   return (
     <div className="mt-4 space-y-3">
-      {degerlendirilebilirMagazalar.length > 0 && (
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <h2 className="font-semibold text-neutral-900">Mağazaları Değerlendir</h2>
-          <div className="mt-2 space-y-2">
-            {degerlendirilebilirMagazalar.map((m) => (
-              <div key={m.magazaId} className="flex items-center justify-between gap-2">
-                <Link href={`/magaza/${m.magazaSlug}`} className="text-sm text-primary-600 hover:underline">
-                  {m.magazaAd}
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => setDegerlendirilenMagazaId(m.magazaId)}
-                  className="shrink-0 rounded-md border border-primary-300 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"
-                >
-                  {m.mevcutPuan ? "Değerlendirmeni Düzenle" : "Mağazayı Değerlendir"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {hata && <p className="text-sm text-red-600">{hata}</p>}
       {rezervasyonlar.map((r) => {
         const stil = DURUM_STIL[r.durum] ?? {
@@ -191,21 +157,6 @@ export function RezervasyonumIcerik({
           </div>
         );
       })}
-
-      {degerlendirilenMagazaId &&
-        (() => {
-          const magaza = degerlendirilebilirMagazalar.find((m) => m.magazaId === degerlendirilenMagazaId);
-          if (!magaza) return null;
-          return (
-            <MagazaDegerlendirmeFormu
-              magazaId={magaza.magazaId}
-              magazaAd={magaza.magazaAd}
-              mevcutPuan={magaza.mevcutPuan}
-              mevcutYorum={magaza.mevcutYorum}
-              onClose={() => setDegerlendirilenMagazaId(null)}
-            />
-          );
-        })()}
     </div>
   );
 }

@@ -80,6 +80,45 @@ export async function kullaniciMagazaDegerlendirmeleriHaritasi(
   return harita;
 }
 
+export type KullaniciMagazaDegerlendirmesi = {
+  id: string;
+  magazaId: string;
+  magazaAd: string;
+  magazaSlug: string;
+  puan: number;
+  yorum: string | null;
+  guncellenmeZamani: Date;
+};
+
+// "Mağaza Değerlendirmelerim" sayfasi icin - kullaniciTumUrunDegerlendirmeleriGetir
+// (src/lib/degerlendirme.ts) ile AYNI desen, magaza-seviyesi karsiligi.
+// Silinmis magazanin degerlendirmesi de listede DAHIL edilir ("magaza
+// kaldirildi" notuyla) - kayit hic silinmez ilkesiyle tutarli.
+export async function kullaniciTumMagazaDegerlendirmeleriGetir(
+  kullaniciId: string,
+): Promise<KullaniciMagazaDegerlendirmesi[]> {
+  const satirlar = await prisma.magazaDegerlendirme.findMany({
+    where: { kullaniciId },
+    select: {
+      id: true,
+      puan: true,
+      yorum: true,
+      guncellenmeZamani: true,
+      magaza: { select: { id: true, ad: true, slug: true, silindiMi: true } },
+    },
+    orderBy: { guncellenmeZamani: "desc" },
+  });
+  return satirlar.map((s) => ({
+    id: s.id,
+    magazaId: s.magaza.id,
+    magazaAd: s.magaza.silindiMi ? `${s.magaza.ad} (kaldırıldı)` : s.magaza.ad,
+    magazaSlug: s.magaza.slug,
+    puan: s.puan,
+    yorum: s.yorum,
+    guncellenmeZamani: s.guncellenmeZamani,
+  }));
+}
+
 export type MagazaYorumSatiri = { id: string; kullaniciAd: string; puan: number; yorum: string; createdAt: Date };
 
 // Tekil magaza sayfasinda yorum listesi - urunYorumlariHaritasi'nin tekil-magaza
