@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { MapPin, Store } from "lucide-react";
 import { slugTuret } from "@/lib/slug";
 
-export type MagazaAcPazarVeri = { id: string; ad: string; bolge: string };
+export type MagazaAcPazarVeri = { id: string; ad: string; il: string; ilce: string };
 
 // Kisa sihirbaz (2 adim): (1) mağaza adı + otomatik bağlantı + pazar secimi,
 // (2) WhatsApp (opsiyonel). Tek aktif pazar varsa secim gereksiz oldugundan
@@ -138,7 +138,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
                   >
                     {pazarlar.map((pazar) => (
                       <option key={pazar.id} value={pazar.id}>
-                        {pazar.ad} — {pazar.bolge}
+                        {pazar.ad} — {pazar.ilce}, {pazar.il}
                       </option>
                     ))}
                   </select>

@@ -41,6 +41,13 @@ Admin toggle UI'ı henüz yok (admin paneli adımı); alan + vitrin filtresi + i
 eklendi, acil durumda DB'den set edilebilir. Her yeni mağaza `DurumGecmisi`'ne iz
 bırakır → admin paneli gelince "yeni açılan mağazalar" listelenip gerekirse frenlenir.
 
+**Not:** `getOwnMagaza` artık `include: { pazar: true }` ile pazar ilişkisini de
+dönüyor ve `React.cache()` ile sarılı — çünkü aynı istekte hem yeni
+`src/app/panel/layout.tsx` gate'i hem de çağıran sayfa bu fonksiyonu kullanabiliyor,
+tekrar Prisma sorgusu atmadan `magaza.pazar.aktifMi`'yi okuyabiliyor. Bu, `gizliMi`/
+`silindiMi`'den **ayrı** bir üçüncü moderasyon/kapanma ekseni (`Pazar.aktifMi`) —
+detay için: [`pazar-yasam-dongusu.md`](./pazar-yasam-dongusu.md).
+
 ## JWT rol tazeliği (çözüm a)
 
 Rol JWT içinde taşınır (`src/auth.ts`). Self-servis onboarding'de kullanıcı **aynı

@@ -41,7 +41,7 @@ export default async function MagazaAcPage() {
           </p>
         ) : (
           <MagazaAcForm
-            pazarlar={pazarlar.map((pazar) => ({ id: pazar.id, ad: pazar.ad, bolge: pazar.bolge }))}
+            pazarlar={pazarlar.map((pazar) => ({ id: pazar.id, ad: pazar.ad, il: pazar.il, ilce: pazar.ilce }))}
           />
         )}
       </main>

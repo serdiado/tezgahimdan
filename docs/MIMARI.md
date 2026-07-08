@@ -124,6 +124,22 @@ bilinçli ertelendi).
 
 ---
 
+## Pazar yaşam döngüsü (il/ilçe serbest metin + `aktifMi` kapanma)
+
+Eski tek `bolge` (serbest metin) alanı kaldırıldı; yerine `il`+`ilce` (zorunlu),
+`semt` (opsiyonel), `googleHaritaLinki` (zorunlu, gömülü değil — yeni sekmede açılır)
+geldi. Türkiye geneli il/ilçe referans verisi **bilinçli olarak eklenmedi**: pazarlar
+zaten belediyelerle yapılan gerçek anlaşmalar sonucu admin tarafından tek tek elle
+açılıyor. `Pazar.aktifMi=false` artık salt bilgi değil, **üç** çalışma-zamanı etkisi
+var: vitrinde/anasayfada mağazalar gizlenir, bağlı satıcılar panele giremez (yeni
+`src/app/panel/layout.tsx` — projede ilk panel-geneli ortak layout), yeni mağaza
+açılışında seçilemez — kalıcı silme yok. Otomatik/gizli varsayılan pazar oluşturma
+fallback'i kaldırıldı; `magazaAc()`'in `pazarId`'si artık zorunlu.
+
+→ Detay: [`docs/mimari/pazar-yasam-dongusu.md`](./mimari/pazar-yasam-dongusu.md)
+
+---
+
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
 - **Rate-limit yok:** Deploy öncesi en azından IP bazlı limit değerlendirilmeli. (KP-1 üyelik zorunluluğuyla sahte-numarayla kitle rezervasyonu riski büyük ölçüde azaldı — rezervasyon için hesap gerekir; yine de rate-limit tamamen ikame etmez.)

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { getSaticiSession } from "@/lib/yetki";
 import { magazaAc } from "@/lib/magaza";
 
+export type MagazaOlusturPazarVeri = { id: string; ad: string; il: string; ilce: string };
+
 // Bu form, zaten satici olan ama (ornegin magazasini kaldirmis) bir kullanicinin
 // /panel/urun-ekle icinde magazasini yeniden olusturdugu yerdir. Asil onboarding
 // (alici -> satici) /panel/magaza-ac sihirbazidir. Ikisi de ayni magazaAc() lib
@@ -21,12 +23,14 @@ async function magazaOlustur(formData: FormData) {
     typeof formData.get("slug") === "string"
       ? (formData.get("slug") as string).trim().toLowerCase()
       : "";
+  const pazarId =
+    typeof formData.get("pazarId") === "string" ? (formData.get("pazarId") as string).trim() : "";
 
-  if (!ad || !slug) {
-    redirect(`/panel/urun-ekle?hata=${encodeURIComponent("ad ve slug zorunlu")}`);
+  if (!ad || !slug || !pazarId) {
+    redirect(`/panel/urun-ekle?hata=${encodeURIComponent("ad, slug ve pazar zorunlu")}`);
   }
 
-  const sonuc = await magazaAc({ userId: session.user.id, ad, slug });
+  const sonuc = await magazaAc({ userId: session.user.id, ad, slug, pazarId });
   // redirect() throw eder (never doner) - her dal akisi burada bitirir.
   switch (sonuc.tur) {
     case "acildi":
@@ -48,7 +52,7 @@ async function magazaOlustur(formData: FormData) {
   }
 }
 
-export function MagazaOlusturForm() {
+export function MagazaOlusturForm({ pazarlar }: { pazarlar: MagazaOlusturPazarVeri[] }) {
   return (
     <form action={magazaOlustur}>
       <div>
@@ -63,6 +67,25 @@ export function MagazaOlusturForm() {
           <input name="slug" type="text" required pattern="[a-z0-9]+(-[a-z0-9]+)*" />
         </label>
       </div>
+      {pazarlar.length <= 1 ? (
+        <>
+          <input type="hidden" name="pazarId" value={pazarlar[0]?.id ?? ""} />
+          {pazarlar[0] && <p>Mağazan {pazarlar[0].ad} pazarına bağlanacak.</p>}
+        </>
+      ) : (
+        <div>
+          <label>
+            Pazar
+            <select name="pazarId" required>
+              {pazarlar.map((pazar) => (
+                <option key={pazar.id} value={pazar.id}>
+                  {pazar.ad} — {pazar.ilce}, {pazar.il}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
       <button type="submit">Mağazayı Oluştur</button>
     </form>
   );

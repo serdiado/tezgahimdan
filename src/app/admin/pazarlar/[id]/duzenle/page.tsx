@@ -34,7 +34,10 @@ export default async function PazarDuzenlePage({ params }: { params: Promise<{ i
           mevcut={{
             id: pazar.id,
             ad: pazar.ad,
-            bolge: pazar.bolge,
+            il: pazar.il,
+            ilce: pazar.ilce,
+            semt: pazar.semt,
+            googleHaritaLinki: pazar.googleHaritaLinki,
             baslangicGunu: pazar.baslangicGunu,
             baslangicSaati: pazar.baslangicSaati.toISOString(),
             sifirlamaGunu: pazar.sifirlamaGunu,

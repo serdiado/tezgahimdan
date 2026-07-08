@@ -24,10 +24,18 @@ enum HaftaGunu {
   PazarGunu
 }
 
+// Pazarlar sadece admin tarafindan, belediyeyle yapilan anlasma sonucu tek tek
+// elle olusturulur (Turkiye geneli il/ilce referans verisi YOK - 973 ilcenin
+// neredeyse hicbirinde pazar kurulmayacagi icin gereksiz). il/ilce/semt serbest
+// metin, googleHaritaLinki zorunlu (yol tarifi icin - harita gomulmez, sadece
+// yeni sekmede acilan bir link).
 model Pazar {
-  id             String    @id @default(uuid())
-  ad             String
-  bolge          String
+  id                String    @id @default(uuid())
+  ad                String
+  il                String
+  ilce              String
+  semt              String?
+  googleHaritaLinki String
   // baslangic*: pazarin acilis (ceza esigi) ani. sifirlama*: kapanis/sifirlama ani.
   // Ikisi FARKLI an: baslangic "kim cezali"yi, kapanis kuyrugu temizlemeyi belirler.
   baslangicGunu  HaftaGunu @default(Carsamba)
@@ -35,6 +43,10 @@ model Pazar {
   sifirlamaGunu  HaftaGunu
   sifirlamaSaati DateTime  @db.Time
   saatDilimi     String    @default("Europe/Istanbul")
+  // Pasif (aktifMi=false) oldugunda: (1) bagli magazalar vitrinde/anasayfada
+  // GORUNMEZ (getMagazaBySlug + anasayfa sorgusu pazar.aktifMi filtreler),
+  // (2) o pazardaki saticilar panele giremez (bkz. src/app/panel/layout.tsx),
+  // (3) yeni magaza acilisinda secilemez. Kalici silme YOK - sadece bu bayrak.
   aktifMi        Boolean   @default(true)
   createdAt      DateTime  @default(now())
 
@@ -365,8 +377,8 @@ model MagazaDegerlendirme {
   @@unique([kullaniciId, magazaId])
 }
 
-// Tek satirlik "singleton" platform-geneli ayar tablosu (varsayilanPazariGetirVeyaOlustur
-// ile AYNI find-or-create deseni, bkz. src/lib/platform-ayarlari.ts). Motor
+// Tek satirlik "singleton" platform-geneli ayar tablosu (ayni find-or-create
+// deseni, bkz. src/lib/platform-ayarlari.ts). Motor
 // (rezervasyonOlustur/rezervasyonGeriAl, src/lib/rezervasyon.ts) bu degerleri
 // HER cagrida kilit ONCESI okur - eskiden MAX_YEDEK/GUVENILIRLIK_ESIGI kod-ici
 // sabitti, artik admin panelinden (/admin/ayarlar) degistirilebilir.
@@ -388,8 +400,7 @@ model PlatformAyarlari {
 // etkilemez. ayarlar (JSON) modul turune gore degisen alanlari tutar
 // (kolonSayisi, sunumTipi, ogeSayisi) - haftalik_ritim veya magaza_hero_*
 // gibi urun-izgarasi olmayan turlerde bos kalir. Ilk okuma varsayilanlari
-// tohumlar (varsayilanPazariGetirVeyaOlustur ile ayni "find-or-seed" deseni,
-// liste versiyonu - bkz. src/lib/sayfa-modulu.ts).
+// tohumlar (ayni "find-or-seed" deseni, liste versiyonu - bkz. src/lib/sayfa-modulu.ts).
 enum SayfaModulSayfasi {
   anasayfa
   magaza_hero

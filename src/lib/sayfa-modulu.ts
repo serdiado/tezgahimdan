@@ -36,8 +36,8 @@ const VARSAYILAN_MODULLER: Record<SayfaAdi, { tur: ModulTuru; sira: number; ayar
   ],
 };
 
-// varsayilanPazariGetirVeyaOlustur (lib/magaza.ts) ile AYNI "find-or-seed"
-// deseni, TEK satir yerine sabit bir liste tohumlar. sayfa parametresi AYNI
+// getOwnMagaza/getMagazaBySlug ile AYNI find-or-seed felsefesindeki bir desen
+// (bkz. lib/magaza.ts), TEK satir yerine sabit bir liste tohumlar. sayfa parametresi AYNI
 // tabloyu birden fazla baglamda (anasayfa, magaza Hero) kullanmayi saglar -
 // her cagri kendi grubunun sira sayacinda kalir. skipDuplicates: ilk
 // yuklemede es zamanli iki istek ayni anda bos grubu tohumlamaya calisirsa

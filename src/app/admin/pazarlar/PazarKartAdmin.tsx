@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, MapPin } from "lucide-react";
 import { GUN_ETIKETI, saatMetnineCevir } from "./pazar-yardimcilari";
 
 export type PazarAdminVeri = {
   id: string;
   ad: string;
-  bolge: string;
+  il: string;
+  ilce: string;
+  semt: string | null;
+  googleHaritaLinki: string;
   baslangicGunu: string;
   baslangicSaati: string;
   sifirlamaGunu: string;
@@ -31,7 +34,9 @@ export function PazarKartAdmin({ pazar }: { pazar: PazarAdminVeri }) {
             </span>
           </div>
           <p className="mt-0.5 text-xs text-neutral-500">
-            {pazar.bolge} · {pazar.magazaSayisi} mağaza · {pazar.saatDilimi}
+            {pazar.ilce}, {pazar.il}
+            {pazar.semt ? ` (${pazar.semt})` : ""} · {pazar.magazaSayisi} mağaza ·{" "}
+            {pazar.saatDilimi}
           </p>
           <p className="mt-1 text-xs text-neutral-500">
             Başlangıç: {GUN_ETIKETI[pazar.baslangicGunu] ?? pazar.baslangicGunu}{" "}
@@ -39,13 +44,24 @@ export function PazarKartAdmin({ pazar }: { pazar: PazarAdminVeri }) {
             {GUN_ETIKETI[pazar.sifirlamaGunu] ?? pazar.sifirlamaGunu} {saatMetnineCevir(pazar.sifirlamaSaati)}
           </p>
         </div>
-        <Link
-          href={`/admin/pazarlar/${pazar.id}/duzenle`}
-          className="flex shrink-0 items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
-        >
-          <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
-          Düzenle
-        </Link>
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href={pazar.googleHaritaLinki}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
+          >
+            <MapPin className="h-3.5 w-3.5" strokeWidth={2} />
+            Haritada Aç
+          </a>
+          <Link
+            href={`/admin/pazarlar/${pazar.id}/duzenle`}
+            className="flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
+          >
+            <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+            Düzenle
+          </Link>
+        </div>
       </div>
     </div>
   );

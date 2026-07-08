@@ -29,12 +29,27 @@ export default async function UrunEklePage({
   } else {
     const magaza = await getOwnMagaza(session.user.id);
     if (!magaza) {
+      // Admin panelinden eklenen tum aktif pazarlar - magaza-ac/page.tsx ile
+      // ayni desen, gercek pazar secimi icin (varsayilan-pazar fallback'i yok).
+      const pazarlar = await prisma.pazar.findMany({
+        where: { aktifMi: true },
+        orderBy: { createdAt: "asc" },
+      });
       icerik = (
         <>
           <h1 className="text-xl font-bold text-neutral-900">Önce Mağazanı Oluştur</h1>
           {hata && <p className="mt-1 text-red-600">{hata}</p>}
           <div className="mt-4">
-            <MagazaOlusturForm />
+            {pazarlar.length === 0 ? (
+              <p className="mt-4 rounded-lg border border-neutral-200 p-3 text-sm text-neutral-600">
+                Şu anda aktif bir pazar yok, bu yüzden mağaza açılamıyor. Lütfen daha sonra tekrar
+                deneyin.
+              </p>
+            ) : (
+              <MagazaOlusturForm
+                pazarlar={pazarlar.map((p) => ({ id: p.id, ad: p.ad, il: p.il, ilce: p.ilce }))}
+              />
+            )}
           </div>
         </>
       );

@@ -6,6 +6,7 @@ import {
   saatFormatiGecerliMi,
   saatliTarih,
   gecerliSaatDilimiMi,
+  gecerliUrlMi,
 } from "../pazar-dogrulama";
 
 export async function POST(request: Request) {
@@ -16,7 +17,11 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const ad = typeof body?.ad === "string" ? body.ad.trim() : "";
-  const bolge = typeof body?.bolge === "string" ? body.bolge.trim() : "";
+  const il = typeof body?.il === "string" ? body.il.trim() : "";
+  const ilce = typeof body?.ilce === "string" ? body.ilce.trim() : "";
+  const semtHam = typeof body?.semt === "string" ? body.semt.trim() : "";
+  const googleHaritaLinki =
+    typeof body?.googleHaritaLinki === "string" ? body.googleHaritaLinki.trim() : "";
   const baslangicSaatiHam = typeof body?.baslangicSaati === "string" ? body.baslangicSaati : "";
   const sifirlamaSaatiHam = typeof body?.sifirlamaSaati === "string" ? body.sifirlamaSaati : "";
   const saatDilimi =
@@ -27,8 +32,20 @@ export async function POST(request: Request) {
   if (!ad || ad.length > 100) {
     return NextResponse.json({ hata: "pazar adı zorunlu (en fazla 100 karakter)" }, { status: 400 });
   }
-  if (!bolge || bolge.length > 100) {
-    return NextResponse.json({ hata: "bölge zorunlu (en fazla 100 karakter)" }, { status: 400 });
+  if (!il || il.length > 100) {
+    return NextResponse.json({ hata: "il zorunlu (en fazla 100 karakter)" }, { status: 400 });
+  }
+  if (!ilce || ilce.length > 100) {
+    return NextResponse.json({ hata: "ilçe zorunlu (en fazla 100 karakter)" }, { status: 400 });
+  }
+  if (semtHam.length > 100) {
+    return NextResponse.json({ hata: "semt en fazla 100 karakter olabilir" }, { status: 400 });
+  }
+  if (!googleHaritaLinki || !gecerliUrlMi(googleHaritaLinki) || googleHaritaLinki.length > 500) {
+    return NextResponse.json(
+      { hata: "google haritası linki zorunlu ve geçerli bir bağlantı (http/https) olmalı" },
+      { status: 400 },
+    );
   }
   const baslangicGunu = gunDogrula(typeof body?.baslangicGunu === "string" ? body.baslangicGunu : "");
   if (!baslangicGunu) {
@@ -54,7 +71,10 @@ export async function POST(request: Request) {
     const yeni = await tx.pazar.create({
       data: {
         ad,
-        bolge,
+        il,
+        ilce,
+        semt: semtHam || null,
+        googleHaritaLinki,
         baslangicGunu,
         baslangicSaati: saatliTarih(baslangicSaatiHam),
         sifirlamaGunu,

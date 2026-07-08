@@ -1,21 +1,18 @@
-import type { Prisma } from "@/generated/prisma";
+import { cache } from "react";
 import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
 import { SLUG_REGEX } from "@/lib/slug";
 import { kullaniciYasakliMi } from "@/lib/yetki";
-import varsayilanPazarJson from "../../prisma/varsayilan-pazar.json";
 
-const varsayilanPazar = varsayilanPazarJson as unknown as {
-  ad: string;
-  bolge: string;
-  baslangicGunu: Prisma.PazarCreateInput["baslangicGunu"];
-  baslangicSaati: string;
-  sifirlamaGunu: Prisma.PazarCreateInput["sifirlamaGunu"];
-  sifirlamaSaati: string;
-};
-
-export function getOwnMagaza(userId: string) {
-  return prisma.magaza.findFirst({ where: { sahipId: userId, silindiMi: false } });
-}
+// cache(): ayni istekte (ör. panel/layout.tsx + panel sayfasi) birden fazla
+// cagrilirsa tek Prisma sorgusuna duser (React'in istek-basi memoization'i).
+// pazar dahil - cagiran taraf magaza.pazar.aktifMi'yi kontrol edebilsin diye
+// (bkz. src/app/panel/layout.tsx "pazar pasif" kapisi).
+export const getOwnMagaza = cache((userId: string) => {
+  return prisma.magaza.findFirst({
+    where: { sahipId: userId, silindiMi: false },
+    include: { pazar: true },
+  });
+});
 
 // Vitrin (herkese acik) magaza sayfasi icin - slug tekil oldugu icin en fazla 1
 // sonuc bekleriz, ama findUnique tek basina ek (silindiMi) filtresi almadigindan
@@ -24,7 +21,7 @@ export function getOwnMagaza(userId: string) {
 // gizlenen magaza herkese acik sayfada gorunmez (sahibi panelden erisebilir).
 export function getMagazaBySlug(slug: string) {
   return prisma.magaza.findFirst({
-    where: { slug, silindiMi: false, gizliMi: false },
+    where: { slug, silindiMi: false, gizliMi: false, pazar: { aktifMi: true } },
     include: { pazar: true },
   });
 }
@@ -51,10 +48,10 @@ export async function magazaAc(params: {
   ad: string;
   slug: string;
   whatsappNo?: string | null;
-  // Opsiyonel: verilmezse (ors. urun-ekle'deki "magaza silinmisse yeniden
-  // olustur" dalinda oldugu gibi) eski varsayilan-pazar davranisi korunur.
-  // Ana onboarding sihirbazi (magaza-ac) artik her zaman gercek bir secim gonderir.
-  pazarId?: string;
+  // Zorunlu: pazarlar artik sadece admin panelinden elle olusturuluyor (varsayilan/
+  // otomatik pazar YOK), hem ana onboarding sihirbazi (magaza-ac) hem de urun-ekle
+  // icindeki "magaza silinmisse yeniden olustur" dali gercek bir secim gonderir.
+  pazarId: string;
 }): Promise<MagazaAcSonucu> {
   if (await kullaniciYasakliMi(params.userId)) return { tur: "yasakli" };
 
@@ -62,10 +59,13 @@ export async function magazaAc(params: {
   const slug = params.slug.trim().toLowerCase();
   if (!ad) return { tur: "gecersiz-ad" };
   if (!SLUG_REGEX.test(slug)) return { tur: "gecersiz-slug" };
+  // params.pazarId tip olarak zorunlu ama JSON body'den gelen cagiran taraflar
+  // (route.ts) "any" uzerinden okudugu icin runtime'da bos/undefined gelebilir.
+  // Bos deger prisma where'inde SESSIZCE yok sayilir (undefined alan filtreden
+  // cikar) - kontrol olmazsa mağaza rastgele bir aktif pazara baglanirdi.
+  if (!params.pazarId) return { tur: "gecersiz-pazar" };
 
-  const pazar = params.pazarId
-    ? await prisma.pazar.findFirst({ where: { id: params.pazarId, aktifMi: true } })
-    : await varsayilanPazariGetirVeyaOlustur();
+  const pazar = await prisma.pazar.findFirst({ where: { id: params.pazarId, aktifMi: true } });
   if (!pazar) return { tur: "gecersiz-pazar" };
 
   try {
@@ -111,18 +111,4 @@ export async function magazaAc(params: {
     }
     throw err;
   }
-}
-
-// Henuz bir Pazar yonetim ekrani yok (bkz. prisma/seed.js); ayni varsayilan pazar
-// burada da kullanilir, tek kaynak prisma/varsayilan-pazar.json.
-export async function varsayilanPazariGetirVeyaOlustur() {
-  const mevcut = await prisma.pazar.findFirst({ where: { ad: varsayilanPazar.ad } });
-  if (mevcut) return mevcut;
-  return prisma.pazar.create({
-    data: {
-      ...varsayilanPazar,
-      baslangicSaati: new Date(varsayilanPazar.baslangicSaati),
-      sifirlamaSaati: new Date(varsayilanPazar.sifirlamaSaati),
-    },
-  });
 }

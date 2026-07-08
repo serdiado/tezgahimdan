@@ -1,26 +1,11 @@
 const { PrismaClient } = require("../src/generated/prisma");
-const VARSAYILAN_PAZAR = require("./varsayilan-pazar.json");
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Henuz bir Pazar yonetim ekrani yok; Magaza.pazarId zorunlu oldugu icin
-  // PLAN.md'deki ornege (Seferihisar, Carsamba 20:00) gore tek bir varsayilan
-  // pazar tohumluyoruz. Idempotent: ad'a gore var olani bulur, yoksa olusturur.
-  // Ayni varsayilan, magaza ilk kez olusturulurken de kullanilir (bkz. src/lib/magaza.ts).
-  let pazar = await prisma.pazar.findFirst({ where: { ad: VARSAYILAN_PAZAR.ad } });
-  if (!pazar) {
-    pazar = await prisma.pazar.create({
-      data: {
-        ...VARSAYILAN_PAZAR,
-        baslangicSaati: new Date(VARSAYILAN_PAZAR.baslangicSaati),
-        sifirlamaSaati: new Date(VARSAYILAN_PAZAR.sifirlamaSaati),
-      },
-    });
-    console.log("Olusturuldu: Pazar ->", pazar.ad);
-  } else {
-    console.log("Zaten var: Pazar ->", pazar.ad);
-  }
+  // Pazarlar artik sadece admin panelinden (/admin/pazarlar) elle olusturulur -
+  // her biri belediyeyle yapilan gercek bir anlasmayi temsil eder, bu yuzden
+  // burada otomatik/varsayilan pazar tohumlanmiyor.
 
   // PLAN.md SS1'deki ornek urun turlerine gore baslangic kategorileri.
   const kategoriAdlari = ["Taki", "Orgu", "Recel", "Diger"];

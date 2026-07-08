@@ -7,7 +7,10 @@ import { HAFTA_GUNLERI, saatMetnineCevir } from "./pazar-yardimcilari";
 export type PazarFormVeri = {
   id: string;
   ad: string;
-  bolge: string;
+  il: string;
+  ilce: string;
+  semt: string | null;
+  googleHaritaLinki: string;
   baslangicGunu: string;
   baslangicSaati: string;
   sifirlamaGunu: string;
@@ -25,7 +28,10 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
   const router = useRouter();
   const duzenlemeModu = !!mevcut;
   const [ad, setAd] = useState(mevcut?.ad ?? "");
-  const [bolge, setBolge] = useState(mevcut?.bolge ?? "");
+  const [il, setIl] = useState(mevcut?.il ?? "");
+  const [ilce, setIlce] = useState(mevcut?.ilce ?? "");
+  const [semt, setSemt] = useState(mevcut?.semt ?? "");
+  const [googleHaritaLinki, setGoogleHaritaLinki] = useState(mevcut?.googleHaritaLinki ?? "");
   const [baslangicGunu, setBaslangicGunu] = useState(mevcut?.baslangicGunu ?? "Carsamba");
   const [baslangicSaati, setBaslangicSaati] = useState(
     mevcut ? saatMetnineCevir(mevcut.baslangicSaati) : "09:00",
@@ -47,7 +53,10 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
     const govde = {
       ...(duzenlemeModu ? { id: mevcut.id } : {}),
       ad: ad.trim(),
-      bolge: bolge.trim(),
+      il: il.trim(),
+      ilce: ilce.trim(),
+      semt: semt.trim() || null,
+      googleHaritaLinki: googleHaritaLinki.trim(),
       baslangicGunu,
       baslangicSaati,
       sifirlamaGunu,
@@ -91,17 +100,58 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
         </label>
       </div>
 
-      <div>
+      <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm font-medium text-neutral-700">
-          Bölge
+          İl
           <input
             type="text"
-            value={bolge}
-            onChange={(e) => setBolge(e.target.value)}
+            value={il}
+            onChange={(e) => setIl(e.target.value)}
             required
             className={inputClass}
           />
         </label>
+        <label className="block text-sm font-medium text-neutral-700">
+          İlçe
+          <input
+            type="text"
+            value={ilce}
+            onChange={(e) => setIlce(e.target.value)}
+            required
+            className={inputClass}
+          />
+        </label>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-700">
+          Semt (opsiyonel)
+          <input
+            type="text"
+            value={semt}
+            onChange={(e) => setSemt(e.target.value)}
+            placeholder="ör. Çarşı Mahallesi"
+            className={inputClass}
+          />
+        </label>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-700">
+          Google Haritası Linki
+          <input
+            type="url"
+            value={googleHaritaLinki}
+            onChange={(e) => setGoogleHaritaLinki(e.target.value)}
+            required
+            placeholder="https://maps.app.goo.gl/..."
+            className={inputClass}
+          />
+        </label>
+        <p className="mt-1 text-xs text-neutral-400">
+          Google Maps&apos;te pazar yerini bul, &quot;Paylaş&quot; ile linki kopyala ve buraya
+          yapıştır.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -189,9 +239,10 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
             Aktif
           </label>
           <p className="mt-1 text-xs text-neutral-500">
-            Pazar seçimi özelliği gelene kadar bu ayarın vitrinde/rezervasyonlarda bir
-            çalışma-zamanı etkisi yoktur — yalnızca bilgi amaçlıdır. Bir pazarı kaldırmak
-            yerine (bağlı mağazalar olduğu için silinemez) burada pasifleştirebilirsiniz.
+            Pazar pasif yapıldığında: bağlı mağazalar anasayfa/vitrinde görünmez, o pazardaki
+            satıcılar panellerine giremez (&quot;bu pazar aktif değil&quot; uyarısı görürler).
+            Hiçbir kayıt kalıcı silinmez — bir pazarı kaldırmak yerine (bağlı mağazalar
+            olduğu için silinemez) burada pasifleştirebilirsiniz.
           </p>
         </div>
       )}

@@ -32,7 +32,9 @@ export default async function AdminPazarlarPage({
         ? {
             OR: [
               { ad: { contains: arama, mode: "insensitive" } },
-              { bolge: { contains: arama, mode: "insensitive" } },
+              { il: { contains: arama, mode: "insensitive" } },
+              { ilce: { contains: arama, mode: "insensitive" } },
+              { semt: { contains: arama, mode: "insensitive" } },
             ],
           }
         : {},
@@ -58,7 +60,7 @@ export default async function AdminPazarlarPage({
             type="text"
             name="q"
             defaultValue={arama}
-            placeholder="Pazar adı veya bölge ara"
+            placeholder="Pazar adı, il veya ilçe ara"
             className="w-full max-w-xs rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
           />
           <button
@@ -87,7 +89,10 @@ export default async function AdminPazarlarPage({
                 pazar={{
                   id: p.id,
                   ad: p.ad,
-                  bolge: p.bolge,
+                  il: p.il,
+                  ilce: p.ilce,
+                  semt: p.semt,
+                  googleHaritaLinki: p.googleHaritaLinki,
                   baslangicGunu: p.baslangicGunu,
                   baslangicSaati: p.baslangicSaati.toISOString(),
                   sifirlamaGunu: p.sifirlamaGunu,

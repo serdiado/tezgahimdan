@@ -37,3 +37,12 @@ export function gecerliSaatDilimiMi(tz: string): boolean {
     return false;
   }
 }
+
+export function gecerliUrlMi(deger: string): boolean {
+  try {
+    const u = new URL(deger);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
