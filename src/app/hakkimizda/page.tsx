@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   title: "Hakkımızda · Tezgahımdan",
 };
 
+// Admin panelden (/admin/icerik) her an duzenlenebilir CMS icerigi - build
+// aninda statik olarak dondurulursa admin degisikligi yayina yansimaz, ayrica
+// build ortaminda gercek DATABASE_URL olmayabilir (bkz. Docker production build).
+export const dynamic = "force-dynamic";
+
 const VARSAYILAN_BASLIK = "Hakkımızda";
 
 export default async function HakkimizdaSayfasi() {

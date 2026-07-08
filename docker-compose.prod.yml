@@ -1,0 +1,56 @@
+# Uretim compose dosyasi - kok dizindeki docker-compose.yml SADECE dev'de DB
+# icin kullanilir (bkz. CLAUDE.md), bu dosya VPS'te ayrica calistirilir.
+services:
+  db:
+    image: postgres:16
+    restart: always
+    # env_file kullanildi ("environment: ${VAR}" DEGIL) - compose'un kendi
+    # ${VAR} degisken yer-degistirmesi SADECE ust-seviye .env dosyasini/shell
+    # ortamini okur, env_file: ile ayarlanan degiskenleri GORMEZ (farkli
+    # mekanizma) - bu yuzden ilk denemede POSTGRES_USER bos string'e dustu.
+    env_file: .env.production
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      # $$ (cift dolar): compose'un kendi degisken yer-degistirmesinden KACAR,
+      # container icindeki shell'e literal $POSTGRES_USER olarak ulasir - orada
+      # env_file'dan gelen gercek deger kullanilir.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Tek seferlik migration adimi - `docker compose up` ile OTOMATIK baslamaz
+  # (profiles: tools), bilinclii olarak `docker compose --profile tools run
+  # --rm migrate` ile cagrilir. builder hedefini kullanir cunku runner'in
+  # yalin standalone ciktisinda prisma CLI yok.
+  migrate:
+    build:
+      context: .
+      target: builder
+    profiles: ["tools"]
+    env_file: .env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    # `pnpm exec` her calistirmada pnpm'in "ignored builds" kontrolunu tekrar
+    # tetikleyip exit 1 ile durur (Dockerfile'daki ayni sorun) - node_modules
+    # zaten builder asamasinda dogru kuruldugu icin binary'yi dogrudan cagiriyoruz.
+    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: always
+    env_file: .env.production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./public/uploads:/app/public/uploads
+
+volumes:
+  db_data:

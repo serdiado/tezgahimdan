@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   title: "Aydınlatma Metni · Tezgahımdan",
 };
 
+// Admin panelden (/admin/icerik) her an duzenlenebilir CMS icerigi - build
+// aninda statik olarak dondurulursa admin degisikligi yayina yansimaz, ayrica
+// build ortaminda gercek DATABASE_URL olmayabilir (bkz. Docker production build).
+export const dynamic = "force-dynamic";
+
 // Taslak sayfa (PLAN.md SS7 "Hafif hukuk" notu): telefon numarasi sakladigimiz
 // icin bir link/route simdiden var olsun, ama gercek hukuki metin gelene kadar
 // bunu acikca "hazirlaniyor" diye belirtiyoruz - sahte/placeholder metni gercek
