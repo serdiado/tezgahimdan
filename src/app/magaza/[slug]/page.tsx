@@ -7,10 +7,10 @@ import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi } from "@/lib/rez
 import { kullaniciMagazaTakipDurumu } from "@/lib/magaza-takip";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { magazaDegerlendirmeOzeti, magazaYorumlariGetir } from "@/lib/magaza-degerlendirme";
+import { sayfaModulleriGetir } from "@/lib/sayfa-modulu";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaTakipButonu } from "@/components/MagazaTakipButonu";
 import { MagazaYorumlari } from "@/components/MagazaYorumlari";
-import { YildizGosterge } from "@/components/YildizGosterge";
 import { MagazaHero } from "./MagazaHero";
 import { MagazaIcerik } from "./MagazaIcerik";
 import { MagazaSikayetButonu } from "./MagazaSikayetButonu";
@@ -71,6 +71,7 @@ export default async function MagazaSayfasi({
     yorumlar,
     magazaDegerlendirmeSonucu,
     magazaYorumlari,
+    heroModulleri,
   ] = await Promise.all([
     begeniSayilariHaritasi(urunIdler),
     kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
@@ -81,6 +82,7 @@ export default async function MagazaSayfasi({
     urunYorumlariHaritasi(urunIdler),
     magazaDegerlendirmeOzeti(magaza.id),
     magazaYorumlariGetir(magaza.id, { take: 4 }),
+    sayfaModulleriGetir("magaza_hero"),
   ]);
 
   return (
@@ -97,13 +99,12 @@ export default async function MagazaSayfasi({
               krokiFotoUrl: magaza.krokiFotoUrl,
               pazar: { ad: magaza.pazar.ad, sifirlamaGunu: magaza.pazar.sifirlamaGunu },
             }}
+            degerlendirme={magazaDegerlendirmeSonucu}
+            bilesenSirasi={heroModulleri.map((m) => ({ tur: m.tur, aktifMi: m.aktifMi }))}
           />
           <div className="mt-2 flex items-center justify-between">
             <MagazaTakipButonu girisli={girisli} magazaId={magaza.id} benimTakibimVar={benimMagazaTakibimVar} />
-            <div className="flex items-center gap-3">
-              <YildizGosterge ortalama={magazaDegerlendirmeSonucu.ortalama} sayi={magazaDegerlendirmeSonucu.sayi} boyut="md" bosGoster />
-              <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
-            </div>
+            <MagazaSikayetButonu girisli={girisli} magazaId={magaza.id} magazaAd={magaza.ad} />
           </div>
           <MagazaYorumlari
             magazaSlug={magaza.slug}

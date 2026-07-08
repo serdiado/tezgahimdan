@@ -26,7 +26,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: `mesaj zorunlu (en fazla ${MESAJ_MAX} karakter)` }, { status: 400 });
   }
 
-  const rolFiltre = hedefKitle === "hepsi" ? { in: ["satici", "alici"] as const } : (hedefKitle as "satici" | "alici");
+  // "as const" (readonly tuple) DEGIL: Prisma'nin "in" filtresi mutable dizi
+  // bekliyor - pnpm lint bunu yakalamadi, sadece `tsc --noEmit` yakaladi.
+  const rolFiltre =
+    hedefKitle === "hepsi" ? { in: ["satici", "alici"] as ("satici" | "alici")[] } : (hedefKitle as "satici" | "alici");
   const aliciKullanicilar = await prisma.kullanici.findMany({
     where: { rol: rolFiltre },
     select: { id: true },

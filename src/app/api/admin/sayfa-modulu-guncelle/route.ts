@@ -2,7 +2,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
 
-const GECERLI_TURLER = ["haftalik_ritim", "yeni_urunler", "en_cok_begenilen", "magaza_listesi"] as const;
+const GECERLI_SAYFALAR = ["anasayfa", "magaza_hero"] as const;
+const GECERLI_TURLER = [
+  "haftalik_ritim",
+  "yeni_urunler",
+  "en_cok_begenilen",
+  "magaza_listesi",
+  "magaza_hero_whatsapp",
+  "magaza_hero_kroki",
+  "magaza_hero_puan",
+] as const;
 const GECERLI_KOLON = [3, 4];
 const GECERLI_SUNUM = ["grid", "slider"];
 
@@ -16,7 +25,11 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => null);
+  const sayfa = body?.sayfa;
   const tur = body?.tur;
+  if (!(GECERLI_SAYFALAR as readonly string[]).includes(sayfa)) {
+    return NextResponse.json({ hata: "geçersiz sayfa" }, { status: 400 });
+  }
   if (!(GECERLI_TURLER as readonly string[]).includes(tur)) {
     return NextResponse.json({ hata: "geçersiz modül türü" }, { status: 400 });
   }
@@ -57,13 +70,13 @@ export async function POST(request: Request) {
   }
 
   await prisma.$transaction([
-    prisma.sayfaModulu.update({ where: { tur }, data }),
+    prisma.sayfaModulu.update({ where: { sayfa_tur: { sayfa, tur } }, data }),
     prisma.durumGecmisi.create({
       data: {
         kullaniciId: session.user.id,
         varlikTuru: "SayfaModulu",
-        varlikId: tur,
-        olay: `sayfa_modulu_guncellendi:${tur}`,
+        varlikId: `${sayfa}:${tur}`,
+        olay: `sayfa_modulu_guncellendi:${sayfa}:${tur}`,
       },
     }),
   ]);

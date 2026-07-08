@@ -38,7 +38,7 @@ export default async function AdminAnasayfaPage() {
     );
   } else {
     const [moduller, hero] = await Promise.all([
-      sayfaModulleriGetir(),
+      sayfaModulleriGetir("anasayfa"),
       siteIcerikHaritasiGetir(HERO_ANAHTARLARI),
     ]);
 
@@ -46,9 +46,11 @@ export default async function AdminAnasayfaPage() {
       const ayarlarRaw = m.ayarlar as { kolonSayisi?: 3 | 4; sunumTipi?: "grid" | "slider"; ogeSayisi?: number };
       const izgaraModuluMu = m.tur !== "haftalik_ritim";
       return {
+        sayfa: "anasayfa" as const,
         tur: m.tur,
         baslik: MODUL_BASLIGI[m.tur] ?? m.tur,
         aktifMi: m.aktifMi,
+        aktifEtiketi: "Anasayfada göster",
         ilkMi: index === 0,
         sonMi: index === moduller.length - 1,
         ayarlar: izgaraModuluMu ? { kolonSayisi: ayarlarRaw.kolonSayisi ?? 3, sunumTipi: ayarlarRaw.sunumTipi, ogeSayisi: ayarlarRaw.ogeSayisi } : undefined,

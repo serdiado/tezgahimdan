@@ -4,13 +4,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronUp, ChevronDown } from "lucide-react";
 
+export type SayfaModuluTuru =
+  | "haftalik_ritim"
+  | "yeni_urunler"
+  | "en_cok_begenilen"
+  | "magaza_listesi"
+  | "magaza_hero_whatsapp"
+  | "magaza_hero_kroki"
+  | "magaza_hero_puan";
+
 export type SayfaModuluVeri = {
-  tur: "haftalik_ritim" | "yeni_urunler" | "en_cok_begenilen" | "magaza_listesi";
+  sayfa: "anasayfa" | "magaza_hero";
+  tur: SayfaModuluTuru;
   baslik: string;
   aktifMi: boolean;
+  aktifEtiketi: string;
   ilkMi: boolean;
   sonMi: boolean;
-  // Sadece urun/magaza izgarasi olan modullerde dolu - haftalik_ritim'de undefined.
+  // Sadece urun/magaza izgarasi olan modullerde dolu - haftalik_ritim ve
+  // magaza_hero_* turlerinde undefined (kolon/sunum/oge kavrami gecerli degil).
   ayarlar?: { kolonSayisi: 3 | 4; sunumTipi?: "grid" | "slider"; ogeSayisi?: number };
   sunumSecenegiVar: boolean;
 };
@@ -29,7 +41,7 @@ export function SayfaModuluKarti({ modul }: { modul: SayfaModuluVeri }) {
     const res = await fetch("/api/admin/sayfa-modulu-guncelle", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tur: modul.tur, ...body }),
+      body: JSON.stringify({ sayfa: modul.sayfa, tur: modul.tur, ...body }),
     });
     setBekliyor(false);
     if (!res.ok) {
@@ -46,7 +58,7 @@ export function SayfaModuluKarti({ modul }: { modul: SayfaModuluVeri }) {
     const res = await fetch("/api/admin/sayfa-modulu-sirala", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tur: modul.tur, yon }),
+      body: JSON.stringify({ sayfa: modul.sayfa, tur: modul.tur, yon }),
     });
     setBekliyor(false);
     if (!res.ok) {
@@ -92,7 +104,7 @@ export function SayfaModuluKarti({ modul }: { modul: SayfaModuluVeri }) {
             onChange={(e) => guncelle({ aktifMi: e.target.checked })}
             className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
           />
-          Anasayfada göster
+          {modul.aktifEtiketi}
         </label>
       </div>
 

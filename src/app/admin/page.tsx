@@ -15,6 +15,7 @@ import {
   Settings,
   Megaphone,
   LayoutTemplate,
+  PanelsTopLeft,
 } from "lucide-react";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
@@ -164,6 +165,12 @@ export default async function AdminSayfasi() {
             ikon={LayoutTemplate}
             baslik="Anasayfa Görünümü"
             aciklama="Hero, modül sırası ve ayarları"
+          />
+          <AdminKart
+            href="/admin/magaza-sablonu"
+            ikon={PanelsTopLeft}
+            baslik="Mağaza Şablonu"
+            aciklama="Hero bileşen sırası (tüm mağazalar)"
           />
           <AdminKart
             href="/admin/pazarlar"

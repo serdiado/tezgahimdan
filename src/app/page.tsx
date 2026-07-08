@@ -57,7 +57,7 @@ export default async function AnaSayfa() {
   // her turun sira/aktifMi/ayarlarina erisilir, asagida hem sorgu limitlerini
   // (ogeSayisi) hem render sirasini/gorunurlugunu belirlemek icin kullanilir.
   const [moduller, hero, pazarlar, magazalar] = await Promise.all([
-    sayfaModulleriGetir(),
+    sayfaModulleriGetir("anasayfa"),
     siteIcerikHaritasiGetir(HERO_ANAHTARLARI),
     prisma.pazar.findMany({ where: { aktifMi: true }, orderBy: { createdAt: "asc" } }),
     prisma.magaza.findMany({

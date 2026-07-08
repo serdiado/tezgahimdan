@@ -14,7 +14,11 @@ const URUN_DURUM_ETIKETI: Record<string, string> = {
   satildi: "Satıldı",
 };
 
-const REZERVASYON_DURUM_ETIKETI: Record<string, string> = {
+// Record<string,string> DEGIL: anahtarlar rezervasyonHaritasi'nin (Prisma
+// RezervasyonDurumu) turuyle esleşmeli, yoksa .get(durum) tsc'de tip hatasi
+// verir - pnpm lint bunu yakalamiyor (bkz. feedback notu), sadece `tsc
+// --noEmit` yakaladi.
+const REZERVASYON_DURUM_ETIKETI: Record<"bekliyor" | "satildi" | "gelmedi" | "iptal", string> = {
   bekliyor: "Bekliyor",
   satildi: "Satıldı",
   gelmedi: "Gelmedi",
@@ -178,7 +182,9 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
               </Link>
             </div>
             <dl className="mt-2 space-y-1 text-sm">
-              {Object.entries(REZERVASYON_DURUM_ETIKETI).map(([durum, etiket]) => (
+              {(
+                Object.entries(REZERVASYON_DURUM_ETIKETI) as ["bekliyor" | "satildi" | "gelmedi" | "iptal", string][]
+              ).map(([durum, etiket]) => (
                 <div key={durum} className="flex justify-between gap-4">
                   <dt className="text-neutral-500">{etiket}</dt>
                   <dd className="text-neutral-800">{rezervasyonHaritasi.get(durum) ?? 0}</dd>

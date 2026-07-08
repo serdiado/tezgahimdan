@@ -378,28 +378,43 @@ model PlatformAyarlari {
 }
 
 // Faz 4 (CMS/gorunum yonetimi) - [[feedback_kutsal-kural-admin-muaf]] geregi
-// admin icin sadelik kurali gecerli degil. Anasayfadaki her blok icin TEK bir
-// sabit tur var (kullanici "yeni modul instance'i olustur" degil, var olan 4
+// admin icin sadelik kurali gecerli degil. Her (sayfa,tur) cifti icin TEK bir
+// sabit satir var (kullanici "yeni modul instance'i olustur" degil, var olan
 // blogun sirasini/gorunurlugunu/gorunum ayarlarini degistiriyor) - bu yuzden
-// tur @unique, coklu instance yok. ayarlar (JSON) modul turune gore degisen
-// alanlari tutar (kolonSayisi, sunumTipi, ogeSayisi) - haftalik_ritim gibi
-// urun-izgarasi olmayan turlerde bos kalir. Ilk okuma varsayilanlari tohumlar
-// (varsayilanPazariGetirVeyaOlustur ile ayni "find-or-seed" deseni, liste
-// versiyonu - bkz. src/lib/sayfa-modulu.ts).
+// @@unique([sayfa, tur]), coklu instance yok. sayfa alani AYNI tabloyu birden
+// fazla baglamda (anasayfa modulleri, magaza sayfasi Hero bilesenleri)
+// kullanabilmek icin - siralama/reorder sorgulari HER ZAMAN ayni sayfa
+// icinde kalir, farkli sayfalardaki turler birbirinin sira sayacini
+// etkilemez. ayarlar (JSON) modul turune gore degisen alanlari tutar
+// (kolonSayisi, sunumTipi, ogeSayisi) - haftalik_ritim veya magaza_hero_*
+// gibi urun-izgarasi olmayan turlerde bos kalir. Ilk okuma varsayilanlari
+// tohumlar (varsayilanPazariGetirVeyaOlustur ile ayni "find-or-seed" deseni,
+// liste versiyonu - bkz. src/lib/sayfa-modulu.ts).
+enum SayfaModulSayfasi {
+  anasayfa
+  magaza_hero
+}
+
 enum SayfaModulTuru {
   haftalik_ritim
   yeni_urunler
   en_cok_begenilen
   magaza_listesi
+  magaza_hero_whatsapp
+  magaza_hero_kroki
+  magaza_hero_puan
 }
 
 model SayfaModulu {
-  id                String         @id @default(uuid())
-  tur               SayfaModulTuru @unique
+  id                String            @id @default(uuid())
+  sayfa             SayfaModulSayfasi @default(anasayfa)
+  tur               SayfaModulTuru
   sira              Int
-  aktifMi           Boolean        @default(true)
-  ayarlar           Json           @default("{}")
-  guncellenmeZamani DateTime       @updatedAt
+  aktifMi           Boolean           @default(true)
+  ayarlar           Json              @default("{}")
+  guncellenmeZamani DateTime          @updatedAt
+
+  @@unique([sayfa, tur])
 }
 
 // Anahtar-deger site icerigi (Hero metinleri/gorseli, ileride footer/SSS/
