@@ -71,3 +71,34 @@ gömülmedi** (o dosya 644, herkes okuyabilir); bunun yerine secret zaten
 CyberPanel'in kendi AutoSSL (Let's Encrypt) özelliği kullanıldı — DNS
 doğru IP'ye işaret ettikten sonra tek tıkla kurulur, ayrıca certbot/Nginx
 elle yapılandırılmadı.
+
+## Standart deploy adımı (yedekli)
+
+Pilot dönemi başladıktan sonra (gerçek kullanıcı verisi var) her deploy
+`scripts/deploy.sh` ile yapılır — **VPS'te root olarak** (docker komutları
+için gerekli; CyberPanel'in site-özel kullanıcısının (`tezga6305`) docker
+soketine erişimi kasıtlı olarak yok, paylaşımlı sunucuda bu doğru bir
+kısıtlama). Script sırayla: `scripts/backup-db.sh` (yedek) → `git pull` →
+`docker compose build` (TÜM servisler, sadece `app` değil — aşağıya bkz.) →
+`migrate` → `app`'i yeniden başlat. Migration adımı başarısız olursa `set -e`
+sayesinde script durur, çalışan `app` container'ına hiç dokunulmaz (kesinti
+olmaz), ama script bunu otomatik geri almaz — yedek `scripts/backup-db.sh`
+çıktısındaki dosyadan elle restore edilir.
+
+**Yerel test build'de bulunup düzeltilen 2 gerçek hata (adversarial review):**
+1. İlk taslakta sadece `docker compose build app` çalışıyordu — `migrate`
+   servisi ayrı bir imaj (`target: builder`) kullandığı için, `docker compose
+   run` var olan bir imajı YENİDEN BUILD ETMEZ. Sonuç: İKİNCİ deploy'dan
+   itibaren `git pull` ile gelen yeni migration dosyaları hiç imaja
+   girmeyecek, migrate sessizce eski migration setini "başarılı" şekilde
+   çalıştırmış gibi görünecekti — şema/kod senkronsuzluğu geç fark edilirdi.
+   Düzeltme: `docker compose build` servis adı vermeden, tüm build:'li
+   servisleri (app+migrate) kapsar.
+2. `backup-db.sh`'de dosya `pg_dump | gzip > dosya` ile oluşturulup SONRA
+   `chmod 600` ile kısıtlanıyordu — büyük bir DB'de bu arada dosya varsayılan
+   (daha geniş) izinle PII içeriğiyle diskte durabilirdi. `umask 077` script
+   başına eklendi (dosya OLUŞTURULDUĞU andan itibaren kısıtlı), ayrıca yarım
+   kalan dump'ı temizleyen bir `ERR` trap eklendi.
+
+→ Script'ler: [`scripts/backup-db.sh`](../../scripts/backup-db.sh),
+[`scripts/deploy.sh`](../../scripts/deploy.sh)
