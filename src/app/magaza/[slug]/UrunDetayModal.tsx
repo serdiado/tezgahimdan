@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Flag, X } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { BegeniButonu } from "@/components/BegeniButonu";
@@ -9,7 +10,7 @@ import { TakipButonu } from "@/components/TakipButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { YildizGosterge } from "@/components/YildizGosterge";
 import { ZoomluGorsel } from "@/components/ZoomluGorsel";
-import { DURUM_STIL, type UrunKartiVeri } from "./UrunKarti";
+import { DURUM_STIL, MagazaYildizi, type UrunKartiVeri } from "./UrunKarti";
 import { RezervasyonDurumuButon } from "./RezervasyonDurumuButon";
 
 const fiyatFormat = new Intl.NumberFormat("tr-TR", {
@@ -22,6 +23,7 @@ const fiyatFormat = new Intl.NumberFormat("tr-TR", {
 // haber verir (onRezerveEt), boylece giris/telefon mantigi TEK yerde kalir.
 export function UrunDetayModal({
   urun,
+  magaza,
   magazaSlug,
   girisli,
   onClose,
@@ -29,6 +31,7 @@ export function UrunDetayModal({
   onSikayetEt,
 }: {
   urun: UrunKartiVeri;
+  magaza?: { ad: string; slug: string; degerlendirmeOrtalamasi: number | null; degerlendirmeSayisi: number };
   magazaSlug: string;
   girisli: boolean;
   onClose: () => void;
@@ -62,40 +65,59 @@ export function UrunDetayModal({
         className="ince-scrollbar relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Kapat"
-          className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-600 shadow-sm hover:bg-white hover:text-neutral-900"
-        >
-          <X className="h-5 w-5" strokeWidth={2} />
-        </button>
-        <ZoomluGorsel
-          key={aktifIndex}
-          foto={aktifFoto}
-          alt={urun.baslik}
-          kategoriIkonu={kategoriIkonu}
-          renkYazi={renk.text}
-        />
-
-        {/* Begen+Takip+Bildir: gorselin hemen altinda, disinda, saga yasli
-            kompakt satir - UrunKarti.tsx'teki kart tasarimiyla birebir ayni. */}
-        <div className="mt-2 flex items-center justify-end gap-3">
-          <BegeniButonu
-            urunId={urun.id}
-            girisli={girisli}
-            begeniSayisi={urun.begeniSayisi}
-            benimBegenimVar={urun.benimBegenimVar}
-          />
-          <TakipButonu urunId={urun.id} girisli={girisli} benimTakibimVar={urun.benimTakibimVar} kompakt />
+        {/* Kapat: en ustte kendi satirinda (akis icinde), sagda - gorselin
+            sag-ust kosesindeki begeni/takip/sikayet kumesiyle CAKISMASIN diye. */}
+        <div className="flex justify-end">
           <button
             type="button"
-            onClick={onSikayetEt}
-            aria-label="Bildir"
-            className="flex items-center text-neutral-400 hover:text-neutral-600"
+            onClick={onClose}
+            aria-label="Kapat"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
           >
-            <Flag className="h-5 w-5" strokeWidth={2} />
+            <X className="h-5 w-5" strokeWidth={2} />
           </button>
+        </div>
+
+        <div className="relative">
+          <ZoomluGorsel
+            key={aktifIndex}
+            foto={aktifFoto}
+            alt={urun.baslik}
+            kategoriIkonu={kategoriIkonu}
+            renkYazi={renk.text}
+          />
+          {/* Durum rozeti: gorselin sol-ustu (UrunKarti.tsx karti ile ayni yaklasim). */}
+          <span
+            className={`absolute left-2 top-2 z-10 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${durumStil.className}`}
+          >
+            {durumStil.etiket}
+          </span>
+          {/* Begeni+Takip+Bildir: gorselin sag-ustu (UrunKarti.tsx karti ile ayni yaklasim). */}
+          <div className="absolute right-2 top-2 z-10 flex gap-1.5">
+            <BegeniButonu
+              urunId={urun.id}
+              girisli={girisli}
+              begeniSayisi={urun.begeniSayisi}
+              benimBegenimVar={urun.benimBegenimVar}
+              kompakt
+              gorselUzerinde
+            />
+            <TakipButonu
+              urunId={urun.id}
+              girisli={girisli}
+              benimTakibimVar={urun.benimTakibimVar}
+              kompakt
+              gorselUzerinde
+            />
+            <button
+              type="button"
+              onClick={onSikayetEt}
+              aria-label="Bildir"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/60"
+            >
+              <Flag className="h-4 w-4" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
         {/* Kucuk resim seridi: max 5 foto oldugu icin (urun-sabitleri.ts) harici
@@ -117,22 +139,35 @@ export function UrunDetayModal({
           </div>
         )}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span
-            className={`w-fit rounded-full border px-3 py-1 text-sm font-semibold ${renk.bg} ${renk.text} ${renk.border}`}
-          >
-            {urun.kategori.ad}
-          </span>
-          <span className={`w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${durumStil.className}`}>
-            {durumStil.etiket}
-          </span>
-        </div>
+        {/* Tezgah adi + degerlendirmesi: urun basliginin USTUNDE, saga yasli
+            ve tiklanabilir (yorumlara gider). Kategori etiketi kaldirildi -
+            durum rozeti artik gorselin uzerinde gosteriliyor (yukarida). */}
+        {magaza && (
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <Link
+              href={`/magaza/${magaza.slug}`}
+              className="min-w-0 truncate text-xs font-medium text-neutral-500 hover:text-primary-600"
+            >
+              {magaza.ad}
+            </Link>
+            <Link
+              href={`/magaza/${magaza.slug}/yorumlar`}
+              className="flex shrink-0 items-center gap-1 text-xs font-medium text-neutral-500 hover:text-primary-600"
+            >
+              <MagazaYildizi ortalama={magaza.degerlendirmeOrtalamasi ?? 0} sayi={magaza.degerlendirmeSayisi} />
+              {magaza.degerlendirmeSayisi > 0 && magaza.degerlendirmeOrtalamasi!.toFixed(1)}
+            </Link>
+          </div>
+        )}
         <h2 className="mt-2 text-lg font-bold text-neutral-900">{urun.baslik}</h2>
-        <p className="mt-1 text-xl font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
+        {/* Fiyat+Stok: ayni satirda, stok saga yasli. */}
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <p className="text-xl font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
+          <span className="shrink-0 text-xs text-neutral-500">Stok: {urun.stokAdedi} adet</span>
+        </div>
         <div className="mt-1">
           <YildizGosterge ortalama={urun.degerlendirmeOrtalamasi ?? 0} sayi={urun.degerlendirmeSayisi} boyut="md" />
         </div>
-        <p className="text-xs text-neutral-500">Stok: {urun.stokAdedi} adet</p>
         {urun.aciklama && (
           <p className="mt-3 whitespace-pre-wrap text-sm text-neutral-700">{urun.aciklama}</p>
         )}

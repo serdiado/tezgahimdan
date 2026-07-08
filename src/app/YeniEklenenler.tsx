@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { UrunKarti, type UrunKartiVeri } from "./magaza/[slug]/UrunKarti";
 
-export type YeniUrunVeri = UrunKartiVeri & { magaza: { ad: string; slug: string } };
+export type YeniUrunVeri = UrunKartiVeri & {
+  magaza: { ad: string; slug: string; degerlendirmeOrtalamasi: number | null; degerlendirmeSayisi: number };
+};
 
 export function YeniEklenenler({
   urunler,

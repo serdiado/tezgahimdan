@@ -106,7 +106,11 @@ export function PaylasButonlari({
   }
 
   const butonTaban = "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold";
-  const butonGenislik = tamGenislik ? "flex-1 justify-center" : "";
+  // min-w-0: flex-1 butonlar varsayilan olarak icerik genisliginin ALTINA
+  // inemez (min-width:auto) - "Bağlantıyı Kopyala" gibi uzun bir etiket dar
+  // kartta satiri tasirdi. min-w-0 + span'daki truncate ile gerekirse tek
+  // satirda "..." ile kisalir, satir tasmaz.
+  const butonGenislik = tamGenislik ? "min-w-0 flex-1 justify-center" : "";
 
   return (
     <div className={`flex items-center gap-2 ${tamGenislik ? "" : "flex-wrap"}`}>
@@ -115,8 +119,8 @@ export function PaylasButonlari({
         onClick={whatsappPaylas}
         className={`${butonTaban} ${butonGenislik} bg-[#25D366] text-white hover:brightness-95`}
       >
-        <WhatsappIkon className="h-4 w-4" />
-        Paylaş
+        <WhatsappIkon className="h-4 w-4 shrink-0" />
+        <span className="truncate">Paylaş</span>
       </button>
 
       {paylasVar ? (
@@ -125,8 +129,8 @@ export function PaylasButonlari({
           onClick={webPaylas}
           className={`${butonTaban} ${butonGenislik} border border-neutral-300 text-neutral-700 hover:bg-neutral-100`}
         >
-          <Share2 className="h-4 w-4" strokeWidth={2} />
-          Paylaş
+          <Share2 className="h-4 w-4 shrink-0" strokeWidth={2} />
+          <span className="truncate">Paylaş</span>
         </button>
       ) : (
         <button
@@ -136,13 +140,13 @@ export function PaylasButonlari({
         >
           {kopyalandi ? (
             <>
-              <Check className="h-4 w-4 text-green-600" strokeWidth={2.5} />
-              Kopyalandı
+              <Check className="h-4 w-4 shrink-0 text-green-600" strokeWidth={2.5} />
+              <span className="truncate">Kopyalandı</span>
             </>
           ) : (
             <>
-              <Link2 className="h-4 w-4" strokeWidth={2} />
-              Bağlantıyı Kopyala
+              <Link2 className="h-4 w-4 shrink-0" strokeWidth={2} />
+              <span className="truncate">Bağlantıyı Kopyala</span>
             </>
           )}
         </button>

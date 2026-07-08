@@ -4,13 +4,12 @@ import { createElement, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Flag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { kategoriIkonuSec, kategoriRengiSec } from "@/lib/kategori-renkleri";
 import { BegeniButonu } from "@/components/BegeniButonu";
 import { TakipButonu } from "@/components/TakipButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { SikayetModal } from "@/components/SikayetModal";
-import { YildizGosterge } from "@/components/YildizGosterge";
 import { RezerveModal } from "./RezerveModal";
 import { RezervasyonDurumuButon } from "./RezervasyonDurumuButon";
 import { UrunDetayModal } from "./UrunDetayModal";
@@ -54,6 +53,22 @@ export type UrunKartiVeri = {
   benimRezervasyonum: { id: string; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string } | null;
 };
 
+// Magaza (tezgah) puani icin TEK yildiz, orani (ortalama/5) kadar dolu -
+// urun-seviyesi YildizGosterge'nin 5-yildizli hali yerine, mağaza adının
+// yanindaki dar alanda kullanilmak uzere. Hic degerlendirme yoksa (sayi===0)
+// tamamen bos gorunur (yuzde=0).
+export function MagazaYildizi({ ortalama, sayi }: { ortalama: number; sayi: number }) {
+  const yuzde = sayi > 0 ? Math.max(0, Math.min(100, (ortalama / 5) * 100)) : 0;
+  return (
+    <span className="relative inline-block h-3.5 w-3.5 shrink-0">
+      <Star className="absolute inset-0 h-3.5 w-3.5 text-neutral-300" strokeWidth={1.5} />
+      <span className="absolute inset-0 overflow-hidden" style={{ width: `${yuzde}%` }}>
+        <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" strokeWidth={1.5} />
+      </span>
+    </span>
+  );
+}
+
 export function UrunKarti({
   urun,
   girisli,
@@ -66,7 +81,9 @@ export function UrunKarti({
   kullaniciTelefonVar: boolean;
   // Sadece magazalar-arasi listelerde (ana sayfa "Bu Hafta Eklenenler") gecilir -
   // bir magazanin kendi sayfasinda (MagazaIcerik) baglam zaten belli, gerek yok.
-  magaza?: { ad: string; slug: string };
+  // degerlendirmeOrtalamasi/Sayisi: MAGAZA-seviyesi puan (urun puani DEGIL) -
+  // magaza adinin yanindaki tek-yildiz gosterge icin.
+  magaza?: { ad: string; slug: string; degerlendirmeOrtalamasi: number | null; degerlendirmeSayisi: number };
   // Paylasim linki (?urun=<id>) icin her zaman gerekli - magaza prop'undan
   // ayri tutulur cunku magaza SADECE capraz-magaza baglaminda "hangi magaza"
   // etiketini gostermek icin var, magazaSlug ise her iki baglamda da linki
@@ -183,12 +200,18 @@ export function UrunKarti({
             </div>
           )}
         </button>
-        {/* Mobil kompakt kartta begeni/takip satiri gizli (bkz. asagida) -
-            erisimi kaybetmesin diye fotografin sag-ust kosesine bindirilir.
-            Masaustunde (sm:+) zaten alttaki tam satir gorunur, cift gosterim
-            olmasin diye burada gizlenir. Bildir ikonu kasitli DAHIL DEGIL -
-            kullanici sadece begen+takip istedi, bildir detay modalinde kalir. */}
-        <div className="absolute right-2 top-2 z-10 flex gap-1.5 sm:hidden">
+        {/* Durum rozeti HER ZAMAN fotografin sol-ust kosesine bindirilir (mobil/
+            masaustu ayrimi kaldirildi - kategori rozeti tamamen kaldirildigi
+            icin icerik blogunda ayri bir satira gerek kalmadi). */}
+        <span
+          className={`absolute left-2 top-2 z-10 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${durumStil.className}`}
+        >
+          {durumStil.etiket}
+        </span>
+        {/* Begeni+Takip HER ZAMAN fotografin sag-ust kosesine bindirilir (mobil/
+            masaustu ayrimi kaldirildi - kart sadelestirme). Bildir ikonu
+            kasitli DAHIL DEGIL - sadece detay modalinda kalir. */}
+        <div className="absolute right-2 top-2 z-10 flex gap-1.5">
           <BegeniButonu
             urunId={urun.id}
             girisli={girisli}
@@ -241,54 +264,37 @@ export function UrunKarti({
           ))}
         </div>
       )}
-      <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
-        {/* Begen/Takip/Bildir: mobilde 2 sutunlu kompakt kartta yer acmak icin
-            gizli, detay modalinda ayni satir zaten var - ikincil aksiyonlar
-            kaybolmaz, sadece kucuk ekranda kart disina (modale) tasinir. */}
-        <div className="hidden items-center justify-end gap-3 sm:flex">
-          <BegeniButonu
-            urunId={urun.id}
-            girisli={girisli}
-            begeniSayisi={urun.begeniSayisi}
-            benimBegenimVar={urun.benimBegenimVar}
-          />
-          <TakipButonu urunId={urun.id} girisli={girisli} benimTakibimVar={urun.benimTakibimVar} kompakt />
-          <button
-            type="button"
-            onClick={sikayetTikla}
-            aria-label="Bildir"
-            className="flex items-center text-neutral-400 hover:text-neutral-600"
-          >
-            <Flag className="h-5 w-5" strokeWidth={2} />
-          </button>
-        </div>
+      <div className="flex flex-1 flex-col gap-4 p-4">
         {magaza && (
-          <Link
-            href={`/magaza/${magaza.slug}`}
-            className="w-fit text-xs font-medium text-neutral-500 hover:text-primary-600"
-          >
-            {magaza.ad}
-          </Link>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              href={`/magaza/${magaza.slug}`}
+              className="min-w-0 truncate text-xs font-medium text-neutral-500 hover:text-primary-600"
+            >
+              {magaza.ad}
+            </Link>
+            <Link
+              href={`/magaza/${magaza.slug}/yorumlar`}
+              className="flex shrink-0 items-center gap-1 text-xs font-medium text-neutral-500 hover:text-primary-600"
+            >
+              <MagazaYildizi ortalama={magaza.degerlendirmeOrtalamasi ?? 0} sayi={magaza.degerlendirmeSayisi} />
+              {magaza.degerlendirmeSayisi > 0 && magaza.degerlendirmeOrtalamasi!.toFixed(1)}
+            </Link>
+          </div>
         )}
-        <span
-          className={`w-fit rounded-full border px-3 py-1 text-sm font-semibold ${renk.bg} ${renk.text} ${renk.border}`}
-        >
-          {urun.kategori.ad}
-        </span>
-        <h3 className="line-clamp-2 font-medium text-neutral-900">{urun.baslik}</h3>
         <button
           type="button"
           onClick={detayTikla}
-          className="hidden w-fit text-xs font-medium text-primary-600 hover:underline sm:block"
+          className="group w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 focus-visible:ring-offset-1"
         >
-          Detayları gör
+          <h3 className="line-clamp-2 font-bold text-neutral-900 transition-colors group-hover:text-primary-600">
+            {urun.baslik}
+          </h3>
         </button>
-        <p className="text-lg font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
-        <YildizGosterge ortalama={urun.degerlendirmeOrtalamasi ?? 0} sayi={urun.degerlendirmeSayisi} />
-        <p className="hidden text-xs text-neutral-500 sm:block">Stok: {urun.stokAdedi} adet</p>
-        <span className={`mb-2 w-fit rounded-full px-2.5 py-0.5 text-xs font-semibold ${durumStil.className}`}>
-          {durumStil.etiket}
-        </span>
+        <div className="flex items-baseline justify-between gap-1.5">
+          <p className="text-lg font-semibold text-primary-700">{fiyatFormat.format(urun.fiyat)}</p>
+          <span className="shrink-0 whitespace-nowrap text-xs text-neutral-500">{urun.stokAdedi} Adet</span>
+        </div>
         <div className="mt-auto flex items-center gap-2">
           {urun.benimRezervasyonum ? (
             <RezervasyonDurumuButon rezervasyon={urun.benimRezervasyonum} />
@@ -297,7 +303,7 @@ export function UrunKarti({
               type="button"
               disabled={rezervasyonKapali}
               onClick={rezerveTikla}
-              className={`flex-1 rounded-md px-3 py-1 text-sm font-semibold transition-colors ${
+              className={`flex-1 rounded-md px-3 py-1 text-xs font-semibold whitespace-nowrap transition-colors sm:text-sm ${
                 rezervasyonKapali
                   ? "cursor-not-allowed bg-neutral-200 text-neutral-500"
                   : "bg-primary-500 text-white hover:bg-primary-600"
@@ -306,10 +312,16 @@ export function UrunKarti({
               {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
             </button>
           )}
+          <span className="shrink-0 text-xs text-neutral-500 sm:hidden">
+            R:{urun.aktifSayisi} Y:{urun.yedekSayisi}
+          </span>
           <span className="hidden shrink-0 text-xs text-neutral-500 sm:inline">
             Rezerv: {urun.aktifSayisi} · Yedek: {urun.yedekSayisi}
           </span>
         </div>
+        {/* Paylas butonlari mobilde tamamen kaldirildi - SADECE detay modalinda
+            (UrunDetayModal, goresele/basliga tiklayinca acilir) erisilebilir.
+            Masaustunde kartta aynen kalmaya devam ediyor. */}
         <div className="hidden sm:block">
           <PaylasButonlari
             baslik={urun.baslik}
@@ -339,6 +351,7 @@ export function UrunKarti({
       {detayModalAcik && (
         <UrunDetayModal
           urun={urun}
+          magaza={magaza}
           magazaSlug={magazaSlug}
           girisli={girisli}
           onClose={() => setDetayModalAcik(false)}
