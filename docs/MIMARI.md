@@ -140,6 +140,22 @@ fallback'i kaldırıldı; `magazaAc()`'in `pazarId`'si artık zorunlu.
 
 ---
 
+## Deploy mimarisi (Oracle VPS — Docker tabanlı prod)
+
+CLAUDE.md'nin "Docker yalnızca dev'de" ilk varsayımı, gerçek deploy'a
+geçilirken bilinçli olarak değiştirildi: hedef VPS paylaşımlı bir hosting
+sunucusu (CyberPanel + OpenLiteSpeed, üzerinde ilgisiz bir başka iş —
+`tirebirlik.com.tr` — gerçek mail servisiyle barınıyor), Node/Postgres'i
+doğrudan sisteme kurmak o işi etkileyebilecek çakışma riski taşırdı. Prod'da
+da hem uygulama hem Postgres Docker'da; OpenLiteSpeed sadece reverse-proxy
+yapıyor. Yerel `docker build` testinde 3 gerçek hata (pnpm 10+'ın native
+derleme script engeli, eksik OpenSSL, CMS sayfalarının build-time'da
+patlaması) build'e girmeden bulunup düzeltildi.
+
+→ Detay: [`docs/mimari/deploy-mimarisi.md`](./mimari/deploy-mimarisi.md)
+
+---
+
 ## Bilinen kısıtlar (deploy öncesi gözden geçirilecek — tüm proje geneli)
 
 - **Rate-limit yok:** Deploy öncesi en azından IP bazlı limit değerlendirilmeli. (KP-1 üyelik zorunluluğuyla sahte-numarayla kitle rezervasyonu riski büyük ölçüde azaldı — rezervasyon için hesap gerekir; yine de rate-limit tamamen ikame etmez.)
