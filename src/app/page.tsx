@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
@@ -14,6 +15,7 @@ import { HaftalikRitim } from "./HaftalikRitim";
 import { YeniEklenenler } from "./YeniEklenenler";
 import { MagazaVitrini } from "./MagazaVitrini";
 import { MagazaAcCTA } from "./MagazaAcCTA";
+import { VitrinArama } from "./VitrinArama";
 
 const VARSAYILAN_URUN_LIMIT = 12;
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" });
@@ -26,19 +28,43 @@ const HERO_ANAHTARLARI = [
   "anasayfa_hero_gorsel",
 ];
 
-// Gorunurluk filtresi "Bu Hafta Eklenenler" sorgusuyla BIREBIR ayni
-// (silindiMi/durum/magaza.silindiMi/magaza.gizliMi) - iki farkli sorgunun
-// (createdAt-sirali vs begeni-sirali) ayni vitrin kurallarina uymasi icin
-// tek yerde tutulur.
-const VITRIN_GORUNURLUK_FILTRESI: Prisma.UrunWhereInput = {
-  silindiMi: false,
-  durum: { in: ["sergide", "doldu"] },
-  magaza: { silindiMi: false, gizliMi: false },
-};
+// Gorunurluk filtresi "Bu Hafta Eklenenler" VE "En Cok Begenilenler"
+// sorgularinin ikisinde de BIREBIR ayni (silindiMi/durum/magaza.silindiMi/
+// magaza.gizliMi) kullanilir - tek yerde tutulur. "arama" (VitrinArama /
+// HaftalikRitim'in ?q= parametresi) verilmisse magazanin pazarina gore de
+// filtreler - anasayfadaki ürün-mağaza filtrelemesi TUTARLI kalsin diye
+// magazalar sorgusuyla (page.tsx asagida) AYNI OR kosulunu kullanir.
+function vitrinGorunurlukFiltresi(arama: string): Prisma.UrunWhereInput {
+  return {
+    silindiMi: false,
+    durum: { in: ["sergide", "doldu"] },
+    magaza: {
+      silindiMi: false,
+      gizliMi: false,
+      ...(arama
+        ? {
+            pazar: {
+              OR: [
+                { il: { contains: arama, mode: "insensitive" } },
+                { ilce: { contains: arama, mode: "insensitive" } },
+                { semt: { contains: arama, mode: "insensitive" } },
+              ],
+            },
+          }
+        : {}),
+    },
+  };
+}
 
 type ModulAyarlari = { kolonSayisi?: 3 | 4; sunumTipi?: "grid" | "slider"; ogeSayisi?: number };
 
-export default async function AnaSayfa() {
+export default async function AnaSayfa({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const arama = q?.trim() || "";
   const { session, rol } = await oturumRolOku();
   const girisli = !!session?.user;
   const satici = rol === "satici";
@@ -63,8 +89,26 @@ export default async function AnaSayfa() {
     prisma.magaza.findMany({
       // Ileri-referans notu (docs/mimari/satici-onboarding.md): herkese acik her
       // magaza listesi silindiMi=false AND gizliMi=false filtrelemeli, yoksa admin'in
-      // gizledigi/kaldirdigi magaza ana sayfada sizar.
-      where: { silindiMi: false, gizliMi: false },
+      // gizledigi/kaldirdigi magaza ana sayfada sizar. Ayrica pazar.aktifMi=false ise
+      // (pazar gecici/kalici kapali) o pazara bagli magazalar da vitrinden dusurulur.
+      // "q" (VitrinArama'dan) verilmisse pazarin il/ilce/semt alanlarinda arar -
+      // magaza adinda degil, bu arama sadece "hangi sehirde pazar var" sorusuna cevap verir.
+      where: {
+        silindiMi: false,
+        gizliMi: false,
+        pazar: {
+          aktifMi: true,
+          ...(arama
+            ? {
+                OR: [
+                  { il: { contains: arama, mode: "insensitive" } },
+                  { ilce: { contains: arama, mode: "insensitive" } },
+                  { semt: { contains: arama, mode: "insensitive" } },
+                ],
+              }
+            : {}),
+        },
+      },
       include: {
         pazar: { select: { ad: true } },
         _count: { select: { urunler: { where: { silindiMi: false } } } },
@@ -86,10 +130,10 @@ export default async function AnaSayfa() {
     // gizliMi/silindiMi kurali burada da gecerli, yoksa gizlenmis/kaldirilmis
     // bir magazanin urunu ana sayfada sizar.
     prisma.urun.findMany({
-      where: VITRIN_GORUNURLUK_FILTRESI,
+      where: vitrinGorunurlukFiltresi(arama),
       include: {
         kategori: true,
-        magaza: { select: { ad: true, slug: true } },
+        magaza: { select: { id: true, ad: true, slug: true } },
       },
       orderBy: { createdAt: "desc" },
       take: yeniUrunAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT,
@@ -106,8 +150,8 @@ export default async function AnaSayfa() {
   let enCokBegenilenler: typeof yeniUrunler = [];
   if (enCokBegenilenIdler.length > 0) {
     const bulunanlar = await prisma.urun.findMany({
-      where: { id: { in: enCokBegenilenIdler }, ...VITRIN_GORUNURLUK_FILTRESI },
-      include: { kategori: true, magaza: { select: { ad: true, slug: true } } },
+      where: { id: { in: enCokBegenilenIdler }, ...vitrinGorunurlukFiltresi(arama) },
+      include: { kategori: true, magaza: { select: { id: true, ad: true, slug: true } } },
     });
     const urunMap = new Map(bulunanlar.map((u) => [u.id, u]));
     enCokBegenilenler = enCokBegenilenIdler
@@ -117,6 +161,17 @@ export default async function AnaSayfa() {
 
   const tumUrunIdler = Array.from(
     new Set([...yeniUrunler.map((u) => u.id), ...enCokBegenilenler.map((u) => u.id)]),
+  );
+  // "Mağazalar" bölümündeki magazalar + "Bu Hafta Eklenenler"/"En Çok
+  // Beğenilenler" ürünlerinin mağazaları TAM ÖRTÜŞMEYEBİLİR (ör. pazarı pasif
+  // olmuş bir mağazanın ürünü teorik olarak burada görünebilir) - puan
+  // haritasının HER İKİ kaynaktan gelen mağaza id'lerini de kapsaması gerekir.
+  const tumMagazaIdler = Array.from(
+    new Set([
+      ...magazalar.map((m) => m.id),
+      ...yeniUrunler.map((u) => u.magaza.id),
+      ...enCokBegenilenler.map((u) => u.magaza.id),
+    ]),
   );
   const [
     begeniSayilari,
@@ -133,7 +188,7 @@ export default async function AnaSayfa() {
     benimRezervasyonlarimHaritasi(session?.user?.id, tumUrunIdler),
     degerlendirmeOzetiHaritasi(tumUrunIdler),
     urunYorumlariHaritasi(tumUrunIdler),
-    magazaDegerlendirmeOzetiHaritasi(magazalar.map((m) => m.id)),
+    magazaDegerlendirmeOzetiHaritasi(tumMagazaIdler),
   ]);
 
   // Hem "Bu Hafta Eklenenler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
@@ -147,7 +202,12 @@ export default async function AnaSayfa() {
       durum: urun.durum,
       fotograflar: urun.fotograflar,
       kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
-      magaza: { ad: urun.magaza.ad, slug: urun.magaza.slug },
+      magaza: {
+        ad: urun.magaza.ad,
+        slug: urun.magaza.slug,
+        degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(urun.magaza.id)?.ortalama ?? null,
+        degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(urun.magaza.id)?.sayi ?? 0,
+      },
       begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
       benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
       benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
@@ -172,6 +232,14 @@ export default async function AnaSayfa() {
   const heroGorseli = hero.get("anasayfa_hero_gorsel") ?? null;
   const heroGosterilsinMi = !!(heroBaslik || heroAciklama || heroGorseli);
 
+  // "Bugünün Pazarları" bandı (haftalik_ritim) gerçek Hero olmasa da gorsel
+  // olarak sayfanin en ust/dikkat-cekici bandi - arama cubugu bilincli olarak
+  // bunun HEMEN ALTINA (varsa) yerlestiriliyor, geri kalan moduller (yeni
+  // urunler/en cok begenilen/magaza listesi) admin sirasina gore ondan SONRA
+  // gelmeye devam ediyor.
+  const haftalikRitimAktifMi = moduller.some((m) => m.tur === "haftalik_ritim" && m.aktifMi);
+  const digerModuller = moduller.filter((m) => m.aktifMi && m.tur !== "haftalik_ritim");
+
   // Modul render fonksiyonlari - moduller.map() ile sira admin ayarina gore
   // gecilir, aktifMi false olanlar hic render edilmez.
   function modulRenderEt(tur: (typeof moduller)[number]["tur"]) {
@@ -182,7 +250,7 @@ export default async function AnaSayfa() {
             key={tur}
             pazarlar={pazarlar.map((pazar) => ({
               id: pazar.id,
-              bolge: pazar.bolge,
+              ilce: pazar.ilce,
               baslangicGunu: pazar.baslangicGunu,
               baslangicSaati: pazar.baslangicSaati,
               sifirlamaGunu: pazar.sifirlamaGunu,
@@ -193,17 +261,33 @@ export default async function AnaSayfa() {
         );
       case "yeni_urunler":
         return (
-          yeniUrunler.length > 0 && (
+          (arama || yeniUrunler.length > 0) && (
             <div key={tur} className="mt-8">
-              <h2 className="text-lg font-bold text-neutral-900">Bu Hafta Eklenenler</h2>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-bold text-neutral-900">Bu Hafta Eklenenler</h2>
+                {arama && (
+                  <p className="text-sm text-neutral-500">
+                    &quot;{arama}&quot; için {yeniUrunler.length} sonuç ·{" "}
+                    <Link href="/" className="font-medium text-primary-600 hover:underline">
+                      Temizle
+                    </Link>
+                  </p>
+                )}
+              </div>
               <div className="mt-4">
-                <YeniEklenenler
-                  girisli={girisli}
-                  kullaniciTelefonVar={kullaniciTelefonVar}
-                  urunler={yeniUrunler.map(urunKartiVeriYap)}
-                  kolonSayisi={yeniUrunAyarlari.kolonSayisi ?? 3}
-                  sunumTipi={yeniUrunAyarlari.sunumTipi ?? "grid"}
-                />
+                {arama && yeniUrunler.length === 0 ? (
+                  <p className="text-neutral-500">
+                    &quot;{arama}&quot; bölgesinde bu hafta eklenmiş ürün yok.
+                  </p>
+                ) : (
+                  <YeniEklenenler
+                    girisli={girisli}
+                    kullaniciTelefonVar={kullaniciTelefonVar}
+                    urunler={yeniUrunler.map(urunKartiVeriYap)}
+                    kolonSayisi={yeniUrunAyarlari.kolonSayisi ?? 3}
+                    sunumTipi={yeniUrunAyarlari.sunumTipi ?? "grid"}
+                  />
+                )}
               </div>
             </div>
           )
@@ -228,21 +312,37 @@ export default async function AnaSayfa() {
       case "magaza_listesi":
         return (
           <div key={tur} id="magazalar" className="mt-8 scroll-mt-6">
-            <h2 className="text-lg font-bold text-neutral-900">Mağazalar</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-bold text-neutral-900">Mağazalar</h2>
+              {arama && (
+                <p className="text-sm text-neutral-500">
+                  &quot;{arama}&quot; için {magazalar.length} sonuç ·{" "}
+                  <Link href="/" className="font-medium text-primary-600 hover:underline">
+                    Temizle
+                  </Link>
+                </p>
+              )}
+            </div>
             <div className="mt-4">
-              <MagazaVitrini
-                kolonSayisi={magazaListesiAyarlari.kolonSayisi ?? 3}
-                magazalar={magazalar.map((magaza) => ({
-                  id: magaza.id,
-                  ad: magaza.ad,
-                  slug: magaza.slug,
-                  aciklama: magaza.aciklama,
-                  pazarAd: magaza.pazar.ad,
-                  urunSayisi: magaza._count.urunler,
-                  degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
-                  degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
-                }))}
-              />
+              {arama && magazalar.length === 0 ? (
+                <p className="text-neutral-500">
+                  &quot;{arama}&quot; bölgesinde henüz mağaza yok. Farklı bir il/ilçe deneyin.
+                </p>
+              ) : (
+                <MagazaVitrini
+                  kolonSayisi={magazaListesiAyarlari.kolonSayisi ?? 3}
+                  magazalar={magazalar.map((magaza) => ({
+                    id: magaza.id,
+                    ad: magaza.ad,
+                    slug: magaza.slug,
+                    aciklama: magaza.aciklama,
+                    pazarAd: magaza.pazar.ad,
+                    urunSayisi: magaza._count.urunler,
+                    degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
+                    degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
+                  }))}
+                />
+              )}
             </div>
           </div>
         );
@@ -263,7 +363,18 @@ export default async function AnaSayfa() {
           />
         )}
 
-        {moduller.filter((m) => m.aktifMi).map((m) => modulRenderEt(m.tur))}
+        {haftalikRitimAktifMi && (
+          <div className={heroGosterilsinMi ? "mt-4" : ""}>{modulRenderEt("haftalik_ritim")}</div>
+        )}
+
+        <div className={heroGosterilsinMi || haftalikRitimAktifMi ? "mt-6" : ""}>
+          <VitrinArama
+            pazarlar={pazarlar.map((p) => ({ id: p.id, il: p.il, ilce: p.ilce, semt: p.semt }))}
+            baslangicSorgu={arama}
+          />
+        </div>
+
+        {digerModuller.map((m) => modulRenderEt(m.tur))}
 
         {!satici && !admin && <MagazaAcCTA girisli={girisli} />}
       </main>

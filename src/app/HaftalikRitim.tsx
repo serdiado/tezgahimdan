@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { pazarRitimBilgisi } from "@/lib/pazar-haftasi";
 
 // Diger dosyalarin (MagazaHero.tsx, admin/pazarlar/pazar-yardimcilari.ts) da
@@ -18,7 +19,7 @@ const HAFTA_GUNLERI: { deger: string; kisa: string; tam: string }[] = [
 
 export type RitimPazarVeri = {
   id: string;
-  bolge: string;
+  ilce: string;
   baslangicGunu: string;
   baslangicSaati: Date;
   sifirlamaGunu: string;
@@ -75,8 +76,8 @@ export function HaftalikRitim({ pazarlar }: { pazarlar: RitimPazarVeri[] }) {
   const [seritBasligiUst, seritBasligiAlt] = seritBasligi.split(" ");
   const seritMetni =
     bugununPazarlari.length > 0
-      ? bugununPazarlari.map((p) => p.bolge).join(" • ")
-      : `${yaklasanBaslik} — ${yaklasanPazarlar.map((p) => p.bolge).join(" • ")}`;
+      ? bugununPazarlari.map((p) => p.ilce).join(" • ")
+      : `${yaklasanBaslik} — ${yaklasanPazarlar.map((p) => p.ilce).join(" • ")}`;
 
   // Disari tiklama + Escape ile kapatma - sadece bir gun aciksa dinleyici eklenir.
   // pointerdown fare ve dokunmayi tek dinleyicide birlestirir, ayri device tespiti gerekmez.
@@ -143,7 +144,16 @@ export function HaftalikRitim({ pazarlar }: { pazarlar: RitimPazarVeri[] }) {
                 onMouseEnter={() => setAcikGun(gun.deger)}
                 onMouseLeave={() => setAcikGun((mevcut) => (mevcut === gun.deger ? null : mevcut))}
                 onFocus={() => setAcikGun(gun.deger)}
-                onBlur={() => setAcikGun((mevcut) => (mevcut === gun.deger ? null : mevcut))}
+                onBlur={(e) => {
+                  // Odak, AYNI kutunun icindeki bir yere (ors. popover'daki pazar
+                  // linkine) tasiniyorsa KAPATMA - mobilde her dokunma hem click hem
+                  // focus/blur tetikledigi icin (hover kavrami yok), relatedTarget
+                  // kontrolu olmadan buton->link odak gecisi popover'i aninda kapatip
+                  // linke tiklamayi imkansiz hale getiriyordu (sadece masaustunde,
+                  // hover ile acilip mouse ile tiklandiginda bu yaris hic olusmuyordu).
+                  if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
+                  setAcikGun((mevcut) => (mevcut === gun.deger ? null : mevcut));
+                }}
               >
                 <button
                   type="button"
@@ -159,20 +169,37 @@ export function HaftalikRitim({ pazarlar }: { pazarlar: RitimPazarVeri[] }) {
                 {acik && (
                   // Bu popover'in kesilmemesi icin ata zincirinde (bu kart, main,
                   // page wrapper) overflow-hidden OLMAMALI.
+                  // Dis kapsayici "top-full" ile BUTONA BITISIK basliyor (mt YOK) ve
+                  // gorsel bosluk "pt-2" (padding) ile veriliyor - margin kullanilsaydi
+                  // buton ile kutu arasinda faresel olarak "hicbir elementin ustunde
+                  // olmadigi" bir bosluk kalirdi, oradan gecerken mouseleave tetiklenip
+                  // menu kapanirdi. Padding, elementin kendi kutusunun (dolayisiyla
+                  // hover alaninin) bir parcasi oldugu icin bu bosluk sorunu olmaz.
                   <div
-                    className={`absolute top-full z-10 mt-2 w-40 rounded-xl bg-white p-3 text-neutral-700 shadow-lg sm:w-48 ${
+                    className={`absolute top-full z-10 w-40 pt-2 sm:w-48 ${
                       index <= 3 ? "left-0" : "right-0"
                     }`}
                   >
-                    {buGunPazarlari.length > 0 ? (
-                      <ul className="flex max-h-64 flex-col gap-1.5 overflow-y-auto text-sm">
-                        {buGunPazarlari.map((p) => (
-                          <li key={p.id}>{p.bolge}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-neutral-500">Bu gün pazar kurulmuyor</p>
-                    )}
+                    <div className="rounded-xl bg-white p-3 text-neutral-700 shadow-lg">
+                      {buGunPazarlari.length > 0 ? (
+                        <ul className="flex max-h-64 flex-col gap-1.5 overflow-x-hidden overflow-y-auto text-sm">
+                          {buGunPazarlari.map((p) => (
+                            <li key={p.id}>
+                              {/* Vitrin arama ile AYNI ?q= mekanizmasi - tiklayinca hem
+                                  urunler hem magazalar bu pazarin ilcesine gore filtrelenir. */}
+                              <Link
+                                href={`/?q=${encodeURIComponent(p.ilce)}`}
+                                className="-mx-1 block rounded-md px-1 py-0.5 hover:bg-neutral-100 hover:text-primary-600"
+                              >
+                                {p.ilce}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-neutral-500">Bu gün pazar kurulmuyor</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
