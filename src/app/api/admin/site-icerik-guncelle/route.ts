@@ -3,16 +3,22 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
 import { siteIcerikGuncelle } from "@/lib/site-icerik";
 
-// Su an sadece anasayfa Hero metinleri icin kullaniliyor - ileride footer/SSS/
-// Hakkimizda/KVKK eklenince bu izin listesi genisler (bkz. admin-paneli-
-// genisletme-plani hafiza notu, Faz 4.3/4.4).
 const IZINLI_ANAHTARLAR = [
   "anasayfa_hero_baslik",
   "anasayfa_hero_aciklama",
   "anasayfa_hero_cta_metni",
   "anasayfa_hero_cta_link",
+  "footer_slogan",
+  "footer_aciklama",
+  "hakkimizda_baslik",
+  "hakkimizda_icerik",
+  "sss_icerik",
+  "kvkk_icerik",
 ] as const;
-const DEGER_MAX = 500;
+// Hakkimizda/SSS/KVKK gibi uzun metin alanlari icin (footer/hero kisa
+// alanlar da bu ust siniri paylasir - UI tarafinda maxLength ile pratikte
+// zaten kisaltiliyor, burada sadece kotuye kullanima karsi savunmaci sinir).
+const DEGER_MAX = 5000;
 
 export async function POST(request: Request) {
   const { session, yetkili } = await getAdminSession();
