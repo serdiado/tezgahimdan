@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -16,6 +17,57 @@ import { MagazaIcerik } from "./MagazaIcerik";
 import { MagazaSikayetButonu } from "./MagazaSikayetButonu";
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" });
+const fiyatFormat = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" });
+
+// WhatsApp/sosyal medya link onizlemesi (og:image) icin. PaylasButonlari tek
+// urun paylasirken /magaza/[slug]?urun=<id> URL'ini kullaniyor (ayri bir
+// /urun/[id] sayfasi yok) - burada searchParams'taki urun id'sine gore ya o
+// urunun fotografini (tekil paylasim) ya da magazanin kroki fotografini
+// (magaza geneli paylasim) og:image yapiyoruz. Goreli path'ler root
+// layout'taki metadataBase ile otomatik mutlaklastiriliyor.
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ urun?: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const { urun: urunId } = await searchParams;
+  const magaza = await getMagazaBySlug(slug);
+  if (!magaza) return {};
+
+  if (urunId) {
+    const urun = await prisma.urun.findFirst({
+      where: { id: urunId, magazaId: magaza.id, silindiMi: false },
+      select: { baslik: true, fiyat: true, aciklama: true, fotograflar: true },
+    });
+    if (urun) {
+      const baslik = `${urun.baslik} — ${magaza.ad}`;
+      const aciklama = urun.aciklama?.trim() || `${fiyatFormat.format(Number(urun.fiyat))} — ${magaza.ad} tezgahından`;
+      return {
+        title: baslik,
+        description: aciklama,
+        openGraph: {
+          title: baslik,
+          description: aciklama,
+          images: urun.fotograflar[0] ? [urun.fotograflar[0]] : undefined,
+        },
+      };
+    }
+  }
+
+  const aciklama = magaza.aciklama?.trim() || `${magaza.ad} — Tezgahımdan'da`;
+  return {
+    title: magaza.ad,
+    description: aciklama,
+    openGraph: {
+      title: magaza.ad,
+      description: aciklama,
+      images: magaza.krokiFotoUrl ? [magaza.krokiFotoUrl] : undefined,
+    },
+  };
+}
 
 export default async function MagazaSayfasi({
   params,

@@ -13,6 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // WhatsApp/sosyal medya link onizlemesi icin gerekli: og:image gibi goreli
+  // path'leri (ör. urun.fotograflar[0] = "/uploads/urunler/x.jpg") WhatsApp'in
+  // kabul ettigi MUTLAK URL'e otomatik cevirir (bkz. magaza/[slug]/page.tsx
+  // generateMetadata). Tek domain oldugu icin env degiskeni yerine sabit -
+  // deploy mimarisi karmasikligindan (build-time env threading) kacinildi.
+  metadataBase: new URL("https://www.tezgahimdan.com"),
   title: "Tezgahımdan",
   description:
     "Yerel pazarlardan taze ve el yapımı ürünleri rezerve et, pazar günü tezgahtan teslim al.",
