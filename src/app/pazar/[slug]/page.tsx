@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, MapPin } from "lucide-react";
 import { auth } from "@/auth";
@@ -10,6 +11,7 @@ import { magazaDegerlendirmeOzetiHaritasi } from "@/lib/magaza-degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaVitrini } from "@/app/MagazaVitrini";
 import { YeniEklenenler } from "@/app/YeniEklenenler";
+import { PazarIciArama } from "./PazarIciArama";
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 
@@ -62,10 +64,17 @@ export async function generateMetadata({
 
 export default async function PazarSayfasi({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  // ?q=: pazar-ICI arama (PazarIciArama) - urun baslik/aciklamasi ile tezgah
+  // ad/aciklamasinda arar. Anasayfadaki ?q= (bolge aramasi) ile KARISTIRMA -
+  // burada kapsam zaten tek pazar, aranan sey urun/tezgah.
+  searchParams: Promise<{ q?: string }>;
 }) {
   const { slug } = await params;
+  const { q } = await searchParams;
+  const arama = q?.trim() || "";
   const pazar = await pazarGetir(slug);
   if (!pazar) notFound();
 
@@ -88,7 +97,19 @@ export default async function PazarSayfasi({
   // kucuk kalacagi varsayimi (magaza sayfasindaki ayni kapsam karari).
   const [magazalar, urunler] = await Promise.all([
     prisma.magaza.findMany({
-      where: { pazarId: pazar.id, silindiMi: false, gizliMi: false },
+      where: {
+        pazarId: pazar.id,
+        silindiMi: false,
+        gizliMi: false,
+        ...(arama
+          ? {
+              OR: [
+                { ad: { contains: arama, mode: "insensitive" } },
+                { aciklama: { contains: arama, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
       include: { _count: { select: { urunler: { where: { silindiMi: false } } } } },
       orderBy: { createdAt: "desc" },
     }),
@@ -97,6 +118,14 @@ export default async function PazarSayfasi({
         silindiMi: false,
         durum: { in: ["sergide", "doldu"] },
         magaza: { pazarId: pazar.id, silindiMi: false, gizliMi: false },
+        ...(arama
+          ? {
+              OR: [
+                { baslik: { contains: arama, mode: "insensitive" } },
+                { aciklama: { contains: arama, mode: "insensitive" } },
+              ],
+            }
+          : {}),
       },
       include: { kategori: true, magaza: { select: { id: true, ad: true, slug: true } } },
       orderBy: { createdAt: "desc" },
@@ -228,68 +257,106 @@ export default async function PazarSayfasi({
           </div>
         </div>
 
-        <div className="mt-8">
-          <h2 className="text-lg font-bold text-neutral-900">Bu Pazardaki Tezgahlar</h2>
-          <div className="mt-4">
-            <MagazaVitrini
-              magazalar={magazalar.map((magaza) => ({
-                id: magaza.id,
-                ad: magaza.ad,
-                slug: magaza.slug,
-                aciklama: magaza.aciklama,
-                pazarAd: pazar.ad,
-                urunSayisi: magaza._count.urunler,
-                degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
-                degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
-              }))}
-            />
-          </div>
+        {/* Pazar-ici arama (2026-07-10) - VitrinArama'nin (anasayfa) dar
+            kapsamli kardesi, ayni gorsel dil. */}
+        <div className="mt-6">
+          <PazarIciArama pazarSlug={pazar.slug} baslangicSorgu={arama} />
         </div>
 
-        {urunler.length > 0 && (
+        {/* 2026-07-10 kullanici karari: URUNLER once, TEZGAHLAR sonra -
+            tezgah kartlari (6-7 satir kaplayabiliyor) alicinin urune ulasmadan
+            once uzun bir kaydirma yapmasina neden oluyordu. Kim isterse
+            tezgahlari asagida gormeye devam eder. */}
+        {(arama || urunler.length > 0) && (
           <div className="mt-8">
-            <h2 className="text-lg font-bold text-neutral-900">Bu Pazardaki Ürünler</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-lg font-bold text-neutral-900">Bu Pazardaki Ürünler</h2>
+              {arama && (
+                <p className="text-sm text-neutral-500">
+                  &quot;{arama}&quot; için {urunler.length} sonuç ·{" "}
+                  <Link href={`/pazar/${pazar.slug}`} className="font-medium text-primary-600 hover:underline">
+                    Temizle
+                  </Link>
+                </p>
+              )}
+            </div>
             <div className="mt-4">
-              <YeniEklenenler
-                girisli={girisli}
-                kullaniciTelefonVar={kullaniciTelefonVar}
-                urunler={urunler.map((urun) => ({
-                  id: urun.id,
-                  baslik: urun.baslik,
-                  aciklama: urun.aciklama,
-                  fiyat: Number(urun.fiyat),
-                  durum: urun.durum,
-                  fotograflar: urun.fotograflar,
-                  kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
-                  magaza: {
-                    ad: urun.magaza.ad,
-                    slug: urun.magaza.slug,
-                    degerlendirmeOrtalamasi:
-                      magazaDegerlendirmeOzeti.get(urun.magaza.id)?.ortalama ?? null,
-                    degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(urun.magaza.id)?.sayi ?? 0,
-                  },
-                  begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
-                  benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
-                  benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
-                  stokAdedi: urun.stokAdedi,
-                  aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
-                  yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
-                  benimRezervasyonum: benimRezervasyonlarim.get(urun.id) ?? null,
-                  beklemedeMi: pasifUrunIdler.has(urun.id),
-                  degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
-                  degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
-                  yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({
-                    id: y.id,
-                    kullaniciAd: y.kullaniciAd,
-                    puan: y.puan,
-                    yorum: y.yorum,
-                    tarih: tarihFormat.format(y.createdAt),
-                  })),
-                }))}
-              />
+              {arama && urunler.length === 0 ? (
+                <p className="text-neutral-500">&quot;{arama}&quot; ile eşleşen ürün yok.</p>
+              ) : (
+                <YeniEklenenler
+                  girisli={girisli}
+                  kullaniciTelefonVar={kullaniciTelefonVar}
+                  urunler={urunler.map((urun) => ({
+                    id: urun.id,
+                    baslik: urun.baslik,
+                    aciklama: urun.aciklama,
+                    fiyat: Number(urun.fiyat),
+                    durum: urun.durum,
+                    fotograflar: urun.fotograflar,
+                    kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
+                    magaza: {
+                      ad: urun.magaza.ad,
+                      slug: urun.magaza.slug,
+                      degerlendirmeOrtalamasi:
+                        magazaDegerlendirmeOzeti.get(urun.magaza.id)?.ortalama ?? null,
+                      degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(urun.magaza.id)?.sayi ?? 0,
+                    },
+                    begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
+                    benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
+                    benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
+                    stokAdedi: urun.stokAdedi,
+                    aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
+                    yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
+                    benimRezervasyonum: benimRezervasyonlarim.get(urun.id) ?? null,
+                    beklemedeMi: pasifUrunIdler.has(urun.id),
+                    degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
+                    degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
+                    yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({
+                      id: y.id,
+                      kullaniciAd: y.kullaniciAd,
+                      puan: y.puan,
+                      yorum: y.yorum,
+                      tarih: tarihFormat.format(y.createdAt),
+                    })),
+                  }))}
+                />
+              )}
             </div>
           </div>
         )}
+
+        <div className="mt-8">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-bold text-neutral-900">Bu Pazardaki Tezgahlar</h2>
+            {arama && (
+              <p className="text-sm text-neutral-500">
+                &quot;{arama}&quot; için {magazalar.length} sonuç ·{" "}
+                <Link href={`/pazar/${pazar.slug}`} className="font-medium text-primary-600 hover:underline">
+                  Temizle
+                </Link>
+              </p>
+            )}
+          </div>
+          <div className="mt-4">
+            {arama && magazalar.length === 0 ? (
+              <p className="text-neutral-500">&quot;{arama}&quot; ile eşleşen tezgah yok.</p>
+            ) : (
+              <MagazaVitrini
+                magazalar={magazalar.map((magaza) => ({
+                  id: magaza.id,
+                  ad: magaza.ad,
+                  slug: magaza.slug,
+                  aciklama: magaza.aciklama,
+                  pazarAd: pazar.ad,
+                  urunSayisi: magaza._count.urunler,
+                  degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
+                  degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
+                }))}
+              />
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
