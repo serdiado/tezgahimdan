@@ -151,7 +151,11 @@ export default async function MagazaSayfasi({
               whatsappNo: magaza.whatsappNo,
               tezgahBilgisi: magaza.tezgahBilgisi,
               krokiFotoUrl: magaza.krokiFotoUrl,
-              pazar: { ad: magaza.pazar.ad, sifirlamaGunu: magaza.pazar.sifirlamaGunu },
+              pazar: {
+                ad: magaza.pazar.ad,
+                slug: magaza.pazar.slug,
+                sifirlamaGunu: magaza.pazar.sifirlamaGunu,
+              },
             }}
             degerlendirme={magazaDegerlendirmeSonucu}
             bilesenSirasi={heroModulleri.map((m) => ({ tur: m.tur, aktifMi: m.aktifMi }))}

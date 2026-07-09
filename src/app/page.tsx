@@ -110,7 +110,7 @@ export default async function AnaSayfa({
         },
       },
       include: {
-        pazar: { select: { ad: true } },
+        pazar: { select: { ad: true, slug: true } },
         _count: { select: { urunler: { where: { silindiMi: false } } } },
       },
       orderBy: { createdAt: "desc" },
@@ -254,6 +254,7 @@ export default async function AnaSayfa({
             key={tur}
             pazarlar={pazarlar.map((pazar) => ({
               id: pazar.id,
+              slug: pazar.slug,
               ilce: pazar.ilce,
               baslangicGunu: pazar.baslangicGunu,
               baslangicSaati: pazar.baslangicSaati,
@@ -341,6 +342,7 @@ export default async function AnaSayfa({
                     slug: magaza.slug,
                     aciklama: magaza.aciklama,
                     pazarAd: magaza.pazar.ad,
+                    pazarSlug: magaza.pazar.slug,
                     urunSayisi: magaza._count.urunler,
                     degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
                     degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,

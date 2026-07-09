@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
 import { bildirimGonderPazarSaticilarina } from "@/lib/bildirim";
+import { SLUG_REGEX } from "@/lib/slug";
 import {
   gunDogrula,
   saatFormatiGecerliMi,
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const id = typeof body?.id === "string" ? body.id : "";
   const ad = typeof body?.ad === "string" ? body.ad.trim() : "";
+  const slug = typeof body?.slug === "string" ? body.slug.trim().toLowerCase() : "";
   const il = typeof body?.il === "string" ? body.il.trim() : "";
   const ilce = typeof body?.ilce === "string" ? body.ilce.trim() : "";
   const semtHam = typeof body?.semt === "string" ? body.semt.trim() : "";
@@ -47,6 +49,15 @@ export async function POST(request: Request) {
   }
   if (!ad || ad.length > 100) {
     return NextResponse.json({ hata: "pazar adı zorunlu (en fazla 100 karakter)" }, { status: 400 });
+  }
+  // magazaAc ile ayni slug kurallari - /pazar/[slug] URL'inde kullanilir.
+  // Slug degisikligi ESKI linkleri kirar (belediyeye/basina paylasildiysa) -
+  // admin bilincli degistirir, otomatik yonlendirme YOK (kucuk olcek karari).
+  if (!slug || slug.length > 100 || !SLUG_REGEX.test(slug)) {
+    return NextResponse.json(
+      { hata: "geçersiz bağlantı adı (sadece küçük harf, rakam ve tire; ör. seferihisar-pazari)" },
+      { status: 400 },
+    );
   }
   if (!il || il.length > 100) {
     return NextResponse.json({ hata: "il zorunlu (en fazla 100 karakter)" }, { status: 400 });
@@ -119,6 +130,11 @@ export async function POST(request: Request) {
   if (!mevcut) {
     return NextResponse.json({ hata: "pazar bulunamadı" }, { status: 404 });
   }
+  // Slug tekilligi: KENDISI haric baska bir pazar ayni slug'i kullaniyorsa reddet.
+  const slugSahibi = await prisma.pazar.findUnique({ where: { slug }, select: { id: true } });
+  if (slugSahibi && slugSahibi.id !== id) {
+    return NextResponse.json({ hata: "bu bağlantı adı başka bir pazar tarafından kullanılıyor" }, { status: 409 });
+  }
 
   // Tum admin yazma eylemleri DurumGecmisi'ne admin izi birakir (Build A
   // konvansiyonu) - kullaniciId eylemi yapan ADMIN'in kendisi.
@@ -127,6 +143,7 @@ export async function POST(request: Request) {
       where: { id },
       data: {
         ad,
+        slug,
         il,
         ilce,
         semt: semtHam || null,

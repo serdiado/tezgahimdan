@@ -32,6 +32,10 @@ enum HaftaGunu {
 model Pazar {
   id                String    @id @default(uuid())
   ad                String
+  // Herkese acik pazar sayfasinin URL'i (/pazar/[slug]) - Magaza.slug ile ayni
+  // desen. Migration'da mevcut pazarlara ad'dan turetilerek backfill edildi
+  // (2026-07-09 pazar_slug migration'i, cakismada -2/-3 eki).
+  slug              String    @unique
   il                String
   ilce              String
   semt              String?

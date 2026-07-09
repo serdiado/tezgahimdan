@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { slugTuret } from "@/lib/slug";
 import { HAFTA_GUNLERI, saatMetnineCevir } from "./pazar-yardimcilari";
 
 export type PazarFormVeri = {
   id: string;
   ad: string;
+  slug: string;
   il: string;
   ilce: string;
   semt: string | null;
@@ -36,6 +38,10 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
   const router = useRouter();
   const duzenlemeModu = !!mevcut;
   const [ad, setAd] = useState(mevcut?.ad ?? "");
+  // Onboarding sihirbazindaki desen: slug ad'dan CANLI turetilir, admin elle
+  // dokunursa (slugElleDegisti) otomatik turetme durur - kullanicinin yazdigi bozulmaz.
+  const [slug, setSlug] = useState(mevcut?.slug ?? "");
+  const [slugElleDegisti, setSlugElleDegisti] = useState(duzenlemeModu);
   const [il, setIl] = useState(mevcut?.il ?? "");
   const [ilce, setIlce] = useState(mevcut?.ilce ?? "");
   const [semt, setSemt] = useState(mevcut?.semt ?? "");
@@ -75,6 +81,7 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
     const govde = {
       ...(duzenlemeModu ? { id: mevcut.id } : {}),
       ad: ad.trim(),
+      slug: slug.trim().toLowerCase(),
       il: il.trim(),
       ilce: ilce.trim(),
       semt: semt.trim() || null,
@@ -123,11 +130,31 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
           <input
             type="text"
             value={ad}
-            onChange={(e) => setAd(e.target.value)}
+            onChange={(e) => {
+              setAd(e.target.value);
+              if (!slugElleDegisti) setSlug(slugTuret(e.target.value));
+            }}
             required
             className={inputClass}
           />
         </label>
+        <label className="mt-3 block text-sm font-medium text-neutral-700">
+          Bağlantı Adı (URL)
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => {
+              setSlugElleDegisti(true);
+              setSlug(e.target.value);
+            }}
+            required
+            className={inputClass}
+          />
+        </label>
+        <p className="mt-1 text-xs text-neutral-400">
+          Pazarın herkese açık sayfası: tezgahimdan.com/pazar/{slug || "..."} — sadece küçük
+          harf, rakam ve tire. Değiştirirseniz daha önce paylaşılan eski bağlantılar çalışmaz.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

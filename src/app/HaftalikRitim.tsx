@@ -19,6 +19,7 @@ const HAFTA_GUNLERI: { deger: string; kisa: string; tam: string }[] = [
 
 export type RitimPazarVeri = {
   id: string;
+  slug: string;
   ilce: string;
   baslangicGunu: string;
   baslangicSaati: Date;
@@ -185,10 +186,10 @@ export function HaftalikRitim({ pazarlar }: { pazarlar: RitimPazarVeri[] }) {
                         <ul className="flex max-h-64 flex-col gap-1.5 overflow-x-hidden overflow-y-auto text-sm">
                           {buGunPazarlari.map((p) => (
                             <li key={p.id}>
-                              {/* Vitrin arama ile AYNI ?q= mekanizmasi - tiklayinca hem
-                                  urunler hem magazalar bu pazarin ilcesine gore filtrelenir. */}
+                              {/* 2026-07-09: eski ?q= aramasi yerine pazarin KENDI
+                                  sayfasina gider - pazar artik birinci sinif vitrin varligi. */}
                               <Link
-                                href={`/?q=${encodeURIComponent(p.ilce)}`}
+                                href={`/pazar/${p.slug}`}
                                 className="-mx-1 block rounded-md px-1 py-0.5 hover:bg-neutral-100 hover:text-primary-600"
                               >
                                 {p.ilce}

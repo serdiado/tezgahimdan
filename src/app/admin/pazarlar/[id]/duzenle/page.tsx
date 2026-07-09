@@ -34,6 +34,7 @@ export default async function PazarDuzenlePage({ params }: { params: Promise<{ i
           mevcut={{
             id: pazar.id,
             ad: pazar.ad,
+            slug: pazar.slug,
             il: pazar.il,
             ilce: pazar.ilce,
             semt: pazar.semt,

@@ -8,6 +8,9 @@ export type MagazaKartiVeri = {
   slug: string;
   aciklama: string | null;
   pazarAd: string;
+  // Verilirse pazar adi /pazar/[slug] sayfasina tiklanabilir olur. Pazarin
+  // KENDI sayfasindaki tezgah listesinde bilerek verilmez (kendine link olmasin).
+  pazarSlug?: string;
   urunSayisi: number;
   degerlendirmeOrtalamasi: number | null;
   degerlendirmeSayisi: number;
@@ -16,7 +19,9 @@ export type MagazaKartiVeri = {
 // altAksiyon: opsiyonel, Link'in DISINDA (kartin altinda) render edilir -
 // "Takibi Bırak" gibi butonlar Link icine nested-button sorunu yaratirdi.
 // Verilmedigi mevcut kullanim yerlerinde (MagazaVitrini.tsx) davranis/gorunum
-// AYNI kalir (backward compatible).
+// AYNI kalir (backward compatible). Pazar satiri da AYNI nedenle (nested <a>)
+// ana Link'in disina tasindi - gorsel yerlesim degismedi (Link flex-1 bosluğu
+// emdigi icin satir yine kartin en altinda durur).
 export function MagazaKarti({
   magaza,
   altAksiyon,
@@ -35,10 +40,20 @@ export function MagazaKarti({
         {magaza.aciklama && (
           <p className="line-clamp-2 text-sm text-neutral-600">{magaza.aciklama}</p>
         )}
-        <p className="mt-auto text-xs text-neutral-400">
-          {magaza.pazarAd} · {magaza.urunSayisi} ürün
-        </p>
       </Link>
+      <p className="text-xs text-neutral-400">
+        {magaza.pazarSlug ? (
+          <Link
+            href={`/pazar/${magaza.pazarSlug}`}
+            className="hover:text-primary-600 hover:underline"
+          >
+            {magaza.pazarAd}
+          </Link>
+        ) : (
+          magaza.pazarAd
+        )}{" "}
+        · {magaza.urunSayisi} ürün
+      </p>
       {altAksiyon}
     </div>
   );

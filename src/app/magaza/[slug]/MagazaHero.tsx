@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MapPin, Tent } from "lucide-react";
 import type { SayfaModulTuru } from "@/generated/prisma";
 import { WhatsappIkon } from "@/components/PaylasButonlari";
@@ -35,7 +36,7 @@ export function MagazaHero({
     whatsappNo: string | null;
     tezgahBilgisi: string | null;
     krokiFotoUrl: string | null;
-    pazar: { ad: string; sifirlamaGunu: string };
+    pazar: { ad: string; slug: string; sifirlamaGunu: string };
   };
   degerlendirme: { ortalama: number; sayi: number };
   // Faz 4.2 (CMS): admin /admin/magaza-sablonu'ndan bu 3 bilesenin sirasini/
@@ -82,7 +83,12 @@ export function MagazaHero({
     <div className="rounded-2xl bg-linear-to-br from-primary-600 to-primary-700 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
       <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
         <MapPin className="h-4 w-4" strokeWidth={2} />
-        {magaza.pazar.ad} · her {GUN_ETIKETI[magaza.pazar.sifirlamaGunu] ?? magaza.pazar.sifirlamaGunu}
+        {/* Pazar adi pazarin kendi vitrin sayfasina gider (2026-07-09) - koyu
+            zeminde hover beyaza doner (primary paleti disina cikilmaz). */}
+        <Link href={`/pazar/${magaza.pazar.slug}`} className="hover:text-white hover:underline">
+          {magaza.pazar.ad}
+        </Link>{" "}
+        · her {GUN_ETIKETI[magaza.pazar.sifirlamaGunu] ?? magaza.pazar.sifirlamaGunu}
       </p>
       <h1 className="mt-2 text-3xl font-bold tracking-tight">{magaza.ad}</h1>
       {magaza.aciklama && <p className="mt-2 max-w-xl text-primary-50">{magaza.aciklama}</p>}

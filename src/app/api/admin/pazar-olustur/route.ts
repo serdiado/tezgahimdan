@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
+import { SLUG_REGEX } from "@/lib/slug";
 import {
   gunDogrula,
   saatFormatiGecerliMi,
@@ -19,6 +20,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const ad = typeof body?.ad === "string" ? body.ad.trim() : "";
+  const slug = typeof body?.slug === "string" ? body.slug.trim().toLowerCase() : "";
   const il = typeof body?.il === "string" ? body.il.trim() : "";
   const ilce = typeof body?.ilce === "string" ? body.ilce.trim() : "";
   const semtHam = typeof body?.semt === "string" ? body.semt.trim() : "";
@@ -38,6 +40,17 @@ export async function POST(request: Request) {
 
   if (!ad || ad.length > 100) {
     return NextResponse.json({ hata: "pazar adı zorunlu (en fazla 100 karakter)" }, { status: 400 });
+  }
+  // magazaAc ile ayni slug kurallari (SLUG_REGEX) - /pazar/[slug] URL'inde kullanilir.
+  if (!slug || slug.length > 100 || !SLUG_REGEX.test(slug)) {
+    return NextResponse.json(
+      { hata: "geçersiz bağlantı adı (sadece küçük harf, rakam ve tire; ör. seferihisar-pazari)" },
+      { status: 400 },
+    );
+  }
+  const slugSahibi = await prisma.pazar.findUnique({ where: { slug }, select: { id: true } });
+  if (slugSahibi) {
+    return NextResponse.json({ hata: "bu bağlantı adı başka bir pazar tarafından kullanılıyor" }, { status: 409 });
   }
   if (!il || il.length > 100) {
     return NextResponse.json({ hata: "il zorunlu (en fazla 100 karakter)" }, { status: 400 });
@@ -118,6 +131,7 @@ export async function POST(request: Request) {
     const yeni = await tx.pazar.create({
       data: {
         ad,
+        slug,
         il,
         ilce,
         semt: semtHam || null,
