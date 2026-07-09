@@ -328,9 +328,11 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
         </div>
         <p className="text-xs text-neutral-500">
           Satıcının en son &quot;Sattım/Gelmedi&quot; işaretleyebileceği an - bu andan sonra
-          işaretlenmemiş rezervasyonlar otomatik &quot;gelmedi&quot; sayılır. Gece geç saate kadar
-          açık pazarlarda (ör. kapanış 01:00) mutlaka manuel ayarlayın - aksi halde kapanış
-          gününün gece yarısı varsayılır ve pazar kapanmadan işlem yapılmış olur.
+          hâlâ işaretlenmemiş rezervasyonlar için satıcının panel girişi kilitlenir ve ilgili
+          ürün vitrinde &quot;Beklemede&quot; görünür (alıcı asla otomatik cezalandırılmaz - satıcı
+          3 gün boyunca hiç girmezse admin&apos;e bilgilendirme bildirimi gider). Gece geç
+          saate kadar açık pazarlarda (ör. kapanış 01:00) mutlaka manuel ayarlayın - aksi
+          halde kapanış gününün gece yarısı varsayılır.
         </p>
 
         <div className="grid grid-cols-2 gap-3">
