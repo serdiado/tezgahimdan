@@ -44,6 +44,12 @@ model Pazar {
   // hepsi opsiyonel (mevcut pazarlar geriye donuk NULL kalir).
   belediyeAdi    String? // ulusal buyume hedefi: hangi belediyeye ait, ileride raporlama/coklu-belediye ayrimi icin
   aciklama       String? @db.Text // vitrin/anasayfada gosterilecek kisa tanitim metni
+  // Pazar sayfasi hero'su (2026-07-10): belediye logosu beyaz cip icinde,
+  // kapak fotografi hero arka plani (yari saydam gradyan overlay ile) olur.
+  // Ikisi de bos birakilabilir - o zaman duz gradyan gorunum aynen kalir.
+  // Yukleme /api/admin/pazar-gorsel ile (site-icerik gorsel deseni).
+  belediyeLogoUrl String?
+  kapakFotoUrl    String?
   sorumluAdi     String? // pazar sorumlusu (PLAN.md SS7'deki gelecek rolun temeli) - admin ic referansi
   sorumluTelefon String?
   // baslangic*: pazarin acilis (ceza esigi) ani. sifirlama*: pazarin GERCEK/ilan

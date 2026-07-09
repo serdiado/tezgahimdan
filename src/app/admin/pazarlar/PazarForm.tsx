@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { slugTuret } from "@/lib/slug";
+import { gorseliIsle } from "@/lib/gorsel";
 import { HAFTA_GUNLERI, saatMetnineCevir } from "./pazar-yardimcilari";
 
 export type PazarFormVeri = {
@@ -14,6 +15,8 @@ export type PazarFormVeri = {
   semt: string | null;
   googleHaritaLinki: string;
   belediyeAdi: string | null;
+  belediyeLogoUrl: string | null;
+  kapakFotoUrl: string | null;
   aciklama: string | null;
   sorumluAdi: string | null;
   sorumluTelefon: string | null;
@@ -31,6 +34,110 @@ export type PazarFormVeri = {
 
 const inputClass =
   "mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
+
+// Pazar hero gorseli (logo/kapak) yukleme alani - form kaydetmeden BAGIMSIZ
+// calisir (sec -> aninda POST /api/admin/pazar-gorsel -> onizleme guncellenir),
+// kroki yukleme akisiyla ayni his. kapakMi=true ise telefon fotografi
+// gorseliIsle ile kucultulur; logo ORIJINAL dosya olarak gider (gorseliIsle
+// her seyi JPEG'e cevirir, PNG logonun seffafligi kaybolurdu).
+function GorselYukleAlani({
+  pazarId,
+  alan,
+  baslik,
+  aciklama,
+  baslangicUrl,
+  kapakMi,
+}: {
+  pazarId: string;
+  alan: "belediyeLogoUrl" | "kapakFotoUrl";
+  baslik: string;
+  aciklama: string;
+  baslangicUrl: string | null;
+  kapakMi: boolean;
+}) {
+  const router = useRouter();
+  const [url, setUrl] = useState(baslangicUrl);
+  const [mesgul, setMesgul] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
+
+  async function yukle(e: React.ChangeEvent<HTMLInputElement>) {
+    const secilen = e.target.files?.[0];
+    e.target.value = ""; // ayni dosya tekrar secilebilsin
+    if (!secilen) return;
+    setHata(null);
+    setMesgul(true);
+    const dosya = kapakMi ? await gorseliIsle(secilen) : secilen;
+    const formData = new FormData();
+    formData.append("pazarId", pazarId);
+    formData.append("alan", alan);
+    formData.append("gorsel", dosya);
+    const res = await fetch("/api/admin/pazar-gorsel", { method: "POST", body: formData });
+    setMesgul(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setHata(data.hata ?? "görsel yüklenemedi");
+      return;
+    }
+    const data = await res.json();
+    setUrl(data.deger);
+    router.refresh();
+  }
+
+  async function kaldir() {
+    setHata(null);
+    setMesgul(true);
+    const res = await fetch("/api/admin/pazar-gorsel", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pazarId, alan }),
+    });
+    setMesgul(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setHata(data.hata ?? "görsel kaldırılamadı");
+      return;
+    }
+    setUrl(null);
+    router.refresh();
+  }
+
+  return (
+    <div>
+      <p className="text-sm font-medium text-neutral-700">{baslik}</p>
+      <p className="mt-0.5 text-xs text-neutral-400">{aciklama}</p>
+      {url && (
+        <div className="mt-2">
+          {kapakMi ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt={baslik} className="h-24 w-full rounded-md object-cover" />
+          ) : (
+            <div className="inline-flex rounded-md bg-white p-2 ring-1 ring-neutral-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt={baslik} className="h-14 w-auto object-contain" />
+            </div>
+          )}
+        </div>
+      )}
+      <div className="mt-2 flex items-center gap-2">
+        <label className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-50">
+          {mesgul ? "Yükleniyor…" : url ? "Değiştir" : "Görsel Seç"}
+          <input type="file" accept="image/*" onChange={yukle} disabled={mesgul} className="hidden" />
+        </label>
+        {url && (
+          <button
+            type="button"
+            onClick={kaldir}
+            disabled={mesgul}
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-semibold text-neutral-600 hover:bg-neutral-100"
+          >
+            Kaldır
+          </button>
+        )}
+      </div>
+      {hata && <p className="mt-1 text-sm text-red-600">{hata}</p>}
+    </div>
+  );
+}
 
 // Hem "Yeni Pazar" hem "Pazar Düzenle" sayfaları bu formu kullanır. Yeni pazarda
 // aktifMi alanı gösterilmez (yeni pazar hep aktif başlar); düzenlemede gösterilir.
@@ -221,6 +328,35 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
             className={inputClass}
           />
         </label>
+      </div>
+
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-4">
+        <p className="text-sm font-semibold text-neutral-700">Pazar Sayfası Görselleri</p>
+        {duzenlemeModu ? (
+          <>
+            <GorselYukleAlani
+              pazarId={mevcut.id}
+              alan="belediyeLogoUrl"
+              baslik="Belediye Logosu (opsiyonel)"
+              aciklama="Pazar sayfasının üst kısmında beyaz bir kutu içinde gösterilir. Şeffaf PNG önerilir."
+              baslangicUrl={mevcut.belediyeLogoUrl}
+              kapakMi={false}
+            />
+            <GorselYukleAlani
+              pazarId={mevcut.id}
+              alan="kapakFotoUrl"
+              baslik="Kapak Fotoğrafı (opsiyonel)"
+              aciklama="Pazar sayfasının üst kısmının arka planı olur. Boş bırakılırsa düz renk görünüm kalır."
+              baslangicUrl={mevcut.kapakFotoUrl}
+              kapakMi
+            />
+          </>
+        ) : (
+          <p className="text-xs text-neutral-500">
+            Belediye logosu ve kapak fotoğrafını, pazarı kaydettikten sonra Düzenle ekranından
+            ekleyebilirsiniz.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
