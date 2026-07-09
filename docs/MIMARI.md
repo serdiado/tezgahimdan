@@ -26,6 +26,14 @@ Pazar kapanışında o pazarın bekleyen kuyruğunu **tamamen temizler** (rezerv
 
 ---
 
+## Güvenilirlik (ceza-ödül) sistemi
+
+Kalıcı bir "puan" alanı yok — her rezervasyon denemesinde alıcının `gelmedi` sayısı canlı `COUNT` ile hesaplanır. Kısıtlama tek eşik değil, **iki şartlı**: `gelmedi >= guvenilirlikEsigi` (varsayılan 3) VE o an elinde `bekliyor`+`aktif` bir rezervasyon olması — ikinci şart yoksa geçmiş eşiği aşmış olsa bile yeni rezervasyon serbest. Kapsam pazar/mağaza sınırı taşımaz (tüm platform genelinde `aliciId` bazlı). Satıcı/admin ekranlarındaki "Kısıtlı" rozeti sadece eşiğe bakar, motorun ikinci şartını yansıtmaz — bilinçli ama yanıltıcı olabilen bir ayrım. Admin sıfırlaması kayıtları silmez, sadece "bu tarihten sonrasını say" filtresi ekler (`guvenilirlikSifirlamaTarihi`); kalıcı muafiyet değildir.
+
+→ Detay: [`docs/mimari/guvenilirlik-sistemi.md`](./mimari/guvenilirlik-sistemi.md)
+
+---
+
 ## Satıcı onboarding (self-servis + moderasyon)
 
 "Mağaza Aç" ile bir kişi **anında** satıcı olur (admin onayı yok): `magazaAc()` tek
