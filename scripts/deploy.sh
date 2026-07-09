@@ -17,14 +17,15 @@ echo "=== 2/5: Kod guncelleniyor (git pull) ==="
 git pull
 
 echo "=== 3/5: Imaj build ediliyor (app + migrate) ==="
-# Servis adi vermeden `build` - compose dosyasindaki TUM build: anahtarli
-# servisleri (app + migrate) yeniden build eder. Sadece "build app" yeterli
-# DEGIL: migrate ayri bir hedef (builder) kullaniyor, `run --rm migrate`
-# imaj zaten diskteyse onu YENIDEN BUILD ETMEZ - ikinci deploy'dan itibaren
-# git pull ile gelen yeni migration dosyalari image'e hic girmeden migrate
-# "basarili" gorunup eski migration setini calistirmis olurdu (build-testinde
-# bulundu, gercek bir prod-deploy hatasi olurdu).
-$COMPOSE build
+# --profile tools SART: migrate servisi "profiles: [tools]" altinda oldugu
+# icin, profil aktif degilken compose onu servis listesinde HIC GORMEZ -
+# ciplak `build` sadece app'i build eder ve `run --rm migrate` diskteki ESKI
+# migrate imajini kullanir. Sonuc: git pull ile gelen yeni migration'lar
+# imaja girmeden migrate "No pending migrations" deyip basarili gorunur, app
+# ise yeni (kolonlari bekleyen) kodla ayaga kalkar -> canli site DB hatasiyla
+# coker. 2026-07-09 deploy'unda GERCEKTEN yasandi (satici-ihmal migration'lari
+# atlandi, site kesintiye ugradi) - bu satiri profilsiz hale GERI DONDURME.
+$COMPOSE --profile tools build
 
 echo "=== 4/5: Migration uygulaniyor ==="
 $COMPOSE --profile tools run --rm migrate

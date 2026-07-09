@@ -92,8 +92,17 @@ olmaz), ama script bunu otomatik geri almaz — yedek `scripts/backup-db.sh`
    itibaren `git pull` ile gelen yeni migration dosyaları hiç imaja
    girmeyecek, migrate sessizce eski migration setini "başarılı" şekilde
    çalıştırmış gibi görünecekti — şema/kod senkronsuzluğu geç fark edilirdi.
-   Düzeltme: `docker compose build` servis adı vermeden, tüm build:'li
-   servisleri (app+migrate) kapsar.
+   İlk düzeltme (`docker compose build`, servis adsız) **YETERSİZ çıktı**:
+   `migrate` `profiles: ["tools"]` altında olduğu için compose, profil aktif
+   olmadan onu servis listesine hiç almıyor — çıplak `build` yine sadece
+   app'i build ediyor. **Bu öngörülen senaryo 2026-07-09 deploy'unda gerçekten
+   yaşandı**: satıcı-ihmal migration'ları eski migrate imajına girmedi,
+   migrate "No pending migrations" dedi, app yeni kodla (olmayan kolonları
+   sorgulayarak) ayağa kalktı ve canlı site çöktü. Kesin düzeltme:
+   `docker compose --profile tools build` (deploy.sh'de) — profil aktifken
+   hem app hem migrate build ediliyor. Kurtarma: migrate imajı profille
+   yeniden build edilip migration'lar uygulandı, app restart edildi (~15 dk
+   kesinti; DB yedeği adım 1'de zaten alınmıştı, veri kaybı yok).
 2. `backup-db.sh`'de dosya `pg_dump | gzip > dosya` ile oluşturulup SONRA
    `chmod 600` ile kısıtlanıyordu — büyük bir DB'de bu arada dosya varsayılan
    (daha geniş) izinle PII içeriğiyle diskte durabilirdi. `umask 077` script
