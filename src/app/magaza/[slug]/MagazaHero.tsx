@@ -3,6 +3,7 @@ import { MapPin, Tent } from "lucide-react";
 import type { SayfaModulTuru } from "@/generated/prisma";
 import { WhatsappIkon } from "@/components/PaylasButonlari";
 import { YildizGosterge } from "@/components/YildizGosterge";
+import { SOSYAL_PLATFORMLAR } from "@/lib/sosyal-medya";
 import { KrokiGorseli } from "./KrokiGorseli";
 
 const GUN_ETIKETI: Record<string, string> = {
@@ -36,6 +37,9 @@ export function MagazaHero({
     whatsappNo: string | null;
     tezgahBilgisi: string | null;
     krokiFotoUrl: string | null;
+    instagramUrl: string | null;
+    facebookUrl: string | null;
+    tiktokUrl: string | null;
     pazar: { ad: string; slug: string; sifirlamaGunu: string };
   };
   degerlendirme: { ortalama: number; sayi: number };
@@ -79,8 +83,32 @@ export function MagazaHero({
     }
   }
 
+  // Sadece link girilmis platformlar (2026-07-10 kullanici karari: WhatsApp
+  // butonunun YANINA degil, hero'nun sag-alt kosesinde AYRI bir grup halinde).
+  const sosyalLinkler = SOSYAL_PLATFORMLAR.filter((p) => magaza[p.anahtar]);
+
   return (
-    <div className="rounded-2xl bg-linear-to-br from-primary-600 to-primary-700 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-primary-600 to-primary-700 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
+      {sosyalLinkler.length > 0 && (
+        // UrunKarti.tsx'teki begeni/takip kosesi rozetiyle AYNI "absolute
+        // corner" deseni - hero'nun geri kalan icerigiyle cakismasin diye
+        // sag-alt disinda birakildi, dar mobil genislikte de rahat sigar
+        // (sadece 1-3 kucuk ikon, kutsal kural: gorsel karmasiklik eklemez).
+        <div className="absolute right-4 bottom-4 flex items-center gap-2 sm:right-6 sm:bottom-6">
+          {sosyalLinkler.map((platform) => (
+            <a
+              key={platform.anahtar}
+              href={magaza[platform.anahtar]!}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={platform.etiket}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+            >
+              <platform.Ikon className="h-4 w-4" />
+            </a>
+          ))}
+        </div>
+      )}
       <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
         <MapPin className="h-4 w-4" strokeWidth={2} />
         {/* Pazar adi pazarin kendi vitrin sayfasina gider (2026-07-09) - koyu

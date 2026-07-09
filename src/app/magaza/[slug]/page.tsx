@@ -151,6 +151,9 @@ export default async function MagazaSayfasi({
               whatsappNo: magaza.whatsappNo,
               tezgahBilgisi: magaza.tezgahBilgisi,
               krokiFotoUrl: magaza.krokiFotoUrl,
+              instagramUrl: magaza.instagramUrl,
+              facebookUrl: magaza.facebookUrl,
+              tiktokUrl: magaza.tiktokUrl,
               pazar: {
                 ad: magaza.pazar.ad,
                 slug: magaza.pazar.slug,

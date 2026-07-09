@@ -6,6 +6,8 @@ import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
 import { telefonNormallestir } from "@/lib/telefon";
 import { TEZGAH_BILGISI_MAX } from "@/lib/magaza-sabitleri";
+import { gecerliUrlMi } from "@/lib/url";
+import { SOSYAL_PLATFORMLAR } from "@/lib/sosyal-medya";
 
 // MagazaAyarlariForm.tsx artik dirty-state takibi icin "use client" - server
 // action'lar client component dosyasinin ICINDE tanimlanamaz (bu, Next.js'in
@@ -52,9 +54,29 @@ export async function magazaGuncelle(formData: FormData) {
   }
   const tezgahBilgisi = tezgahBilgisiHam || null;
 
+  // Sosyal medya: SOSYAL_PLATFORMLAR (instagramUrl/facebookUrl/tiktokUrl)
+  // uzerinde donguyle - formdan hicbir alan gelmiyorsa (satici o platformu
+  // hic eklememis/kaldirmis) null yazilir, boylece "kaldir" akisi da bu
+  // ayni yoldan calisir (input DOM'dan silinince FormData'da hic gorunmez).
+  const sosyalMedyaVerisi: Record<string, string | null> = {};
+  for (const platform of SOSYAL_PLATFORMLAR) {
+    const ham = formData.get(platform.anahtar);
+    const deger = typeof ham === "string" ? ham.trim() : "";
+    if (!deger) {
+      sosyalMedyaVerisi[platform.anahtar] = null;
+      continue;
+    }
+    if (!gecerliUrlMi(deger)) {
+      redirect(
+        `/panel/magaza-ayarlari?hata=${encodeURIComponent(`${platform.etiket} bağlantısı geçerli bir link (http/https) olmalı`)}`,
+      );
+    }
+    sosyalMedyaVerisi[platform.anahtar] = deger;
+  }
+
   await prisma.magaza.update({
     where: { id: magaza.id },
-    data: { ad, aciklama, whatsappNo, tezgahBilgisi },
+    data: { ad, aciklama, whatsappNo, tezgahBilgisi, ...sosyalMedyaVerisi },
   });
 
   redirect("/panel/magaza-ayarlari?basarili=1");

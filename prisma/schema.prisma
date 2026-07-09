@@ -191,6 +191,14 @@ model Magaza {
   // elle cizdigi kroki) - admin-yonetimli ortak pazar haritasi DEGIL, urunEkle() ile
   // ayni upload altyapisinin tek-fotograf versiyonu (bkz. src/lib/magaza-kroki.ts).
   krokiFotoUrl  String?
+  // Sosyal medya linkleri (2026-07-10): sabit 3 platform, hepsi opsiyonel.
+  // Satici Ayarlar'da "ekle" akisiyla birini secip link girer - bos olan
+  // hic gosterilmez (hero'da ikon cikmaz). JSON/dinamik liste yerine ayri
+  // alanlar tercih edildi: bu semadaki (whatsappNo, belediyeAdi vb.) mevcut
+  // "her alan kendi adiyla" desenine uyar, sorgulanmasi/dogrulanmasi basit kalir.
+  instagramUrl String?
+  facebookUrl  String?
+  tiktokUrl    String?
   pazar      Pazar     @relation(fields: [pazarId], references: [id])
   pazarId    String
   silindiMi  Boolean   @default(false)

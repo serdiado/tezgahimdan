@@ -2,6 +2,12 @@
 // yardimcilari. Route dosyasi olmadigi icin (route.ts degil) Next.js bunu bir
 // API endpoint'i olarak algilamaz.
 import type { HaftaGunu } from "@/generated/prisma";
+import { gecerliUrlMi } from "@/lib/url";
+
+// Geriye donuk uyumluluk: bu dosyadan import eden yerler (pazar-olustur/
+// pazar-guncelle route'lari) degismesin diye yeniden disa aktarilir - gercek
+// tanim src/lib/url.ts'de (satici sosyal medya linkleriyle PAYLASILIYOR).
+export { gecerliUrlMi };
 
 const GECERLI_GUNLER: HaftaGunu[] = [
   "Pazartesi",
@@ -33,15 +39,6 @@ export function gecerliSaatDilimiMi(tz: string): boolean {
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: tz });
     return true;
-  } catch {
-    return false;
-  }
-}
-
-export function gecerliUrlMi(deger: string): boolean {
-  try {
-    const u = new URL(deger);
-    return u.protocol === "http:" || u.protocol === "https:";
   } catch {
     return false;
   }

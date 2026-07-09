@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 import { KrokiFotografSecici } from "@/components/KrokiFotografSecici";
 import { useDegisiklikUyarisi } from "@/lib/degisiklik-uyarisi";
 import { TEZGAH_BILGISI_MAX } from "@/lib/magaza-sabitleri";
+import { SOSYAL_PLATFORMLAR, type SosyalPlatformAnahtari } from "@/lib/sosyal-medya";
 import { magazaGuncelle } from "./actions";
 
 // Kaydet butonu artik EN ALTTA (Kroki bolumunun de altinda) ve SADECE bir alan
@@ -24,10 +26,31 @@ export function MagazaAyarlariForm({
     whatsappNo: string | null;
     tezgahBilgisi: string | null;
     krokiFotoUrl: string | null;
+    instagramUrl: string | null;
+    facebookUrl: string | null;
+    tiktokUrl: string | null;
   };
 }) {
   const [dirty, setDirty] = useState(false);
   useDegisiklikUyarisi(dirty);
+
+  // Sosyal medya: "ekle" akisi (2026-07-10 kullanici karari) - satici sadece
+  // link girdigi platformlari GORUR, bos olanlar formda bile yer kaplamaz.
+  // Baslangicta zaten dolu olan alanlar aktif satir olarak acilir.
+  const [aktifPlatformlar, setAktifPlatformlar] = useState<SosyalPlatformAnahtari[]>(
+    () => SOSYAL_PLATFORMLAR.filter((p) => magaza[p.anahtar]).map((p) => p.anahtar),
+  );
+  const eklenebilirPlatformlar = SOSYAL_PLATFORMLAR.filter((p) => !aktifPlatformlar.includes(p.anahtar));
+
+  function platformEkle(anahtar: SosyalPlatformAnahtari) {
+    setAktifPlatformlar((mevcut) => [...mevcut, anahtar]);
+    setDirty(true);
+  }
+
+  function platformKaldir(anahtar: SosyalPlatformAnahtari) {
+    setAktifPlatformlar((mevcut) => mevcut.filter((a) => a !== anahtar));
+    setDirty(true);
+  }
 
   return (
     <form action={magazaGuncelle} className="mt-4 space-y-4">
@@ -91,6 +114,52 @@ export function MagazaAyarlariForm({
               className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
             />
           </label>
+        </div>
+
+        <div>
+          <span className="block text-sm font-medium text-neutral-700">Sosyal Medya (opsiyonel)</span>
+          <p className="mt-0.5 text-xs text-neutral-400">
+            Tezgah sayfanda, girdiğin platformların ikonu görünür - boş bıraktığın hiç çıkmaz.
+          </p>
+          <div className="mt-2 space-y-2">
+            {aktifPlatformlar.map((anahtar) => {
+              const platform = SOSYAL_PLATFORMLAR.find((p) => p.anahtar === anahtar)!;
+              return (
+                <div key={anahtar} className="flex items-center gap-2">
+                  <platform.Ikon className="h-5 w-5 shrink-0 text-neutral-500" />
+                  <input
+                    name={anahtar}
+                    type="url"
+                    placeholder={platform.placeholder}
+                    defaultValue={magaza[anahtar] ?? ""}
+                    className="block w-full min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => platformKaldir(anahtar)}
+                    aria-label={`${platform.etiket} bağlantısını kaldır`}
+                    className="shrink-0 rounded-md p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+                  >
+                    <X className="h-4 w-4" strokeWidth={2} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          {eklenebilirPlatformlar.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {eklenebilirPlatformlar.map((platform) => (
+                <button
+                  key={platform.anahtar}
+                  type="button"
+                  onClick={() => platformEkle(platform.anahtar)}
+                  className="flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-neutral-600 ring-1 ring-inset ring-neutral-200 hover:bg-neutral-100"
+                >
+                  <platform.Ikon className="h-4 w-4" />+ {platform.etiket} Ekle
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
