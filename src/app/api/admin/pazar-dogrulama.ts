@@ -46,3 +46,84 @@ export function gecerliUrlMi(deger: string): boolean {
     return false;
   }
 }
+
+// islemSon*/hatirlatma* alanlari icin: kapanistan (sifirlama) ILERI dogru, ayni
+// hafta dongusu icinde gun+saat karsilastirmasi. Gece pazarlari (kapanis
+// 01:00-02:00 gibi) icin bu alanlar kapanis gununden FARKLI bir gune denk
+// gelebilir - bkz. src/lib/pazar-haftasi.ts kapanisSonrasiAni (AYNI mantik,
+// orada gercek Date hesaplar, burada SADECE siralama/dogrulama icin).
+const GUN_SIRASI: Record<HaftaGunu, number> = {
+  PazarGunu: 0,
+  Pazartesi: 1,
+  Sali: 2,
+  Carsamba: 3,
+  Persembe: 4,
+  Cuma: 5,
+  Cumartesi: 6,
+};
+
+function kapanistanOfsetGun(kapanisGunu: HaftaGunu, hedefGunu: HaftaGunu): number {
+  return (GUN_SIRASI[hedefGunu] - GUN_SIRASI[kapanisGunu] + 7) % 7;
+}
+
+// hedef (gun,saat) cifti, kapanistan SONRAYA (ayni gun ama daha gec saat dahil)
+// mi denk geliyor? HH:MM string'leri zaten sifirla-doldurulmus 24 saat formatinda
+// oldugu icin lexicographic karsilastirma dogru sonuc verir.
+export function kapanistanSonraMi(
+  kapanisGunu: HaftaGunu,
+  kapanisSaatiHHMM: string,
+  hedefGunu: HaftaGunu,
+  hedefSaatiHHMM: string,
+): boolean {
+  const ofset = kapanistanOfsetGun(kapanisGunu, hedefGunu);
+  if (ofset > 0) return true;
+  return hedefSaatiHHMM > kapanisSaatiHHMM;
+}
+
+// A (gun,saat) cifti, B (gun,saat) ciftinden ONCE mi - ikisi de kapanistan
+// SONRAKI olaylar oldugu icin kapanis-ofseti + saat bilesik anahtariyla
+// karsilastirilir (ör. hatirlatma, islem-sonundan once olmali kontrolu icin).
+export function hedefOnceMi(
+  kapanisGunu: HaftaGunu,
+  aGunu: HaftaGunu,
+  aSaatiHHMM: string,
+  bGunu: HaftaGunu,
+  bSaatiHHMM: string,
+): boolean {
+  const ofsetA = kapanistanOfsetGun(kapanisGunu, aGunu);
+  const ofsetB = kapanistanOfsetGun(kapanisGunu, bGunu);
+  if (ofsetA !== ofsetB) return ofsetA < ofsetB;
+  return aSaatiHHMM < bSaatiHHMM;
+}
+
+export type OpsiyonelGunSaatSonucu =
+  | { hata: string }
+  | { gun: HaftaGunu | null; saatHHMM: string | null; saat: Date | null };
+
+// islemSonGunu/Saati ve hatirlatmaGunu/Saati icin ORTAK dogrulama: HER IKISI de
+// bos ise "ayarlanmadi" (null, kod eski sabit varsayima duser). Biri doluysa
+// digeri de zorunlu. Doluysa gun+saat formati VE kapanistan sonra olma sarti
+// dogrulanir.
+export function opsiyonelGunSaatDogrula(
+  gunHam: unknown,
+  saatHam: unknown,
+  alanAdi: string,
+  kapanisGunu: HaftaGunu,
+  kapanisSaatiHHMM: string,
+): OpsiyonelGunSaatSonucu {
+  const gunStr = typeof gunHam === "string" ? gunHam.trim() : "";
+  const saatStr = typeof saatHam === "string" ? saatHam.trim() : "";
+  if (!gunStr && !saatStr) return { gun: null, saatHHMM: null, saat: null };
+  if (!gunStr || !saatStr) {
+    return { hata: `${alanAdi} için hem gün hem saat birlikte girilmeli (ya da ikisi de boş bırakılmalı)` };
+  }
+  const gun = gunDogrula(gunStr);
+  if (!gun) return { hata: `geçersiz ${alanAdi} günü` };
+  if (!saatFormatiGecerliMi(saatStr)) {
+    return { hata: `geçersiz ${alanAdi} saati (SS:DD biçiminde olmalı)` };
+  }
+  if (!kapanistanSonraMi(kapanisGunu, kapanisSaatiHHMM, gun, saatStr)) {
+    return { hata: `${alanAdi}, kapanış saatinden önce olamaz` };
+  }
+  return { gun, saatHHMM: saatStr, saat: saatliTarih(saatStr) };
+}

@@ -4,17 +4,24 @@
 
 `pazarlariSifirla` (`src/lib/rezervasyon.ts`) — otomatik, harici cron tetikler. Pazarın **gün sonu** (aşağıya bkz.) geçince o pazara ait ürünlerin bekleyen kuyruğu **tamamen temizlenir** (sıra taşıma yok; ürün sonraki hafta sıfırdan). Bu, manuel Gelmedi'nin toplu hali **değildir** — o yükseltir, bu temizler.
 
-## 2026-07-09 güncellemesi: sweep artık kapanış anında DEĞİL, gün sonunda tetiklenir
+## 2026-07-09 güncellemesi: sweep artık kapanış anında DEĞİL, admin'in ayarladığı "işlem sonu" anında tetiklenir
 
-Kullanıcı kararı: satıcı, pazar kapanışında hemen cezalandırılmak yerine o günün sonuna (gece yarısı) kadar "Sattım/Gelmedi" işaretlemesi için süre almalı. Bu yüzden **üç** farklı an var artık (aşağıdaki bölüm güncellendi), ve `urunSifirla`/`pazarlariSifirla`'nın tetikleyici koşulu `pazarKapanisAni` yerine **`pazarGunSonuAni`** kullanacak şekilde değiştirildi — no-show belirleme kuralının kendisi (aşağıdaki `aktifOlmaZamani < pazarBaslangicAni` karşılaştırması) **değişmedi**, sadece sweep'in NE ZAMAN çalıştığı değişti. Ayrıca kapanıştan 1 saat sonra satıcılara "işaretlemeyi unutma" hatırlatması eklendi (`pazarHatirlatmalariGonder`, aynı cron içinde, yeni `PazarHatirlatma` tablosu ile idempotent).
+İlk karar: satıcı, pazar kapanışında hemen cezalandırılmak yerine o günün sonuna (gece yarısı) kadar "Sattım/Gelmedi" işaretlemesi için süre almalı. **Aynı gün içinde ikinci bir düzeltme geldi:** sabit "gece yarısı" varsayımı **gece pazarları** (kapanışı 01:00-02:00 gibi geç saatlere uzanan pazarlar) için yanlış olabilir — kullanıcı kararı: işlem-sonu ve hatırlatma anlarının **her ikisi de admin tarafından pazar bazında manuel ayarlanabilmeli**, sabit bir varsayıma zorlanmamalı.
 
-**Bilinçli olarak ERTELENEN karar:** "Gelmedi" cezasının tam mekanizması (satıcı hâlâ işaretlemezse ne olur, satılmış-ama-işlenmemiş ürünler nasıl değerlendirilir) henüz netleşmedi — şu an davranış eskisiyle aynı (gün sonunda otomatik `gelmedi`), sadece zamanlama kaydı. Bu konu ayrıca ele alınacak.
+Sonuç: `Pazar` modeline **dört yeni opsiyonel alan** eklendi (migration `20260709144934_pazar_icerik_ve_zamanlama_alanlari`): `islemSonGunu`+`islemSonSaati`, `hatirlatmaGunu`+`hatirlatmaSaati`. Admin bunları pazar formunda boş bırakırsa (`PazarForm.tsx`), kod eski sabit varsayımlara düşer (işlem-sonu → kapanış gününün gece yarısı, hatırlatma → kapanıştan 1 saat sonra) — **regresyon yok**, mevcut pazarlar (ör. Seferihisar) davranış değiştirmez. Admin manuel ayarlarsa, `pazar-olustur`/`pazar-guncelle` route'ları (`opsiyonelGunSaatDogrula`, `hedefOnceMi` — `pazar-dogrulama.ts`) şunu zorunlu kılar: (1) hem gün hem saat birlikte girilmeli, (2) ikisi de kapanıştan SONRAYA denk gelmeli, (3) hatırlatma, işlem-sonundan ÖNCE olmalı (aksi halde hatırlatma anlamsızlaşır — bkz. aşağıdaki "bulunan iki gerçek hata").
 
-## Üç farklı zaman (kritik)
+No-show belirleme kuralının kendisi (aşağıdaki `aktifOlmaZamani < pazarBaslangicAni` karşılaştırması) **hiç değişmedi** — sadece sweep'in NE ZAMAN çalıştığı (artık `pazarIslemSonAni`) ve hatırlatmanın NE ZAMAN gittiği (artık `pazarHatirlatmaAni`) değişti/yapılandırılabilir hale geldi.
+
+**Bilinçli olarak ERTELENEN karar:** "Gelmedi" cezasının tam mekanizması (satıcı hâlâ işaretlemezse ne olur, satılmış-ama-işlenmemiş ürünler nasıl değerlendirilir) henüz netleşmedi — şu an davranış eskisiyle aynı (işlem-sonu anında otomatik `gelmedi`), sadece zamanlama artık yapılandırılabilir. Bu konu ayrıca ele alınacak.
+
+**Bulunan iki gerçek hata (canlı testle):** (1) İlk tasarımda hatırlatma kapanıştan ÖNCE (2 saat erken) gönderiliyordu — kullanıcı "satıcı pazar bitmeden karar veremez" diye düzeltti. (2) Düzeltme sırasında, mevcut (değiştirilmeyen) otomatik ceza kapanış ANINDA çalıştığı için, kapanıştan SONRA gelen bir hatırlatmanın her zaman cezadan SONRA varacağı fark edildi — hatırlatma işlevsiz kalıyordu. Çözüm: cezanın kendisi de (varsayılan olarak) gün sonuna ertelendi, ikisi de artık bağımsız yapılandırılabilir.
+
+## Dört farklı zaman (kritik)
 - **Başlangıç anı** (`Pazar.baslangicGunu`+`baslangicSaati`): ceza eşiği — "kim cezalı" belirler. Değişmedi.
-- **Kapanış anı** (`Pazar.sifirlamaGunu`+`sifirlamaSaati`): pazarın gerçek/ilan edilen kapanış saati. Artık SADECE (1) `pazarRitimBilgisi`'nin "pazar açık mı" göstergesi ve (2) hatırlatma zamanlaması (`kapanış anı + 1 saat`) için kullanılıyor — sweep'i TETİKLEMİYOR.
-- **Gün sonu anı** (`pazarGunSonuAni` — kapanış gününün yerel gece yarısı, yani ertesi günün 00:00'ı): sweep'in gerçekten ÇALIŞTIĞI an, kuyruğu temizler + cezaları yazar + bildirim izi bırakır.
-- Üçü de `pazar-haftasi.ts`'te `pazarBaslangicAni` / `pazarKapanisAni` / `pazarGunSonuAni` ile hesaplanır (Europe/Istanbul; `timeZoneName:"shortOffset"` ile genel TZ, Türkiye sabit +3).
+- **Kapanış anı** (`Pazar.sifirlamaGunu`+`sifirlamaSaati`, UI etiketi artık "Kapanış Günü/Saati" — eskiden "Sıfırlama"): pazarın gerçek/ilan edilen kapanış saati. Artık SADECE (1) `pazarRitimBilgisi`'nin "pazar açık mı" göstergesi ve (2) işlem-sonu/hatırlatma hesaplarının CAPA noktası için kullanılıyor — sweep'i doğrudan TETİKLEMİYOR.
+- **İşlem sonu anı** (`pazarIslemSonAni` — admin `islemSonGunu`/`islemSonSaati` ayarladıysa o an, yoksa kapanış gününün yerel gece yarısı): sweep'in gerçekten ÇALIŞTIĞI an, kuyruğu temizler + cezaları yazar + bildirim izi bırakır.
+- **Hatırlatma anı** (`pazarHatirlatmaAni` — admin `hatirlatmaGunu`/`hatirlatmaSaati` ayarladıysa o an, yoksa kapanıştan 1 saat sonra): satıcıya "işaretlemeyi unutma" bildiriminin gittiği an (`pazarHatirlatmalariGonder`, aynı cron içinde, `PazarHatirlatma` tablosuyla idempotent).
+- Hepsi `pazar-haftasi.ts`'te hesaplanır (Europe/Istanbul; `timeZoneName:"shortOffset"` ile genel TZ, Türkiye sabit +3). İşlem-sonu/hatırlatma, `kapanisSonrasiAni` adlı ortak bir yardımcı ile kapanış gününden **ileri** doğru (gün+saat çifti, gerekirse kapanıştan farklı bir güne bile denk gelebilir) hesaplanır — `pazarBaslangicAni`'nin **geriye** doğru mantığının ayna simetriği.
 
 ## "Başlangıçta aktif miydi" — kapanışta kuyruktan okunamaz (aktifOlmaZamani gerekçesi)
 Kapanış anındaki kuyruk, başlangıç ile kapanış arası değiştiği için (satışlar, gelmediler, yükselmeler) "kim başlangıçta aktifti"yi taşımaz. Çözüm: **`Rezervasyon.aktifOlmaZamani`** — kayıt aktife her geçtiğinde (oluşturmada aktif atanma / `aktifSlotBosalt` yükselme / `rezervasyonGeriAl`; bu üç nokta `rezervasyon-motoru.md`'deki akışlarda) kaydedilir. Kural saf karşılaştırma:
@@ -86,13 +93,13 @@ Her otomatik ceza `DurumGecmisi`'nde admin-okunabilir (`rezervasyon_gelmedi:otom
 
 Sonuç: çok-pazarlı ortamda sıfırlama beklenen izolasyonu koruyor, regresyon yok.
 
-## Veri modeli (migration `20260703035648_haftalik_sifirlama`, `PazarHatirlatma` → `20260709140233_pazar_hatirlatma`)
-- **Pazar**: `baslangicGunu` + `baslangicSaati` (ceza eşiği; mevcut `sifirlama*` = kapanış saati, gün sonu SAKLANMAZ - `pazarGunSonuAni` ile türetilir).
+## Veri modeli (migration `20260703035648_haftalik_sifirlama`, `PazarHatirlatma` → `20260709140233_pazar_hatirlatma`, işlem-sonu/hatırlatma alanları → `20260709144934_pazar_icerik_ve_zamanlama_alanlari`)
+- **Pazar**: `baslangicGunu` + `baslangicSaati` (ceza eşiği, değişmedi); `sifirlamaGunu`/`sifirlamaSaati` (kapanış, UI'da "Kapanış Günü/Saati"); `islemSonGunu`/`islemSonSaati` (opsiyonel, NULL ise gün-sonu/gece-yarısı varsayımı); `hatirlatmaGunu`/`hatirlatmaSaati` (opsiyonel, NULL ise kapanış+1saat varsayımı); ayrıca içerik alanları `belediyeAdi`/`aciklama`/`sorumluAdi`/`sorumluTelefon` (bu akışı etkilemez, raporlama/admin referansı).
 - **Rezervasyon**: `aktifOlmaZamani`, `bildirimGonderildi`, `bildirimKanali`.
 - **PazarSifirlama**: `(pazarId, pazarHaftasi)` unique, `calismaZamani`, `etkilenenSayi` — sweep idempotency.
 - **PazarHatirlatma**: `(pazarId, pazarHaftasi)` unique, `gonderilmeZamani` — hatırlatma idempotency (ayrı tablo, sweep ile karışmasın).
 
 ## İleride
-- **Ertelenen karar (bkz. yukarıdaki 2026-07-09 notu):** Satıcı gün sonuna kadar hâlâ işaretlemezse tam olarak ne olacağı (mevcut davranış: otomatik `gelmedi`) ve satılmış-ama-satıcının-işlem-yapmadığı ürünlerin nasıl ele alınacağı henüz netleşmedi.
+- **Ertelenen karar (bkz. yukarıdaki 2026-07-09 notu):** Satıcı işlem-sonuna kadar hâlâ işaretlemezse tam olarak ne olacağı (mevcut davranış: otomatik `gelmedi`) ve satılmış-ama-satıcının-işlem-yapmadığı ürünlerin nasıl ele alınacağı henüz netleşmedi.
 - Bildirim gönderimi (whatsapp) Faz 2 — şu an yalnızca in-app bildirim (`Bildirim` tablosu) var.
 - Admin itiraz/geri alma akışı admin paneli adımında.

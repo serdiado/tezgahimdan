@@ -89,6 +89,12 @@ type PazarZaman = {
   sifirlamaGunu: string;
   sifirlamaSaati: Date;
   saatDilimi: string;
+  // Opsiyonel: admin manuel ayarlamadiysa NULL, ilgili fonksiyon (pazarIslemSonAni/
+  // pazarHatirlatmaAni) eski sabit varsayima duser.
+  islemSonGunu?: string | null;
+  islemSonSaati?: Date | null;
+  hatirlatmaGunu?: string | null;
+  hatirlatmaSaati?: Date | null;
 };
 
 // pazarHaftasi: kapanis gununun tarihi (UTC geceyarisi, o pazarin Istanbul
@@ -104,14 +110,10 @@ export function pazarKapanisAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
   );
 }
 
-// Kapanis gununun YEREL gece yarisi (24:00 = ertesi gunun 00:00). Kullanici
-// karari (2026-07-09): otomatik "gelmedi" cezasi kapanis ANINDA DEGIL, saticiya
-// isaretlemesi icin o gunun sonuna kadar sure taninip BURADA uygulanir -
-// pazarHatirlatmalariGonder (rezervasyon.ts) kapanistan 1 saat sonra hatirlatir,
-// urunSifirla/pazarlariSifirla bu andan once kuyruga DOKUNMAZ. pazarKapanisAni
-// (yukarida) hala pazarin GERCEK/ilan edilen kapanis saati - UI'da "pazar acik
-// mi" gostergesi (pazarRitimBilgisi) ve hatirlatma zamanlamasi ONU kullanmaya
-// devam eder, SADECE ceza-uygulama tetikleyicisi bu fonksiyona tasindi.
+// Kapanis gununun YEREL gece yarisi (24:00 = ertesi gunun 00:00). pazarIslemSonAni
+// (asagida) bu fonksiyona SADECE admin islemSon* alanlarini manuel ayarlamadiysa
+// duser - dogrudan cagrilmasi artik onerilmez ama geri uyumluluk icin export
+// edilmis kaliyor (eski test/cagri yerleri icin).
 export function pazarGunSonuAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
   return yerelAniUTC(
     pazar.saatDilimi || "Europe/Istanbul",
@@ -121,6 +123,58 @@ export function pazarGunSonuAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
     0,
     0,
   );
+}
+
+// Kapanis gununden ILERI dogru (pazarBaslangicAni'nin GERIYE mantiginin ters
+// yonu), verilen hedefGunu+hedefSaati anini hesaplar - islemSonAni/hatirlatmaAni
+// gibi kapanis-SONRASI olaylar icin ortak yardimci. NOT: hedefGunu===kapanisGunu
+// VE hedefSaati < kapanisSaati ise (ayni gun ama kapanistan ONCE bir saat)
+// gunFarki=0 doner ve sonuc kapanistan ONCEYE denk gelir - bu BILINCLI olarak
+// burada engellenmiyor (saf tarih fonksiyonu), yanlis yapilandirmayi engellemek
+// admin API validasyonunun (pazar-guncelle/pazar-olustur route) isi.
+function kapanisSonrasiAni(
+  pazar: PazarZaman,
+  pazarHaftasi: Date,
+  hedefGunu: string,
+  hedefSaati: Date,
+): Date {
+  const kapanisIdx = GUN_INDEKSI[pazar.sifirlamaGunu];
+  const hedefIdx = GUN_INDEKSI[hedefGunu];
+  if (kapanisIdx === undefined || hedefIdx === undefined) {
+    throw new Error(`taninmayan gun: ${pazar.sifirlamaGunu} / ${hedefGunu}`);
+  }
+  const gunFarki = (hedefIdx - kapanisIdx + 7) % 7;
+  return yerelAniUTC(
+    pazar.saatDilimi || "Europe/Istanbul",
+    pazarHaftasi.getUTCFullYear(),
+    pazarHaftasi.getUTCMonth(),
+    pazarHaftasi.getUTCDate() + gunFarki,
+    hedefSaati.getUTCHours(),
+    hedefSaati.getUTCMinutes(),
+  );
+}
+
+// Saticinin en son "Sattim/Gelmedi" isaretleyebilecegi an - otomatik "gelmedi"
+// cezasinin GERCEKTEN tetiklendigi an budur (bkz. rezervasyon.ts urunSifirla).
+// Admin bunu MANUEL ayarlamadiysa (islemSonGunu/Saati NULL) eski varsayilan
+// davranisa duser: kapanis gununun yerel gece yarisi (pazarGunSonuAni). Gece
+// pazarlari (kapanis 01:00-02:00 gibi) icin bu varsayim YANLIS olabilir -
+// boyle pazarlarda admin bu alani ACIKCA ayarlamali (kullanici karari, 2026-07-09).
+export function pazarIslemSonAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
+  if (pazar.islemSonGunu && pazar.islemSonSaati) {
+    return kapanisSonrasiAni(pazar, pazarHaftasi, pazar.islemSonGunu, pazar.islemSonSaati);
+  }
+  return pazarGunSonuAni(pazar, pazarHaftasi);
+}
+
+// Saticiya "isaretlemeyi unutma" hatirlatmasinin gittigi an (bkz. rezervasyon.ts
+// pazarHatirlatmalariGonder). Admin manuel ayarlamadiysa (hatirlatmaGunu/Saati
+// NULL) eski varsayilan: kapanistan 1 saat sonra.
+export function pazarHatirlatmaAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
+  if (pazar.hatirlatmaGunu && pazar.hatirlatmaSaati) {
+    return kapanisSonrasiAni(pazar, pazarHaftasi, pazar.hatirlatmaGunu, pazar.hatirlatmaSaati);
+  }
+  return new Date(pazarKapanisAni(pazar, pazarHaftasi).getTime() + 60 * 60 * 1000);
 }
 
 // Baslangic (ceza esigi) ani = ayni hafta icinde, kapanis gununden GERIYE

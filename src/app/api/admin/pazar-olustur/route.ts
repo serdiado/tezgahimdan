@@ -7,6 +7,8 @@ import {
   saatliTarih,
   gecerliSaatDilimiMi,
   gecerliUrlMi,
+  opsiyonelGunSaatDogrula,
+  hedefOnceMi,
 } from "../pazar-dogrulama";
 
 export async function POST(request: Request) {
@@ -22,6 +24,11 @@ export async function POST(request: Request) {
   const semtHam = typeof body?.semt === "string" ? body.semt.trim() : "";
   const googleHaritaLinki =
     typeof body?.googleHaritaLinki === "string" ? body.googleHaritaLinki.trim() : "";
+  const belediyeAdiHam = typeof body?.belediyeAdi === "string" ? body.belediyeAdi.trim() : "";
+  const aciklamaHam = typeof body?.aciklama === "string" ? body.aciklama.trim() : "";
+  const sorumluAdiHam = typeof body?.sorumluAdi === "string" ? body.sorumluAdi.trim() : "";
+  const sorumluTelefonHam =
+    typeof body?.sorumluTelefon === "string" ? body.sorumluTelefon.trim() : "";
   const baslangicSaatiHam = typeof body?.baslangicSaati === "string" ? body.baslangicSaati : "";
   const sifirlamaSaatiHam = typeof body?.sifirlamaSaati === "string" ? body.sifirlamaSaati : "";
   const saatDilimi =
@@ -40,6 +47,18 @@ export async function POST(request: Request) {
   }
   if (semtHam.length > 100) {
     return NextResponse.json({ hata: "semt en fazla 100 karakter olabilir" }, { status: 400 });
+  }
+  if (belediyeAdiHam.length > 150) {
+    return NextResponse.json({ hata: "belediye adı en fazla 150 karakter olabilir" }, { status: 400 });
+  }
+  if (aciklamaHam.length > 1000) {
+    return NextResponse.json({ hata: "açıklama en fazla 1000 karakter olabilir" }, { status: 400 });
+  }
+  if (sorumluAdiHam.length > 150) {
+    return NextResponse.json({ hata: "sorumlu adı en fazla 150 karakter olabilir" }, { status: 400 });
+  }
+  if (sorumluTelefonHam.length > 30) {
+    return NextResponse.json({ hata: "sorumlu telefonu en fazla 30 karakter olabilir" }, { status: 400 });
   }
   if (!googleHaritaLinki || !gecerliUrlMi(googleHaritaLinki) || googleHaritaLinki.length > 500) {
     return NextResponse.json(
@@ -65,6 +84,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: "geçersiz saat dilimi (ör. Europe/Istanbul)" }, { status: 400 });
   }
 
+  // islemSon*/hatirlatma*: opsiyonel, ama ayarlanirsa kapanistan SONRA olmali
+  // (gece pazarlari icin gun bile farkli olabilir - bkz. pazar-dogrulama.ts).
+  const islemSonSonuc = opsiyonelGunSaatDogrula(
+    body?.islemSonGunu, body?.islemSonSaati, "işlem sonu", sifirlamaGunu, sifirlamaSaatiHam,
+  );
+  if ("hata" in islemSonSonuc) {
+    return NextResponse.json({ hata: islemSonSonuc.hata }, { status: 400 });
+  }
+  const hatirlatmaSonuc = opsiyonelGunSaatDogrula(
+    body?.hatirlatmaGunu, body?.hatirlatmaSaati, "hatırlatma", sifirlamaGunu, sifirlamaSaatiHam,
+  );
+  if ("hata" in hatirlatmaSonuc) {
+    return NextResponse.json({ hata: hatirlatmaSonuc.hata }, { status: 400 });
+  }
+  // Ikisi de ayarlandiysa: hatirlatma, islem-sonundan SONRA olamaz (aksi halde
+  // satici hatirlatmayi aldiginda ceza coktan uygulanmis olur - bkz. rezervasyon.ts
+  // pazarHatirlatmalariGonder'daki "BILINEN TUTARSIZLIK" gecmisi, ayni hata
+  // burada admin yapilandirmasi seviyesinde tekrar olusmasin diye engellenir).
+  if (
+    islemSonSonuc.gun && hatirlatmaSonuc.gun &&
+    !hedefOnceMi(sifirlamaGunu, hatirlatmaSonuc.gun, hatirlatmaSonuc.saatHHMM!, islemSonSonuc.gun, islemSonSonuc.saatHHMM!)
+  ) {
+    return NextResponse.json(
+      { hata: "hatırlatma, işlem sonu saatinden önce olmalı (yoksa hatırlatma işe yaramaz)" },
+      { status: 400 },
+    );
+  }
+
   // Kalici yazma eylemi: DurumGecmisi'ne ADMIN'in kendi id'siyle iz birakilir
   // (Build A konvansiyonu - kullaniciId = eylemi yapan, etkilenen kayit degil).
   const pazar = await prisma.$transaction(async (tx) => {
@@ -75,10 +122,18 @@ export async function POST(request: Request) {
         ilce,
         semt: semtHam || null,
         googleHaritaLinki,
+        belediyeAdi: belediyeAdiHam || null,
+        aciklama: aciklamaHam || null,
+        sorumluAdi: sorumluAdiHam || null,
+        sorumluTelefon: sorumluTelefonHam || null,
         baslangicGunu,
         baslangicSaati: saatliTarih(baslangicSaatiHam),
         sifirlamaGunu,
         sifirlamaSaati: saatliTarih(sifirlamaSaatiHam),
+        islemSonGunu: islemSonSonuc.gun,
+        islemSonSaati: islemSonSonuc.saat,
+        hatirlatmaGunu: hatirlatmaSonuc.gun,
+        hatirlatmaSaati: hatirlatmaSonuc.saat,
         saatDilimi,
       },
     });

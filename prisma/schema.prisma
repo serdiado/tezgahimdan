@@ -36,12 +36,35 @@ model Pazar {
   ilce              String
   semt              String?
   googleHaritaLinki String
-  // baslangic*: pazarin acilis (ceza esigi) ani. sifirlama*: kapanis/sifirlama ani.
-  // Ikisi FARKLI an: baslangic "kim cezali"yi, kapanis kuyrugu temizlemeyi belirler.
+  // Icerik/raporlama alanlari (2026-07-09) - hicbiri islevsel akisi etkilemez,
+  // hepsi opsiyonel (mevcut pazarlar geriye donuk NULL kalir).
+  belediyeAdi    String? // ulusal buyume hedefi: hangi belediyeye ait, ileride raporlama/coklu-belediye ayrimi icin
+  aciklama       String? @db.Text // vitrin/anasayfada gosterilecek kisa tanitim metni
+  sorumluAdi     String? // pazar sorumlusu (PLAN.md SS7'deki gelecek rolun temeli) - admin ic referansi
+  sorumluTelefon String?
+  // baslangic*: pazarin acilis (ceza esigi) ani. sifirlama*: pazarin GERCEK/ilan
+  // edilen kapanis ani (UI'da "Kapanis Saati" - eskiden "Sifirlama Saati").
+  // Ikisi FARKLI an: baslangic "kim cezali"yi belirler, kapanis SADECE ilan
+  // edilen saat + hatirlatma/islem-sonu hesaplarinin CAPA noktasidir - kuyrugu
+  // artik DOGRUDAN TETIKLEMEZ (bkz. islemSon*).
   baslangicGunu  HaftaGunu @default(Carsamba)
   baslangicSaati DateTime  @default(dbgenerated("'09:00:00'::time")) @db.Time
   sifirlamaGunu  HaftaGunu
   sifirlamaSaati DateTime  @db.Time
+  // islemSon*: saticinin en son "Sattim/Gelmedi" isaretleyebilecegi an - otomatik
+  // "gelmedi" cezasinin GERCEKTEN tetiklendigi an budur (bkz. rezervasyon.ts
+  // urunSifirla). hatirlatma*: saticiya "isaretlemeyi unutma" bildiriminin
+  // gittigi an. IKISI DE NULL olabilir (mevcut pazarlar + yeni pazar formunda
+  // bos birakilirsa) - bu durumda kod eski sabit varsayimlara duser (islemSon
+  // -> kapanis gunu + gece yarisi, hatirlatma -> kapanis + 1 saat, bkz.
+  // pazar-haftasi.ts). Gece pazarlari (kapanis 01:00-02:00 gibi) icin bu
+  // varsayimlar YANLIS olabilir - kullanici KARARI: hepsi manuel ayarlanabilir
+  // olmali, kapanis gununden FARKLI bir gune bile denk gelebilir (ör. kapanis
+  // Carsamba 01:00 ise islemSonGunu Carsamba, saati 10:00 gibi olabilir).
+  islemSonGunu   HaftaGunu?
+  islemSonSaati  DateTime?  @db.Time
+  hatirlatmaGunu HaftaGunu?
+  hatirlatmaSaati DateTime? @db.Time
   saatDilimi     String    @default("Europe/Istanbul")
   // Pasif (aktifMi=false) oldugunda: (1) bagli magazalar vitrinde/anasayfada
   // GORUNMEZ (getMagazaBySlug + anasayfa sorgusu pazar.aktifMi filtreler),

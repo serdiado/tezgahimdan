@@ -11,10 +11,18 @@ export type PazarFormVeri = {
   ilce: string;
   semt: string | null;
   googleHaritaLinki: string;
+  belediyeAdi: string | null;
+  aciklama: string | null;
+  sorumluAdi: string | null;
+  sorumluTelefon: string | null;
   baslangicGunu: string;
   baslangicSaati: string;
   sifirlamaGunu: string;
   sifirlamaSaati: string;
+  islemSonGunu: string | null;
+  islemSonSaati: string | null;
+  hatirlatmaGunu: string | null;
+  hatirlatmaSaati: string | null;
   saatDilimi: string;
   aktifMi: boolean;
 };
@@ -32,6 +40,10 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
   const [ilce, setIlce] = useState(mevcut?.ilce ?? "");
   const [semt, setSemt] = useState(mevcut?.semt ?? "");
   const [googleHaritaLinki, setGoogleHaritaLinki] = useState(mevcut?.googleHaritaLinki ?? "");
+  const [belediyeAdi, setBelediyeAdi] = useState(mevcut?.belediyeAdi ?? "");
+  const [aciklama, setAciklama] = useState(mevcut?.aciklama ?? "");
+  const [sorumluAdi, setSorumluAdi] = useState(mevcut?.sorumluAdi ?? "");
+  const [sorumluTelefon, setSorumluTelefon] = useState(mevcut?.sorumluTelefon ?? "");
   const [baslangicGunu, setBaslangicGunu] = useState(mevcut?.baslangicGunu ?? "Carsamba");
   const [baslangicSaati, setBaslangicSaati] = useState(
     mevcut ? saatMetnineCevir(mevcut.baslangicSaati) : "09:00",
@@ -39,6 +51,16 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
   const [sifirlamaGunu, setSifirlamaGunu] = useState(mevcut?.sifirlamaGunu ?? "Carsamba");
   const [sifirlamaSaati, setSifirlamaSaati] = useState(
     mevcut ? saatMetnineCevir(mevcut.sifirlamaSaati) : "20:00",
+  );
+  // islemSon*/hatirlatma*: opsiyonel - bos ("") gun secili demek "otomatik/
+  // varsayilan" (kod eski sabit hesaplara duser, bkz. pazar-haftasi.ts).
+  const [islemSonGunu, setIslemSonGunu] = useState(mevcut?.islemSonGunu ?? "");
+  const [islemSonSaati, setIslemSonSaati] = useState(
+    mevcut?.islemSonSaati ? saatMetnineCevir(mevcut.islemSonSaati) : "",
+  );
+  const [hatirlatmaGunu, setHatirlatmaGunu] = useState(mevcut?.hatirlatmaGunu ?? "");
+  const [hatirlatmaSaati, setHatirlatmaSaati] = useState(
+    mevcut?.hatirlatmaSaati ? saatMetnineCevir(mevcut.hatirlatmaSaati) : "",
   );
   const [saatDilimi, setSaatDilimi] = useState(mevcut?.saatDilimi ?? "Europe/Istanbul");
   const [aktifMi, setAktifMi] = useState(mevcut?.aktifMi ?? true);
@@ -57,10 +79,18 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
       ilce: ilce.trim(),
       semt: semt.trim() || null,
       googleHaritaLinki: googleHaritaLinki.trim(),
+      belediyeAdi: belediyeAdi.trim() || null,
+      aciklama: aciklama.trim() || null,
+      sorumluAdi: sorumluAdi.trim() || null,
+      sorumluTelefon: sorumluTelefon.trim() || null,
       baslangicGunu,
       baslangicSaati,
       sifirlamaGunu,
       sifirlamaSaati,
+      islemSonGunu: islemSonGunu || "",
+      islemSonSaati: islemSonSaati || "",
+      hatirlatmaGunu: hatirlatmaGunu || "",
+      hatirlatmaSaati: hatirlatmaSaati || "",
       saatDilimi: saatDilimi.trim() || "Europe/Istanbul",
       ...(duzenlemeModu ? { aktifMi } : {}),
     };
@@ -138,6 +168,59 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
 
       <div>
         <label className="block text-sm font-medium text-neutral-700">
+          Belediye Adı (opsiyonel)
+          <input
+            type="text"
+            value={belediyeAdi}
+            onChange={(e) => setBelediyeAdi(e.target.value)}
+            placeholder="ör. Seferihisar Belediyesi"
+            className={inputClass}
+          />
+        </label>
+        <p className="mt-1 text-xs text-neutral-400">
+          Hangi belediyeye ait olduğunu kaydeder - birden fazla belediye eklendiğinde
+          raporlama/ayrım için kullanılır.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-700">
+          Pazar Açıklaması (opsiyonel)
+          <textarea
+            value={aciklama}
+            onChange={(e) => setAciklama(e.target.value)}
+            rows={3}
+            placeholder="Vitrinde gösterilecek kısa bir tanıtım metni"
+            className={inputClass}
+          />
+        </label>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block text-sm font-medium text-neutral-700">
+          Pazar Sorumlusu Adı (opsiyonel)
+          <input
+            type="text"
+            value={sorumluAdi}
+            onChange={(e) => setSorumluAdi(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="block text-sm font-medium text-neutral-700">
+          Sorumlu Telefonu (opsiyonel)
+          <input
+            type="tel"
+            value={sorumluTelefon}
+            onChange={(e) => setSorumluTelefon(e.target.value)}
+            placeholder="05XX XXX XX XX"
+            className={inputClass}
+          />
+        </label>
+      </div>
+      <p className="-mt-2 text-xs text-neutral-400">Admin iç referansı - alıcı/satıcıya gösterilmez.</p>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-700">
           Google Haritası Linki
           <input
             type="url"
@@ -186,7 +269,7 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
 
       <div className="grid grid-cols-2 gap-3">
         <label className="block text-sm font-medium text-neutral-700">
-          Sıfırlama Günü
+          Kapanış Günü
           <select
             value={sifirlamaGunu}
             onChange={(e) => setSifirlamaGunu(e.target.value)}
@@ -200,7 +283,7 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
           </select>
         </label>
         <label className="block text-sm font-medium text-neutral-700">
-          Sıfırlama Saati
+          Kapanış Saati
           <input
             type="time"
             value={sifirlamaSaati}
@@ -211,8 +294,78 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
         </label>
       </div>
       <p className="-mt-2 text-xs text-neutral-400">
-        Sıfırlama: kuyruğun temizlendiği kapanış anı.
+        Kapanış: pazarın ilan edilen bitiş saati (kuyruğu doğrudan temizlemez, aşağıdaki
+        &quot;İşlem Sonu&quot; ile birlikte çalışır).
       </p>
+
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm font-medium text-neutral-700">
+            İşlem Sonu Günü (opsiyonel)
+            <select
+              value={islemSonGunu}
+              onChange={(e) => setIslemSonGunu(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Otomatik (kapanış gününün gece yarısı)</option>
+              {HAFTA_GUNLERI.map((g) => (
+                <option key={g.deger} value={g.deger}>
+                  {g.etiket}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-neutral-700">
+            İşlem Sonu Saati
+            <input
+              type="time"
+              value={islemSonSaati}
+              onChange={(e) => setIslemSonSaati(e.target.value)}
+              disabled={!islemSonGunu}
+              className={`${inputClass} disabled:bg-neutral-100 disabled:text-neutral-400`}
+            />
+          </label>
+        </div>
+        <p className="text-xs text-neutral-500">
+          Satıcının en son &quot;Sattım/Gelmedi&quot; işaretleyebileceği an - bu andan sonra
+          işaretlenmemiş rezervasyonlar otomatik &quot;gelmedi&quot; sayılır. Gece geç saate kadar
+          açık pazarlarda (ör. kapanış 01:00) mutlaka manuel ayarlayın - aksi halde kapanış
+          gününün gece yarısı varsayılır ve pazar kapanmadan işlem yapılmış olur.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm font-medium text-neutral-700">
+            Hatırlatma Günü (opsiyonel)
+            <select
+              value={hatirlatmaGunu}
+              onChange={(e) => setHatirlatmaGunu(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">Otomatik (kapanıştan 1 saat sonra)</option>
+              {HAFTA_GUNLERI.map((g) => (
+                <option key={g.deger} value={g.deger}>
+                  {g.etiket}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-neutral-700">
+            Hatırlatma Saati
+            <input
+              type="time"
+              value={hatirlatmaSaati}
+              onChange={(e) => setHatirlatmaSaati(e.target.value)}
+              disabled={!hatirlatmaGunu}
+              className={`${inputClass} disabled:bg-neutral-100 disabled:text-neutral-400`}
+            />
+          </label>
+        </div>
+        <p className="text-xs text-neutral-500">
+          Satıcılara &quot;işaretlemeyi unutma&quot; bildiriminin gönderileceği an - İşlem
+          Sonu&apos;ndan ÖNCE olmalı, yoksa satıcı bildirimi aldığında ceza çoktan uygulanmış
+          olur.
+        </p>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-neutral-700">

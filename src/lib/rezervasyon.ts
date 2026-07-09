@@ -2,8 +2,8 @@ import { randomInt, randomUUID } from "node:crypto";
 import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
 import {
   pazarBaslangicAni,
-  pazarGunSonuAni,
-  pazarKapanisAni,
+  pazarHatirlatmaAni,
+  pazarIslemSonAni,
   sonrakiSifirlamaTarihi,
 } from "@/lib/pazar-haftasi";
 import { kullaniciYasakliMi } from "@/lib/yetki";
@@ -810,12 +810,13 @@ async function urunSifirla(urunId: string, now: Date): Promise<SifirlaSonucu> {
       // olarak bildirim kapsamina alinmadi (kullanici karari).
       const noShowlar: { urunId: string; aliciId: string }[] = [];
       for (const rez of kuyruk) {
-        // Gun sonu (gece yarisi) henuz gelmedi ise atla - satici kapanistan
-        // itibaren o gunun sonuna kadar isaretleme suresine sahip (kullanici
-        // karari, bkz. pazarGunSonuAni yorumu). Kapanis ANI (pazarKapanisAni)
-        // artik BURADA tetikleyici DEGIL, sadece no-show esigi (baslangic)
-        // hesabinda dolayli kullaniliyor.
-        if (now < pazarGunSonuAni(pazar, rez.pazarHaftasi)) continue;
+        // Islem-sonu ani (varsayilan gun sonu/gece yarisi, admin manuel
+        // ayarlarsa Pazar.islemSonGunu/Saati - bkz. pazarIslemSonAni) henuz
+        // gelmedi ise atla - satici kapanistan itibaren bu ana kadar
+        // isaretleme suresine sahip (kullanici karari, 2026-07-09). Kapanis
+        // ANI (pazarKapanisAni) artik BURADA tetikleyici DEGIL, sadece no-show
+        // esigi (baslangic) hesabinda dolayli kullaniliyor.
+        if (now < pazarIslemSonAni(pazar, rez.pazarHaftasi)) continue;
 
         const baslangic = pazarBaslangicAni(pazar, rez.pazarHaftasi);
         // No-show cezasi SADECE pazar baslangicinda zaten aktif olana.
@@ -887,7 +888,7 @@ export async function pazarlariSifirla(
 
   const sifirlanacak = new Set<string>();
   for (const r of bekleyenler) {
-    if (now >= pazarGunSonuAni(r.urun.magaza.pazar, r.pazarHaftasi)) {
+    if (now >= pazarIslemSonAni(r.urun.magaza.pazar, r.pazarHaftasi)) {
       sifirlanacak.add(r.urunId);
     }
   }
@@ -913,16 +914,14 @@ export async function pazarlariSifirla(
 // (pazar-sifirlama route) tarafindan cagirilir - yeni bir VPS cron girdisi
 // gerektirmez.
 //
-// BILINEN TUTARSIZLIK (kullaniciya bildirildi, bilincli olarak simdilik
-// birakildi): urunSifirla otomatik "gelmedi" cezasini kapanis ANINDA uygular
-// (asagida DEGISTIRILMEDI), bu hatirlatma ise kapanistan 1 saat SONRA gider -
-// yani satici bu bildirimi aldiginda ceza cogunlukla COKTAN uygulanmis olur.
-// Hatirlatmanin gercekten onleyici olmasi icin cezanin da gun sonuna
-// ertelenmesi gerekir - bu, "gelmedi nasil isaretlenecek / satilmis ama
-// islenmemis urunler ne olacak" sorusuyla birlikte BILINCLI olarak sonraya
-// birakildi (kullanici karari).
-const HATIRLATMA_SONRA_SAAT = 1;
-
+// Zamanlama: pazarHatirlatmaAni (varsayilan kapanis+1saat, admin manuel
+// ayarlarsa Pazar.hatirlatmaGunu/hatirlatmaSaati) ile urunSifirla'nin
+// tetikleyicisi pazarIslemSonAni (varsayilan gun sonu/gece yarisi, admin
+// manuel ayarlarsa Pazar.islemSonGunu/islemSonSaati) ARTIK BIRBIRINDEN
+// BAGIMSIZ, ikisi de admin tarafindan manuel yapilandirilabilir (2026-07-09,
+// gece pazarlari - kapanis 01:00-02:00 gibi - icin sabit varsayimlar yanlis
+// olurdu). Admin bu iki alani celiskili ayarlarsa (hatirlatma, islem-sonundan
+// SONRAYA denk gelirse) API katmaninda (pazar-olustur/pazar-guncelle) engellenir.
 export async function pazarHatirlatmalariGonder(
   now: Date = new Date(),
 ): Promise<{ hatirlatilanPazarSayisi: number; hatirlatilanSaticiSayisi: number }> {
@@ -936,6 +935,10 @@ export async function pazarHatirlatmalariGonder(
       sifirlamaGunu: true,
       sifirlamaSaati: true,
       saatDilimi: true,
+      hatirlatmaGunu: true,
+      hatirlatmaSaati: true,
+      islemSonGunu: true,
+      islemSonSaati: true,
     },
   });
 
@@ -953,10 +956,9 @@ export async function pazarHatirlatmalariGonder(
     // haftayi buluruz - zaten kapanmis, tek dogru aday odur).
     const gelecekHaftasi = sonrakiSifirlamaTarihi(pazar, now);
     const pazarHaftasi = new Date(gelecekHaftasi.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const kapanisAni = pazarKapanisAni(pazar, pazarHaftasi);
-    const esikAni = new Date(kapanisAni.getTime() + HATIRLATMA_SONRA_SAAT * 60 * 60 * 1000);
-    // Kapanistan +1 saat gelmediyse atla. Ust sinir YOK (durum-bazli catch-up
-    // deseni, urunSifirla'daki "zamana degil duruma bakar" ilkesiyle tutarli) -
+    const esikAni = pazarHatirlatmaAni(pazar, pazarHaftasi);
+    // Esik ani gelmediyse atla. Ust sinir YOK (durum-bazli catch-up deseni,
+    // urunSifirla'daki "zamana degil duruma bakar" ilkesiyle tutarli) -
     // idempotency asagidaki INSERT ile saglaniyor, tekrar tekrar gonderilmez.
     if (now < esikAni) continue;
 
@@ -983,10 +985,20 @@ export async function pazarHatirlatmalariGonder(
     const saticiIdler = [...new Set(bekleyenler.map((b) => b.urun.magaza.sahipId))];
     if (saticiIdler.length === 0) continue;
 
+    // Mesajdaki saat sabit "gece yarisi" DEGIL, gercek islemSonAni'ndan
+    // formatlanir - gece pazarlarinda (ozel yapilandirilmis islemSon*) bu
+    // gece yarisindan farkli bir saat olabilir.
+    const islemSonAni = pazarIslemSonAni(pazar, pazarHaftasi);
+    const islemSonSaatMetni = new Intl.DateTimeFormat("tr-TR", {
+      timeZone: pazar.saatDilimi || "Europe/Istanbul",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(islemSonAni);
+
     await prisma.bildirim.createMany({
       data: saticiIdler.map((kullaniciId) => ({
         kullaniciId,
-        mesaj: `${pazar.ad} pazarı kapandı. İşaretlemediğin rezervasyonlar varsa bu gece yarısına kadar "Sattım/Gelmedi" olarak işaretle - yoksa gece yarısı otomatik "gelmedi" sayılacaklar.`,
+        mesaj: `${pazar.ad} pazarı kapandı. İşaretlemediğin rezervasyonlar varsa saat ${islemSonSaatMetni}'e kadar "Sattım/Gelmedi" olarak işaretle - yoksa o saatte otomatik "gelmedi" sayılacaklar.`,
         hedefYolu: "/panel/rezervasyonlar",
       })),
     });
