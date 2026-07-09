@@ -1075,6 +1075,12 @@ export async function saticininBekleyenIslemleriGetir(
 // verilmezse TUM platform taranir (ör. anasayfa vitrini, coklu-magaza).
 // saticininBekleyenIslemleriGetir ile AYNI filtre mantigi (kasitli - tek
 // dogru kaynak, iki fonksiyon arasinda sapma riski olmasin).
+//
+// 2026-07-09 canli testte bulunan kapsam duzeltmesi: panel TAMAMEN kilitli
+// oldugu halde vitrinde SADECE sorunlu urun pasif gorunuyordu (tutarsiz -
+// satici zaten hicbir islem yapamiyor, digerlerini pazarlamaya devam ediyor
+// gibi gorunmesi yaniltici). Kullanici karari: bekleyen isareti olan HER
+// magaza icin TUM urunleri pasiflesin, sadece sorunlu urun degil.
 export async function pasifUrunIdSeti(
   magazaId?: string,
   now: Date = new Date(),
@@ -1089,21 +1095,29 @@ export async function pasifUrunIdSeti(
       urunId: true,
       pazarHaftasi: true,
       aktifOlmaZamani: true,
-      urun: { select: { magaza: { select: { pazar: true } } } },
+      urun: { select: { magazaId: true, magaza: { select: { pazar: true } } } },
     },
   });
 
-  const urunIdler = new Set<string>();
+  const kontrolEdilenUrunIdler = new Set<string>();
+  const pasifMagazaIdSeti = new Set<string>();
   for (const r of adaylar) {
-    if (urunIdler.has(r.urunId)) continue; // ayni urun icin birden fazla adayda tekrar hesaplamaya gerek yok
+    if (kontrolEdilenUrunIdler.has(r.urunId)) continue; // ayni urun icin birden fazla adayda tekrar hesaplamaya gerek yok
+    kontrolEdilenUrunIdler.add(r.urunId);
     const pazar = r.urun.magaza.pazar;
     if (now < pazarIslemSonAni(pazar, r.pazarHaftasi)) continue;
     const baslangic = pazarBaslangicAni(pazar, r.pazarHaftasi);
     if (r.aktifOlmaZamani != null && r.aktifOlmaZamani < baslangic) {
-      urunIdler.add(r.urunId);
+      pasifMagazaIdSeti.add(r.urun.magazaId);
     }
   }
-  return urunIdler;
+  if (pasifMagazaIdSeti.size === 0) return new Set();
+
+  const urunler = await prisma.urun.findMany({
+    where: { magazaId: { in: [...pasifMagazaIdSeti] }, silindiMi: false },
+    select: { id: true },
+  });
+  return new Set(urunler.map((u) => u.id));
 }
 
 // Cron tarafindan (pazar-sifirlama route icinde) cagrilir: islem-sonundan 3+

@@ -31,8 +31,8 @@ export async function BekleyenIslemlerEkrani({
           <h1 className="text-lg font-bold text-amber-900">Bekleyen İşlemleriniz Var</h1>
           <p className="mt-1 text-sm text-amber-800">
             Aşağıdaki rezervasyonları &quot;Satıldı&quot; veya &quot;Gelmedi&quot; olarak
-            işaretlemeden panelin diğer bölümlerine geçemezsiniz. Bu ürünler siz işaretleyene
-            kadar tezgahınızda pasif görünür.
+            işaretlemeden panelin diğer bölümlerine geçemezsiniz. Siz işaretleyene kadar
+            tezgahınızdaki <strong>tüm ürünler</strong> pasif görünür ve rezerve edilemez.
           </p>
         </div>
         <div className="mt-4 space-y-4">
