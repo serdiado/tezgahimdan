@@ -1,6 +1,11 @@
 import { randomInt, randomUUID } from "node:crypto";
 import { p2002Hedefi, p2002Mi, prisma } from "@/lib/prisma";
-import { pazarBaslangicAni, pazarKapanisAni, sonrakiSifirlamaTarihi } from "@/lib/pazar-haftasi";
+import {
+  pazarBaslangicAni,
+  pazarGunSonuAni,
+  pazarKapanisAni,
+  sonrakiSifirlamaTarihi,
+} from "@/lib/pazar-haftasi";
 import { kullaniciYasakliMi } from "@/lib/yetki";
 import { platformAyarlariGetir } from "@/lib/platform-ayarlari";
 
@@ -805,8 +810,12 @@ async function urunSifirla(urunId: string, now: Date): Promise<SifirlaSonucu> {
       // olarak bildirim kapsamina alinmadi (kullanici karari).
       const noShowlar: { urunId: string; aliciId: string }[] = [];
       for (const rez of kuyruk) {
-        // Bu haftanin kapanisi henuz gelmedi ise atla (gelecek hafta kaydi).
-        if (now < pazarKapanisAni(pazar, rez.pazarHaftasi)) continue;
+        // Gun sonu (gece yarisi) henuz gelmedi ise atla - satici kapanistan
+        // itibaren o gunun sonuna kadar isaretleme suresine sahip (kullanici
+        // karari, bkz. pazarGunSonuAni yorumu). Kapanis ANI (pazarKapanisAni)
+        // artik BURADA tetikleyici DEGIL, sadece no-show esigi (baslangic)
+        // hesabinda dolayli kullaniliyor.
+        if (now < pazarGunSonuAni(pazar, rez.pazarHaftasi)) continue;
 
         const baslangic = pazarBaslangicAni(pazar, rez.pazarHaftasi);
         // No-show cezasi SADECE pazar baslangicinda zaten aktif olana.
@@ -860,10 +869,10 @@ async function urunSifirla(urunId: string, now: Date): Promise<SifirlaSonucu> {
   );
 }
 
-// Cron tarafindan cagrilir. ZAMANA degil DURUMA bakar: kapanis vakti gecmis VE
-// hala bekleyen kuyrugu olan urunleri sifirlar (catch-up: restart'ta kaçmaz).
-// Idempotent: ikinci cagride bekleyen kalmadigi icin no-op. Her urun ayri
-// transaction + FOR UPDATE (kisa kilit, kismi basari toleransi).
+// Cron tarafindan cagrilir. ZAMANA degil DURUMA bakar: gun sonu (gece yarisi)
+// gecmis VE hala bekleyen kuyrugu olan urunleri sifirlar (catch-up: restart'ta
+// kaçmaz). Idempotent: ikinci cagride bekleyen kalmadigi icin no-op. Her urun
+// ayri transaction + FOR UPDATE (kisa kilit, kismi basari toleransi).
 export async function pazarlariSifirla(
   now: Date = new Date(),
 ): Promise<{ islenenUrun: number; toplamEtkilenen: number; tumNoShowlar: { urunId: string; aliciId: string }[] }> {
@@ -878,7 +887,7 @@ export async function pazarlariSifirla(
 
   const sifirlanacak = new Set<string>();
   for (const r of bekleyenler) {
-    if (now >= pazarKapanisAni(r.urun.magaza.pazar, r.pazarHaftasi)) {
+    if (now >= pazarGunSonuAni(r.urun.magaza.pazar, r.pazarHaftasi)) {
       sifirlanacak.add(r.urunId);
     }
   }
@@ -897,12 +906,22 @@ export async function pazarlariSifirla(
   return { islenenUrun, toplamEtkilenen, tumNoShowlar };
 }
 
-// Kapanistan ONCE saticiya hatirlatma: urunSifirla'nin cezasindan TAMAMEN
-// bagimsiz bir mekanizma - o an hicbir rezervasyon durumu DEGISTIRMEZ, sadece
-// "birazdan otomatik gelmedi olacak, simdi isaretle" uyarisi gonderir. Ayni
-// cron (pazar-sifirlama route) tarafindan, urunSifirla'dan ONCE cagirilir -
-// yeni bir VPS cron girdisi gerektirmez.
-const HATIRLATMA_ONCEDEN_SAAT = 2;
+// Kapanistan SONRA saticiya hatirlatma (kullanici karari 2026-07-09: kapanistan
+// ONCE degil - satici pazar bitmeden "sonuc" karari veremez). urunSifirla'nin
+// cezasindan TAMAMEN bagimsiz bir mekanizma - o an hicbir rezervasyon durumu
+// DEGISTIRMEZ, sadece "isaretlemeyi unutma" uyarisi gonderir. Ayni cron
+// (pazar-sifirlama route) tarafindan cagirilir - yeni bir VPS cron girdisi
+// gerektirmez.
+//
+// BILINEN TUTARSIZLIK (kullaniciya bildirildi, bilincli olarak simdilik
+// birakildi): urunSifirla otomatik "gelmedi" cezasini kapanis ANINDA uygular
+// (asagida DEGISTIRILMEDI), bu hatirlatma ise kapanistan 1 saat SONRA gider -
+// yani satici bu bildirimi aldiginda ceza cogunlukla COKTAN uygulanmis olur.
+// Hatirlatmanin gercekten onleyici olmasi icin cezanin da gun sonuna
+// ertelenmesi gerekir - bu, "gelmedi nasil isaretlenecek / satilmis ama
+// islenmemis urunler ne olacak" sorusuyla birlikte BILINCLI olarak sonraya
+// birakildi (kullanici karari).
+const HATIRLATMA_SONRA_SAAT = 1;
 
 export async function pazarHatirlatmalariGonder(
   now: Date = new Date(),
@@ -923,11 +942,23 @@ export async function pazarHatirlatmalariGonder(
   let hatirlatilanPazarSayisi = 0;
   let hatirlatilanSaticiSayisi = 0;
   for (const pazar of pazarlar) {
-    const pazarHaftasi = sonrakiSifirlamaTarihi(pazar, now);
+    // sonrakiSifirlamaTarihi(pazar, now) "bundan sonraki ILK kapanisi" verir -
+    // ama bu fonksiyon TAM OLARAK kapanistan SONRA calisiyor, yani cagrildigi
+    // anda o hafta ZATEN kapanmis olur ve sonrakiSifirlamaTarihi otomatik bir
+    // SONRAKI haftaya yuvarlar (bkz. pazar-haftasi.ts: "kalanGun===0 && saat
+    // gecti -> +7 gun"). Ilgilenmemiz gereken hafta "yeni kapanan" olan, yani
+    // bu yuvarlanmis tarihten 7 gun GERI - donguler her zaman tam 7 gun ara
+    // oldugu icin bu her durumda dogru sonucu verir (now kapanistan once de
+    // olsa: sonrakiSifirlamaTarihi rollansiz THIS haftayi doner, -7gun ile PREV
+    // haftayi buluruz - zaten kapanmis, tek dogru aday odur).
+    const gelecekHaftasi = sonrakiSifirlamaTarihi(pazar, now);
+    const pazarHaftasi = new Date(gelecekHaftasi.getTime() - 7 * 24 * 60 * 60 * 1000);
     const kapanisAni = pazarKapanisAni(pazar, pazarHaftasi);
-    const esikAni = new Date(kapanisAni.getTime() - HATIRLATMA_ONCEDEN_SAAT * 60 * 60 * 1000);
-    // Pencere disindaysa (henuz erken ya da zaten kapanmis) atla.
-    if (now < esikAni || now >= kapanisAni) continue;
+    const esikAni = new Date(kapanisAni.getTime() + HATIRLATMA_SONRA_SAAT * 60 * 60 * 1000);
+    // Kapanistan +1 saat gelmediyse atla. Ust sinir YOK (durum-bazli catch-up
+    // deseni, urunSifirla'daki "zamana degil duruma bakar" ilkesiyle tutarli) -
+    // idempotency asagidaki INSERT ile saglaniyor, tekrar tekrar gonderilmez.
+    if (now < esikAni) continue;
 
     // Idempotency: (pazarId, pazarHaftasi) icin daha once eklendiyse (baska bir
     // cron tetiklemesinde) DO NOTHING - 0 satir eklenir, tekrar gonderilmez.
@@ -955,7 +986,7 @@ export async function pazarHatirlatmalariGonder(
     await prisma.bildirim.createMany({
       data: saticiIdler.map((kullaniciId) => ({
         kullaniciId,
-        mesaj: `${pazar.ad} pazarı bugün kapanıyor. İşaretlemediğin rezervasyonlar varsa "Sattım/Gelmedi" olarak işaretlemeyi unutma - yoksa otomatik "gelmedi" sayılacaklar.`,
+        mesaj: `${pazar.ad} pazarı kapandı. İşaretlemediğin rezervasyonlar varsa bu gece yarısına kadar "Sattım/Gelmedi" olarak işaretle - yoksa gece yarısı otomatik "gelmedi" sayılacaklar.`,
         hedefYolu: "/panel/rezervasyonlar",
       })),
     });

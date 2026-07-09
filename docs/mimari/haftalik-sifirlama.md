@@ -2,12 +2,19 @@
 
 İlgili genel özet: [`../MIMARI.md`](../MIMARI.md#haftalık-sıfırlama-otomatik). Rezervasyon kuyruk mantığı ve kilit stratejisi için: [`rezervasyon-motoru.md`](./rezervasyon-motoru.md) (bu akış onunla **aynı** `FOR UPDATE` kilidini kullanır).
 
-`pazarlariSifirla` (`src/lib/rezervasyon.ts`) — otomatik, harici cron tetikler. Pazarın kapanış anı geçince o pazara ait ürünlerin bekleyen kuyruğu **tamamen temizlenir** (sıra taşıma yok; ürün sonraki hafta sıfırdan). Bu, manuel Gelmedi'nin toplu hali **değildir** — o yükseltir, bu temizler.
+`pazarlariSifirla` (`src/lib/rezervasyon.ts`) — otomatik, harici cron tetikler. Pazarın **gün sonu** (aşağıya bkz.) geçince o pazara ait ürünlerin bekleyen kuyruğu **tamamen temizlenir** (sıra taşıma yok; ürün sonraki hafta sıfırdan). Bu, manuel Gelmedi'nin toplu hali **değildir** — o yükseltir, bu temizler.
 
-## İki farklı zaman (kritik)
-- **Başlangıç anı** (`Pazar.baslangicGunu`+`baslangicSaati`): ceza eşiği — "kim cezalı" belirler.
-- **Kapanış/sıfırlama anı** (`Pazar.sifirlamaGunu`+`sifirlamaSaati`): kuyruğu temizler + cezaları yazar + bildirim izi bırakır.
-- İkisi `pazar-haftasi.ts`'te `pazarBaslangicAni` / `pazarKapanisAni` ile hesaplanır (Europe/Istanbul; `timeZoneName:"shortOffset"` ile genel TZ, Türkiye sabit +3).
+## 2026-07-09 güncellemesi: sweep artık kapanış anında DEĞİL, gün sonunda tetiklenir
+
+Kullanıcı kararı: satıcı, pazar kapanışında hemen cezalandırılmak yerine o günün sonuna (gece yarısı) kadar "Sattım/Gelmedi" işaretlemesi için süre almalı. Bu yüzden **üç** farklı an var artık (aşağıdaki bölüm güncellendi), ve `urunSifirla`/`pazarlariSifirla`'nın tetikleyici koşulu `pazarKapanisAni` yerine **`pazarGunSonuAni`** kullanacak şekilde değiştirildi — no-show belirleme kuralının kendisi (aşağıdaki `aktifOlmaZamani < pazarBaslangicAni` karşılaştırması) **değişmedi**, sadece sweep'in NE ZAMAN çalıştığı değişti. Ayrıca kapanıştan 1 saat sonra satıcılara "işaretlemeyi unutma" hatırlatması eklendi (`pazarHatirlatmalariGonder`, aynı cron içinde, yeni `PazarHatirlatma` tablosu ile idempotent).
+
+**Bilinçli olarak ERTELENEN karar:** "Gelmedi" cezasının tam mekanizması (satıcı hâlâ işaretlemezse ne olur, satılmış-ama-işlenmemiş ürünler nasıl değerlendirilir) henüz netleşmedi — şu an davranış eskisiyle aynı (gün sonunda otomatik `gelmedi`), sadece zamanlama kaydı. Bu konu ayrıca ele alınacak.
+
+## Üç farklı zaman (kritik)
+- **Başlangıç anı** (`Pazar.baslangicGunu`+`baslangicSaati`): ceza eşiği — "kim cezalı" belirler. Değişmedi.
+- **Kapanış anı** (`Pazar.sifirlamaGunu`+`sifirlamaSaati`): pazarın gerçek/ilan edilen kapanış saati. Artık SADECE (1) `pazarRitimBilgisi`'nin "pazar açık mı" göstergesi ve (2) hatırlatma zamanlaması (`kapanış anı + 1 saat`) için kullanılıyor — sweep'i TETİKLEMİYOR.
+- **Gün sonu anı** (`pazarGunSonuAni` — kapanış gününün yerel gece yarısı, yani ertesi günün 00:00'ı): sweep'in gerçekten ÇALIŞTIĞI an, kuyruğu temizler + cezaları yazar + bildirim izi bırakır.
+- Üçü de `pazar-haftasi.ts`'te `pazarBaslangicAni` / `pazarKapanisAni` / `pazarGunSonuAni` ile hesaplanır (Europe/Istanbul; `timeZoneName:"shortOffset"` ile genel TZ, Türkiye sabit +3).
 
 ## "Başlangıçta aktif miydi" — kapanışta kuyruktan okunamaz (aktifOlmaZamani gerekçesi)
 Kapanış anındaki kuyruk, başlangıç ile kapanış arası değiştiği için (satışlar, gelmediler, yükselmeler) "kim başlangıçta aktifti"yi taşımaz. Çözüm: **`Rezervasyon.aktifOlmaZamani`** — kayıt aktife her geçtiğinde (oluşturmada aktif atanma / `aktifSlotBosalt` yükselme / `rezervasyonGeriAl`; bu üç nokta `rezervasyon-motoru.md`'deki akışlarda) kaydedilir. Kural saf karşılaştırma:
@@ -26,9 +33,17 @@ Ayrı bir başlangıç cron fazı gerekmez — bilgi rezervasyonda taşınır, t
 - Kuyruk boşalınca ürün `satildi` değilse → `sergide`.
 
 ## Tetikleme + idempotency
-- **Harici cron** (Docker/VPS, ~5 dk) → `POST /api/cron/pazar-sifirlama`, `Authorization: Bearer $CRON_SECRET`. Deploy'da cron servisi eklenecek (dev'de manuel curl ile test edildi).
-- **Zamana değil duruma bakar:** kapanış vakti geçmiş VE hâlâ bekleyen kuyruğu olan ürünleri işler → **restart'ta kaçmaz** (catch-up).
+- **Harici cron** (Docker/VPS, ~5 dk) → `POST /api/cron/pazar-sifirlama`, `Authorization: Bearer $CRON_SECRET`.
+- **Zamana değil duruma bakar:** gün sonu geçmiş VE hâlâ bekleyen kuyruğu olan ürünleri işler → **restart'ta kaçmaz** (catch-up).
 - **İki katman idempotency:** (1) her ürün ayrı transaction + `FOR UPDATE` + "hâlâ bekliyor mu" — çift tetikleme no-op; (2) `PazarSifirlama` tablosu `(pazarId, pazarHaftasi)` unique, atomik `ON CONFLICT` upsert — açık "bu hafta yapıldı mı" takibi + audit (`etkilenenSayi`).
+
+## Kapanış hatırlatması (`pazarHatirlatmalariGonder`)
+
+Aynı cron route'u içinde, sweep'ten ÖNCE çağrılır (ama zaman pencereleri zaten ayrışık: hatırlatma `[kapanış+1saat, ...)`, sweep `[gün sonu, ...)` — aynı anda ikisi birden bir pazar için tetiklenmez). Amaç: satıcıya "işaretlemeyi unutma" uyarısı, hiçbir rezervasyon durumunu DEĞİŞTİRMEZ.
+
+**Dikkat edilmesi gereken bir tuzak (canlı test sırasında bulundu):** `pazarHaftasi`, `sonrakiSifirlamaTarihi(pazar, now)` ile hesaplanamaz — bu fonksiyon "bundan sonraki İLK kapanış" verir, ama hatırlatma TAM OLARAK kapanıştan sonra çalıştığı için `now` zaten o haftanın kapanışını geçmiş olur ve fonksiyon otomatik bir SONRAKİ haftaya yuvarlar. Doğru hafta, bu yuvarlanmış tarihten **7 gün geri** gidilerek bulunur (`sonrakiSifirlamaTarihi(...) - 7 gün`) — döngüler her zaman tam 7 gün ara olduğu için bu her koşulda (kapanıştan önce ya da sonra çağrılsa da) doğru sonucu verir.
+
+İdempotency: `PazarHatirlatma` tablosu, `PazarSifirlama` ile AYNI desen (`(pazarId, pazarHaftasi)` unique) ama `ON CONFLICT DO NOTHING` — biriktirme yok, sadece tek seferlik "gönderildi mi" bayrağı.
 
 ## Puan / güvenilirlik sistemine bağlantı (henüz kurulmadı)
 Sıfırlama yalnızca **no-show'u işaretler** — puan kurallarını (eşik, ağırlık) tanımlamaz; o, sonraki **puan-sistemi adımının** işi. İşaretleri o adımın kolayca sayabilmesi için format bilinçli seçildi:
@@ -71,12 +86,13 @@ Her otomatik ceza `DurumGecmisi`'nde admin-okunabilir (`rezervasyon_gelmedi:otom
 
 Sonuç: çok-pazarlı ortamda sıfırlama beklenen izolasyonu koruyor, regresyon yok.
 
-## Veri modeli (migration `20260703035648_haftalik_sifirlama`)
-- **Pazar**: `baslangicGunu` + `baslangicSaati` (ceza eşiği; mevcut `sifirlama*` = kapanış).
+## Veri modeli (migration `20260703035648_haftalik_sifirlama`, `PazarHatirlatma` → `20260709140233_pazar_hatirlatma`)
+- **Pazar**: `baslangicGunu` + `baslangicSaati` (ceza eşiği; mevcut `sifirlama*` = kapanış saati, gün sonu SAKLANMAZ - `pazarGunSonuAni` ile türetilir).
 - **Rezervasyon**: `aktifOlmaZamani`, `bildirimGonderildi`, `bildirimKanali`.
-- **PazarSifirlama**: `(pazarId, pazarHaftasi)` unique, `calismaZamani`, `etkilenenSayi`.
+- **PazarSifirlama**: `(pazarId, pazarHaftasi)` unique, `calismaZamani`, `etkilenenSayi` — sweep idempotency.
+- **PazarHatirlatma**: `(pazarId, pazarHaftasi)` unique, `gonderilmeZamani` — hatırlatma idempotency (ayrı tablo, sweep ile karışmasın).
 
 ## İleride
-- Deploy'da harici cron servisi (`docker-compose` ya da VPS crontab / systemd timer) eklenecek.
-- Bildirim gönderimi (whatsapp) Faz 2 — şu an yalnızca iz.
+- **Ertelenen karar (bkz. yukarıdaki 2026-07-09 notu):** Satıcı gün sonuna kadar hâlâ işaretlemezse tam olarak ne olacağı (mevcut davranış: otomatik `gelmedi`) ve satılmış-ama-satıcının-işlem-yapmadığı ürünlerin nasıl ele alınacağı henüz netleşmedi.
+- Bildirim gönderimi (whatsapp) Faz 2 — şu an yalnızca in-app bildirim (`Bildirim` tablosu) var.
 - Admin itiraz/geri alma akışı admin paneli adımında.

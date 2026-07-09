@@ -104,6 +104,25 @@ export function pazarKapanisAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
   );
 }
 
+// Kapanis gununun YEREL gece yarisi (24:00 = ertesi gunun 00:00). Kullanici
+// karari (2026-07-09): otomatik "gelmedi" cezasi kapanis ANINDA DEGIL, saticiya
+// isaretlemesi icin o gunun sonuna kadar sure taninip BURADA uygulanir -
+// pazarHatirlatmalariGonder (rezervasyon.ts) kapanistan 1 saat sonra hatirlatir,
+// urunSifirla/pazarlariSifirla bu andan once kuyruga DOKUNMAZ. pazarKapanisAni
+// (yukarida) hala pazarin GERCEK/ilan edilen kapanis saati - UI'da "pazar acik
+// mi" gostergesi (pazarRitimBilgisi) ve hatirlatma zamanlamasi ONU kullanmaya
+// devam eder, SADECE ceza-uygulama tetikleyicisi bu fonksiyona tasindi.
+export function pazarGunSonuAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
+  return yerelAniUTC(
+    pazar.saatDilimi || "Europe/Istanbul",
+    pazarHaftasi.getUTCFullYear(),
+    pazarHaftasi.getUTCMonth(),
+    pazarHaftasi.getUTCDate() + 1,
+    0,
+    0,
+  );
+}
+
 // Baslangic (ceza esigi) ani = ayni hafta icinde, kapanis gununden GERIYE
 // baslangicGunu + baslangicSaati. Ceza yalnizca bu andan ONCE aktif olanlara.
 export function pazarBaslangicAni(pazar: PazarZaman, pazarHaftasi: Date): Date {
