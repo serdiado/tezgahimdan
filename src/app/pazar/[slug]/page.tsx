@@ -165,6 +165,29 @@ export default async function PazarSayfasi({
       ? `Her ${gun} ${saatMetni(pazar.baslangicSaati)} – ${saatMetni(pazar.sifirlamaSaati)}`
       : `${gun} ${saatMetni(pazar.baslangicSaati)} – ${kapanisGunu} ${saatMetni(pazar.sifirlamaSaati)}`;
 
+  // Logo (link'li/link'siz) - hem kompakt mobil hem tam masaustu bloğunda
+  // AYNI mantik, sadece boyut farkli. Alanlar parametre olarak verilir (dis
+  // `pazar` degiskenini kapatmak yerine) - TS'in null-daraltmasi (notFound()
+  // sonrasi) ic ice fonksiyon govdesine tasinmiyor, parametre bunu asar.
+  function logoBlok(yukseklikClass: string, logoUrl: string, logoLink: string | null, altMetin: string) {
+    const gorsel = (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={logoUrl} alt={altMetin} className={`w-auto object-contain ${yukseklikClass}`} />
+    );
+    return logoLink ? (
+      <a
+        href={logoLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex rounded-lg bg-white p-2 shadow-sm transition-shadow hover:shadow-md hover:ring-2 hover:ring-white/60"
+      >
+        {gorsel}
+      </a>
+    ) : (
+      <div className="inline-flex rounded-lg bg-white p-2 shadow-sm">{gorsel}</div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
@@ -198,51 +221,72 @@ export default async function PazarSayfasi({
                 alt alta duser (ayrac gizli), sol blok once. */}
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
               <div className="sm:flex-1">
-                {pazar.belediyeLogoUrl &&
-                  (pazar.belediyeLogoLink ? (
+                {/* Mobil kompakt 2 sutun (2026-07-10 kullanici cizimi): SOL
+                    logo+belediye+konum, SAG pazar adi+saat+harita - dikey
+                    kaydirmayi kisaltmak icin. sm: ustunde gizlenir, yerine
+                    asagidaki ORIJINAL tek-sutunlu blok gorunur (degismedi). */}
+                <div className="grid grid-cols-2 gap-3 sm:hidden">
+                  <div>
+                    {pazar.belediyeLogoUrl &&
+                      logoBlok("h-10", pazar.belediyeLogoUrl, pazar.belediyeLogoLink, pazar.belediyeAdi ?? "Belediye logosu")}
+                    {pazar.belediyeAdi && (
+                      <p className="mt-2 text-xs font-medium text-primary-200">{pazar.belediyeAdi}</p>
+                    )}
+                    <p className="mt-1 flex items-start gap-1 text-xs font-medium text-primary-100">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                      <span>
+                        {pazar.il} · {pazar.ilce}
+                        {pazar.semt ? ` · ${pazar.semt}` : ""}
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <h1 className="text-xl font-bold tracking-tight">{pazar.ad}</h1>
+                    <p className="mt-1.5 text-xs font-medium text-primary-100">{zamanMetni}</p>
                     <a
-                      href={pazar.belediyeLogoLink}
+                      href={pazar.googleHaritaLinki}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mb-4 inline-flex rounded-lg bg-white p-2 shadow-sm transition-shadow hover:shadow-md hover:ring-2 hover:ring-white/60"
+                      className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={pazar.belediyeLogoUrl}
-                        alt={pazar.belediyeAdi ?? "Belediye logosu"}
-                        className="h-12 w-auto object-contain sm:h-14"
-                      />
+                      <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
+                      Haritada Gör
                     </a>
-                  ) : (
-                    <div className="mb-4 inline-flex rounded-lg bg-white p-2 shadow-sm">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={pazar.belediyeLogoUrl}
-                        alt={pazar.belediyeAdi ?? "Belediye logosu"}
-                        className="h-12 w-auto object-contain sm:h-14"
-                      />
+                  </div>
+                </div>
+
+                <div className="hidden sm:block">
+                  {pazar.belediyeLogoUrl && (
+                    <div className="mb-4">
+                      {logoBlok(
+                        "h-12 sm:h-14",
+                        pazar.belediyeLogoUrl,
+                        pazar.belediyeLogoLink,
+                        pazar.belediyeAdi ?? "Belediye logosu",
+                      )}
                     </div>
-                  ))}
-                <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
-                  <MapPin className="h-4 w-4" strokeWidth={2} />
-                  {pazar.il} · {pazar.ilce}
-                  {pazar.semt ? ` · ${pazar.semt}` : ""}
-                </p>
-                <h1 className="mt-2 text-3xl font-bold tracking-tight">{pazar.ad}</h1>
-                <p className="mt-2 text-sm font-medium text-primary-100">{zamanMetni}</p>
-                {pazar.belediyeAdi && (
-                  <p className="mt-1 text-sm text-primary-200">{pazar.belediyeAdi}</p>
-                )}
-                <div className="mt-4">
-                  <a
-                    href={pazar.googleHaritaLinki}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-50"
-                  >
-                    <ExternalLink className="h-4 w-4" strokeWidth={2} />
-                    Haritada Gör
-                  </a>
+                  )}
+                  <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
+                    <MapPin className="h-4 w-4" strokeWidth={2} />
+                    {pazar.il} · {pazar.ilce}
+                    {pazar.semt ? ` · ${pazar.semt}` : ""}
+                  </p>
+                  <h1 className="mt-2 text-3xl font-bold tracking-tight">{pazar.ad}</h1>
+                  <p className="mt-2 text-sm font-medium text-primary-100">{zamanMetni}</p>
+                  {pazar.belediyeAdi && (
+                    <p className="mt-1 text-sm text-primary-200">{pazar.belediyeAdi}</p>
+                  )}
+                  <div className="mt-4">
+                    <a
+                      href={pazar.googleHaritaLinki}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+                    >
+                      <ExternalLink className="h-4 w-4" strokeWidth={2} />
+                      Haritada Gör
+                    </a>
+                  </div>
                 </div>
               </div>
               {pazar.aciklama && (
