@@ -896,3 +896,71 @@ export async function pazarlariSifirla(
   }
   return { islenenUrun, toplamEtkilenen, tumNoShowlar };
 }
+
+// Kapanistan ONCE saticiya hatirlatma: urunSifirla'nin cezasindan TAMAMEN
+// bagimsiz bir mekanizma - o an hicbir rezervasyon durumu DEGISTIRMEZ, sadece
+// "birazdan otomatik gelmedi olacak, simdi isaretle" uyarisi gonderir. Ayni
+// cron (pazar-sifirlama route) tarafindan, urunSifirla'dan ONCE cagirilir -
+// yeni bir VPS cron girdisi gerektirmez.
+const HATIRLATMA_ONCEDEN_SAAT = 2;
+
+export async function pazarHatirlatmalariGonder(
+  now: Date = new Date(),
+): Promise<{ hatirlatilanPazarSayisi: number; hatirlatilanSaticiSayisi: number }> {
+  const pazarlar = await prisma.pazar.findMany({
+    where: { aktifMi: true },
+    select: {
+      id: true,
+      ad: true,
+      baslangicGunu: true,
+      baslangicSaati: true,
+      sifirlamaGunu: true,
+      sifirlamaSaati: true,
+      saatDilimi: true,
+    },
+  });
+
+  let hatirlatilanPazarSayisi = 0;
+  let hatirlatilanSaticiSayisi = 0;
+  for (const pazar of pazarlar) {
+    const pazarHaftasi = sonrakiSifirlamaTarihi(pazar, now);
+    const kapanisAni = pazarKapanisAni(pazar, pazarHaftasi);
+    const esikAni = new Date(kapanisAni.getTime() - HATIRLATMA_ONCEDEN_SAAT * 60 * 60 * 1000);
+    // Pencere disindaysa (henuz erken ya da zaten kapanmis) atla.
+    if (now < esikAni || now >= kapanisAni) continue;
+
+    // Idempotency: (pazarId, pazarHaftasi) icin daha once eklendiyse (baska bir
+    // cron tetiklemesinde) DO NOTHING - 0 satir eklenir, tekrar gonderilmez.
+    const eklenenSatir = await prisma.$executeRaw`
+      INSERT INTO "PazarHatirlatma" ("id", "pazarId", "pazarHaftasi", "gonderilmeZamani")
+      VALUES (${randomUUID()}, ${pazar.id}, ${pazarHaftasi}::date, ${now})
+      ON CONFLICT ("pazarId", "pazarHaftasi") DO NOTHING`;
+    if (eklenenSatir === 0) continue;
+
+    // Bu pazarda, bu hafta icin hala isaretlenmemis (bekliyor+aktif) rezervasyonu
+    // olan saticilari bul - yedekler haric (satici icin "isaretlenecek" tek sey
+    // aktif hak sahipleri, yedek zaten Sattı/Gelmedi ile islenemez).
+    const bekleyenler = await prisma.rezervasyon.findMany({
+      where: {
+        durum: "bekliyor",
+        tip: "aktif",
+        pazarHaftasi,
+        urun: { magaza: { pazarId: pazar.id } },
+      },
+      select: { urun: { select: { magaza: { select: { sahipId: true } } } } },
+    });
+    const saticiIdler = [...new Set(bekleyenler.map((b) => b.urun.magaza.sahipId))];
+    if (saticiIdler.length === 0) continue;
+
+    await prisma.bildirim.createMany({
+      data: saticiIdler.map((kullaniciId) => ({
+        kullaniciId,
+        mesaj: `${pazar.ad} pazarı bugün kapanıyor. İşaretlemediğin rezervasyonlar varsa "Sattım/Gelmedi" olarak işaretlemeyi unutma - yoksa otomatik "gelmedi" sayılacaklar.`,
+        hedefYolu: "/panel/rezervasyonlar",
+      })),
+    });
+    hatirlatilanPazarSayisi++;
+    hatirlatilanSaticiSayisi += saticiIdler.length;
+  }
+  return { hatirlatilanPazarSayisi, hatirlatilanSaticiSayisi };
+}

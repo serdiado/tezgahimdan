@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
+import { bildirimGonderPazarSaticilarina } from "@/lib/bildirim";
 import {
   gunDogrula,
   saatFormatiGecerliMi,
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: "geçersiz saat dilimi (ör. Europe/Istanbul)" }, { status: 400 });
   }
 
-  const mevcut = await prisma.pazar.findUnique({ where: { id }, select: { id: true } });
+  const mevcut = await prisma.pazar.findUnique({ where: { id }, select: { id: true, aktifMi: true } });
   if (!mevcut) {
     return NextResponse.json({ hata: "pazar bulunamadı" }, { status: 404 });
   }
@@ -106,6 +107,13 @@ export async function POST(request: Request) {
       },
     }),
   ]);
+
+  // Motor/kilit disinda, transaction basariyla dondukten SONRA: pazar
+  // aktif->pasif gecisinde bagli tum aktif saticilar giris yapamayacaklarina
+  // dair bilgilendirilir (aktifMi gonderilmediyse veya zaten pasifse tetiklenmez).
+  if (aktifMiGonderildi && mevcut.aktifMi === true && aktifMi === false) {
+    await bildirimGonderPazarSaticilarina({ pazarId: id, pazarAdi: ad, haricKullaniciId: session.user.id });
+  }
 
   return NextResponse.json({ tur: "guncellendi" });
 }

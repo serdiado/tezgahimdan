@@ -50,8 +50,9 @@ model Pazar {
   aktifMi        Boolean   @default(true)
   createdAt      DateTime  @default(now())
 
-  magazalar    Magaza[]
-  sifirlamalar PazarSifirlama[]
+  magazalar     Magaza[]
+  sifirlamalar  PazarSifirlama[]
+  hatirlatmalar PazarHatirlatma[]
 }
 
 // Idempotency + audit: her (pazar, pazarHaftasi) icin bir sifirlama calismasi kaydi.
@@ -63,6 +64,20 @@ model PazarSifirlama {
   pazarHaftasi  DateTime @db.Date
   calismaZamani DateTime @default(now())
   etkilenenSayi Int      @default(0)
+
+  @@unique([pazarId, pazarHaftasi])
+}
+
+// PazarSifirlama ile AYNI idempotency deseni (unique pazarId+pazarHaftasi), ama
+// DO NOTHING ile tek seferlik "bu hafta hatirlatma gonderildi mi" bayragi -
+// DO UPDATE (sayac biriktirme) YOK, cunku burada tekrar sayilacak bir "etkilenen"
+// yok, sadece "gonderildi mi" sorusu var (bkz. rezervasyon.ts pazarHatirlatmalariGonder).
+model PazarHatirlatma {
+  id               String   @id @default(uuid())
+  pazar            Pazar    @relation(fields: [pazarId], references: [id])
+  pazarId          String
+  pazarHaftasi     DateTime @db.Date
+  gonderilmeZamani DateTime @default(now())
 
   @@unique([pazarId, pazarHaftasi])
 }

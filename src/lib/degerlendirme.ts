@@ -6,7 +6,7 @@ import { kullaniciYasakliMi } from "@/lib/yetki";
 // Rezervasyon.findFirst ile (salt-okunur) dogrulanir. Rezervasyon motoruna
 // (rezervasyon.ts) HIC cagri yapilmaz.
 export type DegerlendirmeUpsertSonucu =
-  | { tur: "kaydedildi"; puan: number; yorum: string | null }
+  | { tur: "kaydedildi"; puan: number; yorum: string | null; yeniMi: boolean }
   | { tur: "satin-alinmadi" }
   | { tur: "yasakli" };
 
@@ -25,13 +25,22 @@ export async function degerlendirmeUpsert(params: {
   if (!satinAldiMi) return { tur: "satin-alinmadi" };
 
   const yorum = params.yorum?.trim() || null;
+
+  // create/update ayrimi: Prisma upsert sonucu bu bilgiyi dondurmuyor, o yuzden
+  // upsert'ten ONCE var olup olmadigina bakilir - route katmani "ilk kez
+  // degerlendirme" bildirimini bu bayrakla tetikler (guncellemede bildirim YOK).
+  const oncekiVarMi = await prisma.degerlendirme.findUnique({
+    where: { kullaniciId_urunId: { kullaniciId: params.kullaniciId, urunId: params.urunId } },
+    select: { id: true },
+  });
+
   const guncel = await prisma.degerlendirme.upsert({
     where: { kullaniciId_urunId: { kullaniciId: params.kullaniciId, urunId: params.urunId } },
     create: { kullaniciId: params.kullaniciId, urunId: params.urunId, puan: params.puan, yorum },
     update: { puan: params.puan, yorum },
   });
 
-  return { tur: "kaydedildi", puan: guncel.puan, yorum: guncel.yorum };
+  return { tur: "kaydedildi", puan: guncel.puan, yorum: guncel.yorum, yeniMi: !oncekiVarMi };
 }
 
 // begeniSayilariHaritasi ile AYNI groupBy+Map deseni (N+1 onler).

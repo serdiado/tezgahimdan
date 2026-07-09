@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { degerlendirmeUpsert } from "@/lib/degerlendirme";
+import { bildirimGonderKullaniciya } from "@/lib/bildirim";
 
 const YORUM_MAX = 500;
 
@@ -29,7 +30,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: `yorum en fazla ${YORUM_MAX} karakter olabilir` }, { status: 400 });
   }
 
-  const urun = await prisma.urun.findUnique({ where: { id: urunId }, select: { id: true, silindiMi: true } });
+  const urun = await prisma.urun.findUnique({
+    where: { id: urunId },
+    select: { id: true, silindiMi: true, baslik: true, magaza: { select: { sahipId: true } } },
+  });
   if (!urun || urun.silindiMi) {
     return NextResponse.json({ hata: "ürün bulunamadı" }, { status: 404 });
   }
@@ -52,6 +56,17 @@ export async function POST(request: Request) {
       { hata: "Hesabınız kısıtlandığı için değerlendirme bırakamazsınız." },
       { status: 403 },
     );
+  }
+
+  // Bildirim: motor cagrisi (yukarida) tamamlandiktan SONRA, sadece ILK KEZ
+  // birakilan degerlendirmede (guncellemede bildirim YOK), kendine bildirim yok
+  // (satici kendi urununu degerlendiremez zaten, ama yine de kontrol edilir).
+  if (sonuc.yeniMi && session.user.id !== urun.magaza.sahipId) {
+    await bildirimGonderKullaniciya({
+      kullaniciId: urun.magaza.sahipId,
+      mesaj: `"${urun.baslik}" ürününe yeni bir değerlendirme aldın.`,
+      hedefYolu: "/panel/urunlerim",
+    });
   }
 
   return NextResponse.json({ puan: sonuc.puan, yorum: sonuc.yorum });

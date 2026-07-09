@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { p2002Mi, prisma } from "@/lib/prisma";
 import { rezervasyonOlustur } from "@/lib/rezervasyon";
 import { telefonNormallestir } from "@/lib/telefon";
-import { bildirimGonderTakipcilere } from "@/lib/bildirim";
+import { bildirimGonderKullaniciya, bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   // KP-1: rezervasyon icin giris zorunlu. Vitrin/kesif girissiz acik, yalniz bu
@@ -68,13 +68,25 @@ export async function POST(request: Request) {
       // karariyla bildirim kapsami disinda, bkz. plan dosyasi). Motor cagrisi
       // (kilit/transaction) coktan tamamlandi - bildirim onun DISINDA gonderilir.
       if (sonuc.tip === "aktif") {
-        const urun = await prisma.urun.findUnique({ where: { id: urunId }, select: { baslik: true } });
+        const urun = await prisma.urun.findUnique({
+          where: { id: urunId },
+          select: { baslik: true, magaza: { select: { id: true, sahipId: true } } },
+        });
         if (urun) {
           await bildirimGonderTakipcilere({
             urunId,
             mesaj: `Takip ettiğiniz "${urun.baslik}" için yeni bir rezervasyon alındı.`,
             haricKullaniciIdler: [session.user.id],
           });
+          // Satici bildirimi: kendine bildirim gitmesin diye eylemi yapan
+          // kullanicinin magaza sahibi olup olmadigi kontrol edilir.
+          if (session.user.id !== urun.magaza.sahipId) {
+            await bildirimGonderKullaniciya({
+              kullaniciId: urun.magaza.sahipId,
+              mesaj: `"${urun.baslik}" için yeni bir rezervasyon aldın.`,
+              hedefYolu: "/panel/rezervasyonlar",
+            });
+          }
         }
       }
       return NextResponse.json(

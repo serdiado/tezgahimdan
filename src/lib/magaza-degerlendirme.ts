@@ -6,7 +6,7 @@ import { kullaniciYasakliMi } from "@/lib/yetki";
 // ="satildi") kullanicilar birakabilir. Bu kural DB'de zorlanmaz, burada Urun
 // uzerinden DOLAYLI join ile (Rezervasyon -> Urun.magazaId) dogrulanir.
 export type MagazaDegerlendirmeUpsertSonucu =
-  | { tur: "kaydedildi"; puan: number; yorum: string | null }
+  | { tur: "kaydedildi"; puan: number; yorum: string | null; yeniMi: boolean }
   | { tur: "satin-alinmadi" }
   | { tur: "yasakli" };
 
@@ -25,13 +25,22 @@ export async function magazaDegerlendirmeUpsert(params: {
   if (!satinAldiMi) return { tur: "satin-alinmadi" };
 
   const yorum = params.yorum?.trim() || null;
+
+  // create/update ayrimi: degerlendirme.ts (urun-seviyesi) ile AYNI desen -
+  // upsert'ten ONCE var olup olmadigina bakilir, route "ilk kez degerlendirme"
+  // bildirimini bu bayrakla tetikler.
+  const oncekiVarMi = await prisma.magazaDegerlendirme.findUnique({
+    where: { kullaniciId_magazaId: { kullaniciId: params.kullaniciId, magazaId: params.magazaId } },
+    select: { id: true },
+  });
+
   const guncel = await prisma.magazaDegerlendirme.upsert({
     where: { kullaniciId_magazaId: { kullaniciId: params.kullaniciId, magazaId: params.magazaId } },
     create: { kullaniciId: params.kullaniciId, magazaId: params.magazaId, puan: params.puan, yorum },
     update: { puan: params.puan, yorum },
   });
 
-  return { tur: "kaydedildi", puan: guncel.puan, yorum: guncel.yorum };
+  return { tur: "kaydedildi", puan: guncel.puan, yorum: guncel.yorum, yeniMi: !oncekiVarMi };
 }
 
 // Tekil magaza sayfasinda N+1 endisesi yok (tek magaza) - kullaniciMagazaTakipDurumu

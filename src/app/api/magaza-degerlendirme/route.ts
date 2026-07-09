@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { magazaDegerlendirmeUpsert } from "@/lib/magaza-degerlendirme";
+import { bildirimGonderKullaniciya } from "@/lib/bildirim";
 
 const YORUM_MAX = 500;
 
@@ -29,7 +30,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: `yorum en fazla ${YORUM_MAX} karakter olabilir` }, { status: 400 });
   }
 
-  const magaza = await prisma.magaza.findUnique({ where: { id: magazaId }, select: { id: true, silindiMi: true } });
+  const magaza = await prisma.magaza.findUnique({
+    where: { id: magazaId },
+    select: { id: true, silindiMi: true, sahipId: true },
+  });
   if (!magaza || magaza.silindiMi) {
     return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
   }
@@ -52,6 +56,16 @@ export async function POST(request: Request) {
       { hata: "Hesabınız kısıtlandığı için değerlendirme bırakamazsınız." },
       { status: 403 },
     );
+  }
+
+  // Bildirim: motor cagrisi (yukarida) tamamlandiktan SONRA, sadece ILK KEZ
+  // birakilan degerlendirmede (guncellemede bildirim YOK), kendine bildirim yok
+  // (satici kendi tezgahini degerlendiremez zaten, ama yine de kontrol edilir).
+  if (sonuc.yeniMi && session.user.id !== magaza.sahipId) {
+    await bildirimGonderKullaniciya({
+      kullaniciId: magaza.sahipId,
+      mesaj: "Tezgahına yeni bir değerlendirme aldın.",
+    });
   }
 
   return NextResponse.json({ puan: sonuc.puan, yorum: sonuc.yorum });

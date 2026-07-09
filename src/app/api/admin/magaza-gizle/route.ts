@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
+import { bildirimGonderKullaniciya } from "@/lib/bildirim";
 
 // Admin moderasyon: Magaza.gizliMi bayragini yaz. gizliMi'nin neden silindiMi'den
 // AYRI oldugu ve hangi sorgulari etkiledigi icin bkz. schema.prisma:107-112 +
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
 
   const magaza = await prisma.magaza.findUnique({
     where: { id: magazaId },
-    select: { id: true, gizliMi: true, silindiMi: true },
+    select: { id: true, gizliMi: true, silindiMi: true, sahipId: true },
   });
   if (!magaza) {
     return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
@@ -54,6 +55,16 @@ export async function POST(request: Request) {
       },
     }),
   ]);
+
+  if (session.user.id !== magaza.sahipId) {
+    await bildirimGonderKullaniciya({
+      kullaniciId: magaza.sahipId,
+      mesaj: gizle
+        ? "Tezgahın admin tarafından gizlendi, vitrinde görünmüyor."
+        : "Tezgahın tekrar görünür hale getirildi.",
+      hedefYolu: "/panel/magaza-ayarlari",
+    });
+  }
 
   return NextResponse.json({ tur: "guncellendi", gizliMi: gizle });
 }

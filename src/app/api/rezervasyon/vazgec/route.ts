@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { rezervasyonVazgec } from "@/lib/rezervasyon";
-import { bildirimGonderTakipcilere, bildirimGonderYukselenKullaniciya } from "@/lib/bildirim";
+import {
+  bildirimGonderKullaniciya,
+  bildirimGonderTakipcilere,
+  bildirimGonderYukselenKullaniciya,
+} from "@/lib/bildirim";
 
 export async function POST(request: Request) {
   // KP-1: kimlik dogrulama artik (kod + telefon) degil, giris yapmis kullanicinin
@@ -25,7 +29,7 @@ export async function POST(request: Request) {
       if (sonuc.tip === "aktif") {
         const urun = await prisma.urun.findUnique({
           where: { id: sonuc.urunId },
-          select: { baslik: true },
+          select: { baslik: true, magaza: { select: { sahipId: true } } },
         });
         if (urun) {
           // Yedekten aktife yukselen biri varsa once ona kisisel bildirim
@@ -46,6 +50,16 @@ export async function POST(request: Request) {
             mesaj: `Takip ettiğiniz "${urun.baslik}" için aktif bir rezervasyon iptal edildi.`,
             haricKullaniciIdler: haricListesi,
           });
+          // Tezgah sahibine de haber ver (kendine bildirim gonderme: eylemi
+          // yapan alici ayni zamanda magaza sahibi olamaz ama yine de kontrol
+          // edilir - projenin genel deseniyle tutarli).
+          if (session.user.id !== urun.magaza.sahipId) {
+            await bildirimGonderKullaniciya({
+              kullaniciId: urun.magaza.sahipId,
+              mesaj: `"${urun.baslik}" için bir alıcı rezervasyonundan vazgeçti.`,
+              hedefYolu: "/panel/rezervasyonlar",
+            });
+          }
         }
       }
       return NextResponse.json({ mesaj: "rezervasyon iptal edildi" });

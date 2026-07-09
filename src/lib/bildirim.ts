@@ -44,6 +44,39 @@ export async function bildirimGonderTakipcilere(params: {
   });
 }
 
+// bildirimGonderMagazaTakipcilerine ile AYNI iskelet, farkli alici kitlesi:
+// takipciler DEGIL, o pazara bagli AKTIF (silindiMi=false, gizliMi=false)
+// magazalarin sahipleri. Admin bir Pazar'i pasife alinca cagrilir (bkz.
+// api/admin/pazar-guncelle/route.ts) - urunId'siz genel bildirim oldugu icin
+// hedefYolu da verilmez (girisler zaten kapanacagi icin yonlendirilecek bir
+// panel sayfasi yok).
+export async function bildirimGonderPazarSaticilarina(params: {
+  pazarId: string;
+  pazarAdi: string;
+  // Admin ayni zamanda o pazarda bir magazanin sahibi olabilir (magazaAc()
+  // admin rolunu degistirmez, admin de satici olabilir - bkz. magaza.ts).
+  // Eylemi yapan admin kendine bildirim almamali.
+  haricKullaniciId: string;
+}): Promise<void> {
+  const saticilar = await prisma.magaza.findMany({
+    where: {
+      pazarId: params.pazarId,
+      silindiMi: false,
+      gizliMi: false,
+      sahipId: { not: params.haricKullaniciId },
+    },
+    select: { sahipId: true },
+  });
+  if (saticilar.length === 0) return;
+
+  await prisma.bildirim.createMany({
+    data: saticilar.map((m) => ({
+      kullaniciId: m.sahipId,
+      mesaj: `Bağlı olduğun ${params.pazarAdi} pazarı artık aktif değil, panele giriş yapamayacaksın.`,
+    })),
+  });
+}
+
 // Belirli TEK bir kullaniciya (yedekten aktife yukselen kisi) kisisel bildirim
 // gonderir - bildirimGonderTakipcilere'den farkli olarak takip/abonelik sartina
 // bakilmaz (kullanicinin KENDI rezervasyon durumu degisti). yukselenKodu bir
