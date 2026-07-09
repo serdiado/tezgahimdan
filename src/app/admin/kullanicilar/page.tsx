@@ -129,7 +129,7 @@ export default async function AdminKullanicilarPage({
                   <th className="px-4 py-2 font-medium">Ad</th>
                   <th className="px-4 py-2 font-medium">İletişim</th>
                   <th className="px-4 py-2 font-medium">Rol</th>
-                  <th className="px-4 py-2 font-medium">Mağaza</th>
+                  <th className="px-4 py-2 font-medium">Tezgah</th>
                   <th className="px-4 py-2 font-medium">Rezervasyon</th>
                   <th className="px-4 py-2 font-medium">Şikayet</th>
                   <th className="px-4 py-2 font-medium">Kayıt</th>

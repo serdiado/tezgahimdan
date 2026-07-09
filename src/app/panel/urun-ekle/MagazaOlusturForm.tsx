@@ -44,10 +44,10 @@ async function magazaOlustur(formData: FormData) {
     case "slug-alinmis":
       return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("bu slug zaten kullaniliyor")}`);
     case "zaten-magaza-var":
-      return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("zaten bir magazan var")}`);
+      return redirect(`/panel/urun-ekle?hata=${encodeURIComponent("zaten bir tezgahın var")}`);
     case "yasakli":
       return redirect(
-        `/panel/urun-ekle?hata=${encodeURIComponent("hesabin kisitlandigi icin yeni magaza acamazsin")}`,
+        `/panel/urun-ekle?hata=${encodeURIComponent("hesabin kisitlandigi icin yeni tezgah acamazsin")}`,
       );
   }
 }
@@ -57,7 +57,7 @@ export function MagazaOlusturForm({ pazarlar }: { pazarlar: MagazaOlusturPazarVe
     <form action={magazaOlustur}>
       <div>
         <label>
-          Mağaza Adı
+          Tezgah Adı
           <input name="ad" type="text" required />
         </label>
       </div>
@@ -70,7 +70,7 @@ export function MagazaOlusturForm({ pazarlar }: { pazarlar: MagazaOlusturPazarVe
       {pazarlar.length <= 1 ? (
         <>
           <input type="hidden" name="pazarId" value={pazarlar[0]?.id ?? ""} />
-          {pazarlar[0] && <p>Mağazan {pazarlar[0].ad} pazarına bağlanacak.</p>}
+          {pazarlar[0] && <p>Tezgahın {pazarlar[0].ad} pazarına bağlanacak.</p>}
         </>
       ) : (
         <div>
@@ -86,7 +86,7 @@ export function MagazaOlusturForm({ pazarlar }: { pazarlar: MagazaOlusturPazarVe
           </label>
         </div>
       )}
-      <button type="submit">Mağazayı Oluştur</button>
+      <button type="submit">Tezgahı Oluştur</button>
     </form>
   );
 }

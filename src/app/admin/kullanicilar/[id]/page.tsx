@@ -141,7 +141,7 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
                 <dd className="text-neutral-800">{kullanici._count.degerlendirmeler}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-neutral-500">Mağaza değerlendirmesi</dt>
+                <dt className="text-neutral-500">Tezgah değerlendirmesi</dt>
                 <dd className="text-neutral-800">{kullanici._count.magazaDegerlendirmeleri}</dd>
               </div>
               <div className="flex justify-between gap-4">
@@ -149,7 +149,7 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
                 <dd className="text-neutral-800">{kullanici._count.urunFavorileri}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-neutral-500">Takip ettiği mağaza</dt>
+                <dt className="text-neutral-500">Takip ettiği tezgah</dt>
                 <dd className="text-neutral-800">{kullanici._count.magazaTakipleri}</dd>
               </div>
             </dl>
@@ -163,7 +163,7 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
 
         {kullanici.magazalar.length > 0 && (
           <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <h2 className="font-semibold text-neutral-900">Mağazaları</h2>
+            <h2 className="font-semibold text-neutral-900">Tezgahları</h2>
             <ul className="mt-2 space-y-2 text-sm">
               {kullanici.magazalar.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-2">

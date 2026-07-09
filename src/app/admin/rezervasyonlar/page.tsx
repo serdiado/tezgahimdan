@@ -112,7 +112,7 @@ export default async function AdminRezervasyonlarPage({
 
         {magazaId && (
           <Link href="/admin/rezervasyonlar" className="mt-2 inline-block text-sm text-primary-600 hover:underline">
-            × Mağaza filtresini kaldır
+            × Tezgah filtresini kaldır
           </Link>
         )}
 
@@ -163,7 +163,7 @@ export default async function AdminRezervasyonlarPage({
               <thead>
                 <tr className="border-b border-neutral-100 text-neutral-500">
                   <th className="px-4 py-2 font-medium">Kod</th>
-                  <th className="px-4 py-2 font-medium">Ürün / Mağaza</th>
+                  <th className="px-4 py-2 font-medium">Ürün / Tezgah</th>
                   <th className="px-4 py-2 font-medium">Alıcı</th>
                   <th className="px-4 py-2 font-medium">Tip</th>
                   <th className="px-4 py-2 font-medium">Sıra</th>

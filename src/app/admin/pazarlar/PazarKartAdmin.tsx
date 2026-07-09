@@ -35,7 +35,7 @@ export function PazarKartAdmin({ pazar }: { pazar: PazarAdminVeri }) {
           </div>
           <p className="mt-0.5 text-xs text-neutral-500">
             {pazar.ilce}, {pazar.il}
-            {pazar.semt ? ` (${pazar.semt})` : ""} · {pazar.magazaSayisi} mağaza ·{" "}
+            {pazar.semt ? ` (${pazar.semt})` : ""} · {pazar.magazaSayisi} tezgah ·{" "}
             {pazar.saatDilimi}
           </p>
           <p className="mt-1 text-xs text-neutral-500">

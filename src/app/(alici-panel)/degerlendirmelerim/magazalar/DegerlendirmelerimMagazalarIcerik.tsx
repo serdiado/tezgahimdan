@@ -29,7 +29,7 @@ export function DegerlendirmelerimMagazalarIcerik({
   if (degerlendirmeler.length === 0) {
     return (
       <p className="mt-4 text-neutral-600">
-        Henüz bir mağaza değerlendirmesi yapmadınız. Satın aldığınız bir mağaza
+        Henüz bir tezgah değerlendirmesi yapmadınız. Satın aldığınız bir tezgah
         için Rezervasyonlarım sayfasından değerlendirme bırakabilirsiniz.
       </p>
     );

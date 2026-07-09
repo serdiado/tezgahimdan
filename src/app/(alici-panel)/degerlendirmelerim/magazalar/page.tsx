@@ -15,7 +15,7 @@ export default async function DegerlendirmelerimMagazalarSayfasi() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-neutral-900">Mağaza Değerlendirmelerim</h1>
+      <h1 className="text-xl font-bold text-neutral-900">Tezgah Değerlendirmelerim</h1>
       <DegerlendirmelerimMagazalarIcerik
         degerlendirmeler={degerlendirmeler.map((d) => ({
           id: d.id,

@@ -15,7 +15,7 @@ export default async function TakipEttigimMagazalarSayfasi() {
 
   return (
     <>
-      <h1 className="text-xl font-bold text-neutral-900">Takip Ettiğim Mağazalar</h1>
+      <h1 className="text-xl font-bold text-neutral-900">Takip Ettiğim Tezgahlar</h1>
       <TakipEttigimMagazalarIcerik
         magazalar={magazalar.map((m) => ({
           id: m.id,

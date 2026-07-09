@@ -5,14 +5,14 @@ import Link from "next/link";
 // bkz. src/app/panel/*).
 const OGELER: { anahtar: string; etiket: string; href?: string }[] = [
   { anahtar: "panel", etiket: "Panel", href: "/admin" },
-  { anahtar: "magazalar", etiket: "Mağazalar", href: "/admin/magazalar" },
+  { anahtar: "magazalar", etiket: "Tezgahlar", href: "/admin/magazalar" },
   { anahtar: "kullanicilar", etiket: "Kullanıcılar", href: "/admin/kullanicilar" },
   { anahtar: "rezervasyonlar", etiket: "Rezervasyonlar", href: "/admin/rezervasyonlar" },
   { anahtar: "guvenilirlik", etiket: "Güvenilirlik", href: "/admin/guvenilirlik" },
   { anahtar: "ayarlar", etiket: "Ayarlar", href: "/admin/ayarlar" },
   { anahtar: "duyuru", etiket: "Duyuru", href: "/admin/duyuru" },
   { anahtar: "anasayfa", etiket: "Anasayfa Görünümü", href: "/admin/anasayfa" },
-  { anahtar: "magaza-sablonu", etiket: "Mağaza Şablonu", href: "/admin/magaza-sablonu" },
+  { anahtar: "magaza-sablonu", etiket: "Tezgah Şablonu", href: "/admin/magaza-sablonu" },
   { anahtar: "icerik", etiket: "İçerik Yönetimi", href: "/admin/icerik" },
   { anahtar: "pazarlar", etiket: "Pazarlar", href: "/admin/pazarlar" },
   { anahtar: "kategoriler", etiket: "Kategoriler", href: "/admin/kategoriler" },

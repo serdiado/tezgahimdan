@@ -20,8 +20,8 @@ export default async function PanelLayout({ children }: { children: ReactNode })
           <main className="mx-auto max-w-2xl px-4 py-6">
             <h1 className="text-xl font-bold text-neutral-900">Bu Pazar Artık Aktif Değil</h1>
             <p className="mt-1 text-neutral-600">
-              Mağazanın bağlı olduğu <span className="font-semibold">{magaza.pazar.ad}</span> pazarı
-              artık aktif değil, bu yüzden panele giriş yapamıyorsun. Mağazan ve ürünlerin
+              Tezgahın bağlı olduğu <span className="font-semibold">{magaza.pazar.ad}</span> pazarı
+              artık aktif değil, bu yüzden panele giriş yapamıyorsun. Tezgahın ve ürünlerin
               kalıcı olarak silinmedi. Sorular için bizimle iletişime geçebilirsin.
             </p>
           </main>

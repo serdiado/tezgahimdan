@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 
 export type KullaniciSikayeti = {
   id: string;
-  hedefTuruEtiketi: "Mağaza" | "Ürün";
+  hedefTuruEtiketi: "Tezgah" | "Ürün";
   hedefAdi: string;
   hedefLink: string | null;
   sebep: string;
@@ -34,7 +34,7 @@ export async function kullaniciSikayetleriGetir(kullaniciId: string): Promise<Ku
     if (s.hedefMagaza) {
       return {
         id: s.id,
-        hedefTuruEtiketi: "Mağaza" as const,
+        hedefTuruEtiketi: "Tezgah" as const,
         hedefAdi: s.hedefMagaza.silindiMi ? `${s.hedefMagaza.ad} (kaldırıldı)` : s.hedefMagaza.ad,
         hedefLink: s.hedefMagaza.silindiMi ? null : `/magaza/${s.hedefMagaza.slug}`,
         sebep: s.sebep,

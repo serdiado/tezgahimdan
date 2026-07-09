@@ -60,7 +60,7 @@ export default async function PanelSayfasi() {
               >
                 <Store className="h-8 w-8 text-primary-600" strokeWidth={1.75} />
                 <div>
-                  <p className="font-semibold text-neutral-900">Mağaza Ayarları</p>
+                  <p className="font-semibold text-neutral-900">Tezgah Ayarları</p>
                   <p className="text-sm text-neutral-500">Ad, açıklama, WhatsApp</p>
                 </div>
               </Link>
@@ -70,7 +70,7 @@ export default async function PanelSayfasi() {
               >
                 <QrCode className="h-8 w-8 text-primary-600" strokeWidth={1.75} />
                 <div>
-                  <p className="font-semibold text-neutral-900">Mağaza QR Kodu</p>
+                  <p className="font-semibold text-neutral-900">Tezgah QR Kodu</p>
                   <p className="text-sm text-neutral-500">Yazdır, tezgahına koy</p>
                 </div>
               </Link>

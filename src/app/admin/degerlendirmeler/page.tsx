@@ -98,7 +98,7 @@ export default async function AdminDegerlendirmelerPage({
           </Link>
           <span className="text-neutral-300">·</span>
           <Link href={filtreLink("magaza")} className={linkSinif(gecerliTur === "magaza")}>
-            Mağaza Yorumları
+            Tezgah Yorumları
           </Link>
         </div>
 

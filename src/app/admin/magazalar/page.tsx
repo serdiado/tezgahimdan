@@ -92,7 +92,7 @@ export default async function AdminMagazalarPage({
 
     icerik = (
       <>
-        <h1 className="text-xl font-bold text-neutral-900">Mağazalar</h1>
+        <h1 className="text-xl font-bold text-neutral-900">Tezgahlar</h1>
         <AdminNav aktif="magazalar" />
 
         <form method="get" className="mt-3 flex gap-2">
@@ -102,7 +102,7 @@ export default async function AdminMagazalarPage({
             type="text"
             name="q"
             defaultValue={arama}
-            placeholder="Mağaza adı veya bağlantı ara"
+            placeholder="Tezgah adı veya bağlantı ara"
             className="w-full max-w-xs rounded-lg border border-neutral-300 px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none"
           />
           <button
@@ -132,7 +132,7 @@ export default async function AdminMagazalarPage({
         </div>
 
         {magazalar.length === 0 ? (
-          <p className="mt-4 text-neutral-600">Bu filtrede mağaza yok.</p>
+          <p className="mt-4 text-neutral-600">Bu filtrede tezgah yok.</p>
         ) : (
           <div className="mt-4 space-y-3">
             {magazalar.map((m) => (

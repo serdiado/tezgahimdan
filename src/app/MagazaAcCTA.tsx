@@ -11,7 +11,7 @@ export function MagazaAcCTA({ girisli }: { girisli: boolean }) {
       <div>
         <h2 className="font-semibold text-neutral-900">Sen de tezgahını açabilirsin</h2>
         <p className="mt-1 text-sm text-neutral-600">
-          Birkaç adımda mağazanı kur, ürünlerini sergilemeye başla.
+          Birkaç adımda tezgahını kur, ürünlerini sergilemeye başla.
         </p>
       </div>
       <Link
@@ -19,7 +19,7 @@ export function MagazaAcCTA({ girisli }: { girisli: boolean }) {
         className="flex shrink-0 items-center gap-1.5 rounded-md bg-primary-600 px-4 py-2 font-semibold text-white hover:bg-primary-700"
       >
         <Store className="h-4 w-4" strokeWidth={2} />
-        Mağaza Aç
+        Tezgah Aç
       </Link>
     </div>
   );

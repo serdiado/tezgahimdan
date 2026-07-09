@@ -38,7 +38,7 @@ export function MagazaAyarlariForm({
       <div className="space-y-4" onChange={() => setDirty(true)}>
         <div>
           <label className="block text-sm font-medium text-neutral-700">
-            Mağaza Adı
+            Tezgah Adı
             <input
               name="ad"
               type="text"
@@ -54,7 +54,7 @@ export function MagazaAyarlariForm({
             {magaza.slug}
           </p>
           <p className="mt-1 text-xs text-neutral-400">
-            Slug değiştirilemez — paylaşılmış mağaza linkinin kırılmaması için.
+            Slug değiştirilemez — paylaşılmış tezgah linkinin kırılmaması için.
           </p>
         </div>
         <div>

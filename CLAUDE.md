@@ -27,6 +27,17 @@ mercan-pembe (`#F0517E` = `primary-500`).
 - **Alıcı kimliği = telefon.**
 - **Faz 1'de ödeme yok** — para pazarda nakit; online ödeme/kargo Faz 2+'ya bırakıldı.
 
+## Terminoloji
+
+Kullanıcıya görünen tüm metinlerde (satıcı/alıcı/admin paneli, vitrin, bildirim/hata
+mesajları) **"mağaza" değil "tezgah"** kullanılır (2026-07-09 kararı, site adı
+"tezgahimdan.com" ile tutarlılık için). Kod tarafı — değişken/dosya/component adları,
+route'lar (`/magaza/[slug]`), `Magaza` Prisma modeli ve DB şeması — kasıtlı olarak
+**"magaza" kalır**; DB migration ve URL kırılma riski alınmadı, çünkü koddaki
+isimlendirme kullanıcıya hiç görünmüyor. Yeni kullanıcıya-görünen metin yazarken
+"tezgah" kullan; kod tanımlayıcısı eklerken mevcut dosya/route adlarıyla tutarlı olması
+için "magaza" kullanmaya devam edebilirsin.
+
 ## Çalışma tarzı
 
 - Claude Code kodlar; her adımdan sonra kullanıcıya rapor sunulur, birlikte incelenir.

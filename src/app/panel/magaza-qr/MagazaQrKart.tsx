@@ -39,7 +39,7 @@ export function MagazaQrKart({ ad, slug }: { ad: string; slug: string }) {
       <div className="mt-4 flex justify-center">
         {dataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- data: URL, next/image bunu optimize edemez
-          <img src={dataUrl} alt={`${ad} mağaza sayfası QR kodu`} width={320} height={320} />
+          <img src={dataUrl} alt={`${ad} tezgah sayfası QR kodu`} width={320} height={320} />
         ) : (
           <div className="flex h-[320px] w-[320px] items-center justify-center rounded-lg bg-neutral-100 text-sm text-neutral-400">
             QR kod hazırlanıyor…

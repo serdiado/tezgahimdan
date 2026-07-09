@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     take: 5000,
   });
 
-  const basliklar = ["Kod", "Ürün", "Mağaza", "Alıcı", "Telefon", "Tip", "Sıra", "Durum", "Tarih"];
+  const basliklar = ["Kod", "Ürün", "Tezgah", "Alıcı", "Telefon", "Tip", "Sıra", "Durum", "Tarih"];
   const satirlar = rezervasyonlar.map((r) =>
     [
       r.rezervKodu,

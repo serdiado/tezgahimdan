@@ -71,7 +71,7 @@ export async function SiteHeader() {
                   href="/panel/magaza-ac"
                   className="rounded-md bg-primary-600 px-3 py-1.5 font-semibold text-white hover:bg-primary-700"
                 >
-                  Mağaza Aç
+                  Tezgah Aç
                 </Link>
               )}
               <form

@@ -108,7 +108,7 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
         <AdminNav aktif="magazalar" />
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Link href="/admin/magazalar" className="text-sm text-primary-600 hover:underline">
-            ← Mağazalara dön
+            ← Tezgahlara dön
           </Link>
           <Link
             href={`/magaza/${magaza.slug}`}
@@ -132,7 +132,7 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <h2 className="font-semibold text-neutral-900">Mağaza Bilgileri</h2>
+            <h2 className="font-semibold text-neutral-900">Tezgah Bilgileri</h2>
             <dl className="mt-2 space-y-1 text-sm">
               <div className="flex justify-between gap-4">
                 <dt className="text-neutral-500">Sahip</dt>
@@ -197,7 +197,7 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
         <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
           <h2 className="font-semibold text-neutral-900">Ürünler ({magaza.urunler.length})</h2>
           {magaza.urunler.length === 0 ? (
-            <p className="mt-2 text-sm text-neutral-500">Bu mağazada henüz ürün yok.</p>
+            <p className="mt-2 text-sm text-neutral-500">Bu tezgahta henüz ürün yok.</p>
           ) : (
             <div className="mt-2 overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -248,7 +248,7 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
         <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
           <h2 className="font-semibold text-neutral-900">Şikayet Geçmişi ({sikayetler.length})</h2>
           {sikayetler.length === 0 ? (
-            <p className="mt-2 text-sm text-neutral-500">Bu mağazaya/ürünlerine yönelik şikayet yok.</p>
+            <p className="mt-2 text-sm text-neutral-500">Bu tezgaha/ürünlerine yönelik şikayet yok.</p>
           ) : (
             <ul className="mt-2 space-y-2 text-sm">
               {sikayetler.map((s) => {
@@ -257,7 +257,7 @@ export default async function AdminMagazaDetayPage({ params }: { params: Promise
                   <li key={s.id} className="border-b border-neutral-50 pb-2 last:border-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold text-neutral-400">
-                        {s.hedefUrun ? s.hedefUrun.baslik : "Mağaza"}
+                        {s.hedefUrun ? s.hedefUrun.baslik : "Tezgah"}
                       </span>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${stil.className}`}>
                         {stil.etiket}

@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const pazarId = typeof body?.pazarId === "string" ? body.pazarId.trim() : undefined;
 
   if (!ad || ad.length > 100) {
-    return NextResponse.json({ hata: "mağaza adı zorunlu (en fazla 100 karakter)" }, { status: 400 });
+    return NextResponse.json({ hata: "tezgah adı zorunlu (en fazla 100 karakter)" }, { status: 400 });
   }
 
   // Slug bos gelirse ad'dan turet (deneyimsiz satici slug yazmasin).
@@ -43,10 +43,10 @@ export async function POST(request: Request) {
     case "acildi":
       return NextResponse.json({ slug: sonuc.magaza.slug }, { status: 201 });
     case "gecersiz-ad":
-      return NextResponse.json({ hata: "mağaza adı zorunlu" }, { status: 400 });
+      return NextResponse.json({ hata: "tezgah adı zorunlu" }, { status: 400 });
     case "gecersiz-slug":
       return NextResponse.json(
-        { hata: "mağaza adından geçerli bir bağlantı üretilemedi, lütfen harf içeren bir ad girin" },
+        { hata: "tezgah adından geçerli bir bağlantı üretilemedi, lütfen harf içeren bir ad girin" },
         { status: 400 },
       );
     case "gecersiz-pazar":
@@ -56,14 +56,14 @@ export async function POST(request: Request) {
       );
     case "slug-alinmis":
       return NextResponse.json(
-        { hata: "bu bağlantı zaten kullanılıyor, farklı bir mağaza adı deneyin" },
+        { hata: "bu bağlantı zaten kullanılıyor, farklı bir tezgah adı deneyin" },
         { status: 409 },
       );
     case "zaten-magaza-var":
-      return NextResponse.json({ hata: "zaten bir mağazanız var" }, { status: 409 });
+      return NextResponse.json({ hata: "zaten bir tezgahınız var" }, { status: 409 });
     case "yasakli":
       return NextResponse.json(
-        { hata: "Hesabınız kısıtlandığı için yeni mağaza açamazsınız." },
+        { hata: "Hesabınız kısıtlandığı için yeni tezgah açamazsınız." },
         { status: 403 },
       );
   }

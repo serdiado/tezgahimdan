@@ -34,10 +34,10 @@ export async function SiteFooter() {
 
         <nav className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
           <Link href="/#magazalar" className="text-white hover:text-primary-100">
-            Mağazalar
+            Tezgahlar
           </Link>
           <Link href="/panel/magaza-ac" className="text-white hover:text-primary-100">
-            Mağaza Aç
+            Tezgah Aç
           </Link>
           <Link href="/hakkimizda" className="text-white hover:text-primary-100">
             Hakkımızda

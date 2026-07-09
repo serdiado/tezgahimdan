@@ -72,7 +72,7 @@ export function MagazaDegerlendirmeFormu({
           </div>
         ) : (
           <div>
-            <h2 className="text-lg font-bold text-neutral-900">Mağazayı Değerlendir</h2>
+            <h2 className="text-lg font-bold text-neutral-900">Tezgahı Değerlendir</h2>
             <p className="mt-1 text-sm text-neutral-600">{magazaAd}</p>
             <form onSubmit={gonder} className="mt-4 flex flex-col gap-3">
               <div className="flex items-center gap-1">
@@ -102,7 +102,7 @@ export function MagazaDegerlendirmeFormu({
                   onChange={(e) => setYorum(e.target.value.slice(0, YORUM_MAX))}
                   maxLength={YORUM_MAX}
                   rows={4}
-                  placeholder="Mağazayla ilgili deneyiminizi paylaşın"
+                  placeholder="Tezgahla ilgili deneyiminizi paylaşın"
                   className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
                 />
                 <span className="mt-0.5 block text-right text-xs text-neutral-400">

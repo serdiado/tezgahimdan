@@ -11,7 +11,7 @@ const MODUL_BASLIGI: Record<string, string> = {
   haftalik_ritim: "Haftalık Pazar Ritmi",
   yeni_urunler: "Bu Hafta Eklenenler",
   en_cok_begenilen: "En Çok Beğenilenler",
-  magaza_listesi: "Mağazalar",
+  magaza_listesi: "Tezgahlar",
 };
 
 const HERO_ANAHTARLARI = [

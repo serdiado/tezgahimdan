@@ -41,7 +41,7 @@ export function FavorilerimIcerik({ favoriler }: { favoriler: FavoriUrun[] }) {
       <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-white p-8 text-center shadow-sm">
         <Heart className="h-8 w-8 text-neutral-300" strokeWidth={1.5} />
         <p className="text-neutral-500">
-          Henüz favori ürününüz yok. Mağazaları gezip beğendiğiniz ürünlere kalp bırakabilir ya da
+          Henüz favori ürününüz yok. Tezgahları gezip beğendiğiniz ürünlere kalp bırakabilir ya da
           takibe alabilirsiniz.
         </p>
       </div>

@@ -68,7 +68,7 @@ export default async function RezervasyonlarSayfasi() {
       <main className="mx-auto max-w-2xl px-4 py-6">
         <h1 className="text-xl font-bold text-neutral-900">Gelen Rezervasyonlar</h1>
         {!magaza ? (
-          <p className="mt-2 text-neutral-600">Henüz mağazanız yok.</p>
+          <p className="mt-2 text-neutral-600">Henüz tezgahınız yok.</p>
         ) : urunler.length === 0 ? (
           <p className="mt-2 text-neutral-600">Henüz ürününüz yok.</p>
         ) : (

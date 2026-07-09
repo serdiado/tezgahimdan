@@ -78,7 +78,7 @@ export default async function AdminDenetimKaydiPage({
           </Link>
           <span className="text-neutral-300">·</span>
           <Link href={filtreLink("Magaza")} className={linkSinif(gecerliTur === "Magaza")}>
-            Mağaza
+            Tezgah
           </Link>
           <span className="text-neutral-300">·</span>
           <Link href={filtreLink("Pazar")} className={linkSinif(gecerliTur === "Pazar")}>
@@ -113,7 +113,7 @@ export default async function AdminDenetimKaydiPage({
             href={filtreLink("MagazaDegerlendirme")}
             className={linkSinif(gecerliTur === "MagazaDegerlendirme")}
           >
-            Mağaza Yorumu
+            Tezgah Yorumu
           </Link>
           <span className="text-neutral-300">·</span>
           <Link href={filtreLink("PlatformAyarlari")} className={linkSinif(gecerliTur === "PlatformAyarlari")}>

@@ -58,7 +58,7 @@ export function RezervasyonumIcerik({ rezervasyonlar }: { rezervasyonlar: Rezerv
   if (rezervasyonlar.length === 0) {
     return (
       <p className="mt-4 text-neutral-600">
-        Henüz rezervasyonunuz yok. Mağazaları gezip beğendiğiniz ürünü rezerve edebilirsiniz.
+        Henüz rezervasyonunuz yok. Tezgahları gezip beğendiğiniz ürünü rezerve edebilirsiniz.
       </p>
     );
   }

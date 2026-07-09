@@ -313,7 +313,7 @@ export default async function AnaSayfa({
         return (
           <div key={tur} id="magazalar" className="mt-8 scroll-mt-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-lg font-bold text-neutral-900">Mağazalar</h2>
+              <h2 className="text-lg font-bold text-neutral-900">Tezgahlar</h2>
               {arama && (
                 <p className="text-sm text-neutral-500">
                   &quot;{arama}&quot; için {magazalar.length} sonuç ·{" "}
@@ -326,7 +326,7 @@ export default async function AnaSayfa({
             <div className="mt-4">
               {arama && magazalar.length === 0 ? (
                 <p className="text-neutral-500">
-                  &quot;{arama}&quot; bölgesinde henüz mağaza yok. Farklı bir il/ilçe deneyin.
+                  &quot;{arama}&quot; bölgesinde henüz tezgah yok. Farklı bir il/ilçe deneyin.
                 </p>
               ) : (
                 <MagazaVitrini

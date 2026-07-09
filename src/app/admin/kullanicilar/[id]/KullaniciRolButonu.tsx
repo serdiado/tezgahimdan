@@ -74,7 +74,7 @@ export function KullaniciRolButonu({ kullaniciId, rol }: { kullaniciId: string; 
       {onay ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-neutral-600">
-            Bu kullanıcı TAM admin yetkisi alacak (tüm mağaza/kullanıcı/ayar erişimi). Emin misin?
+            Bu kullanıcı TAM admin yetkisi alacak (tüm tezgah/kullanıcı/ayar erişimi). Emin misin?
           </span>
           <button
             type="button"

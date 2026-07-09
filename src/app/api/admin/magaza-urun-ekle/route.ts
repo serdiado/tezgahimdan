@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   }
   const magaza = await prisma.magaza.findUnique({ where: { id: magazaId }, select: { id: true, ad: true, silindiMi: true } });
   if (!magaza || magaza.silindiMi) {
-    return NextResponse.json({ hata: "mağaza bulunamadı" }, { status: 404 });
+    return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
   }
 
   if (typeof kategoriId !== "string" || !kategoriId) {
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
   await bildirimGonderMagazaTakipcilerine({
     magazaId: magaza.id,
     urunId: sonuc.urun.id,
-    mesaj: `Takip ettiğiniz "${magaza.ad}" mağazasına yeni bir ürün eklendi: "${baslik.trim()}"`,
+    mesaj: `Takip ettiğiniz "${magaza.ad}" tezgahına yeni bir ürün eklendi: "${baslik.trim()}"`,
     haricKullaniciId: session.user.id,
   });
 

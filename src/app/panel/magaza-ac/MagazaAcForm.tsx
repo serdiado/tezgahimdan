@@ -26,7 +26,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
   function devam() {
     setHata(null);
     if (!ad.trim()) {
-      setHata("mağaza adı zorunlu");
+      setHata("tezgah adı zorunlu");
       return;
     }
     if (!slug) {
@@ -52,7 +52,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
     setGonderiliyor(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setHata(data.hata ?? "mağaza açılamadı");
+      setHata(data.hata ?? "tezgah açılamadı");
       // Slug/ad kaynakli hataysa 1. adima don ki duzeltebilsin.
       if (res.status === 409 || res.status === 400) setAdim(1);
       return;
@@ -66,7 +66,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
     <div className="mt-5">
       {/* Adim gostergesi */}
       <div className="mb-4 flex items-center gap-2 text-xs font-medium text-neutral-500">
-        <span className={adim === 1 ? "text-primary-600" : ""}>1. Mağaza</span>
+        <span className={adim === 1 ? "text-primary-600" : ""}>1. Tezgah</span>
         <span className="h-px flex-1 bg-neutral-200" />
         <span className={adim === 2 ? "text-primary-600" : ""}>2. İletişim</span>
       </div>
@@ -75,7 +75,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-neutral-700">
-              Mağaza Adı
+              Tezgah Adı
               <input
                 type="text"
                 value={ad}
@@ -90,7 +90,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
 
           {/* Baglanti onizleme + duzenle */}
           <div className="rounded-lg bg-neutral-100 p-3">
-            <p className="text-xs text-neutral-500">Mağaza bağlantın</p>
+            <p className="text-xs text-neutral-500">Tezgah bağlantın</p>
             {slugDuzenle ? (
               <input
                 type="text"
@@ -111,7 +111,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
               {slugDuzenle ? "Otomatik bağlantıyı kullan" : "Bağlantıyı düzenle"}
             </button>
             <p className="mt-1 text-xs text-neutral-400">
-              Bağlantı mağazanı açtıktan sonra değiştirilemez (paylaştığın bağlantı kırılmasın).
+              Bağlantı tezgahını açtıktan sonra değiştirilemez (paylaştığın bağlantı kırılmasın).
             </p>
           </div>
 
@@ -120,7 +120,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
             <div className="flex items-start gap-2 rounded-lg border border-neutral-200 p-3 text-sm text-neutral-600">
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" strokeWidth={2} />
               <span>
-                Mağazan{" "}
+                Tezgahın{" "}
                 <span className="font-semibold text-neutral-800">{pazarlar[0]?.ad}</span> pazarına
                 bağlanacak.
               </span>
@@ -144,7 +144,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
                   </select>
                 </div>
               </label>
-              <p className="mt-1 text-xs text-neutral-400">Mağazan seçtiğin pazara bağlanacak.</p>
+              <p className="mt-1 text-xs text-neutral-400">Tezgahın seçtiğin pazara bağlanacak.</p>
             </div>
           )}
 
@@ -172,7 +172,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
               />
             </label>
             <p className="mt-1 text-xs text-neutral-400">
-              Alıcılar sana buradan ulaşır. Şimdi atlayabilir, sonra Mağaza Ayarları&apos;ndan
+              Alıcılar sana buradan ulaşır. Şimdi atlayabilir, sonra Tezgah Ayarları&apos;ndan
               ekleyebilirsin.
             </p>
           </div>
@@ -186,7 +186,7 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
             className="flex w-full items-center justify-center gap-2 rounded-md bg-primary-600 py-2.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
           >
             <Store className="h-4 w-4" strokeWidth={2} />
-            {gonderiliyor ? "Açılıyor…" : "Mağazayı Aç"}
+            {gonderiliyor ? "Açılıyor…" : "Tezgahı Aç"}
           </button>
           <button
             type="button"

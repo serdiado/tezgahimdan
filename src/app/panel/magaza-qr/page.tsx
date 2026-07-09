@@ -24,9 +24,9 @@ export default async function MagazaQrPage() {
     if (!magaza) {
       icerik = (
         <>
-          <h1 className="text-xl font-bold text-neutral-900">Önce Mağazanı Oluştur</h1>
+          <h1 className="text-xl font-bold text-neutral-900">Önce Tezgahını Oluştur</h1>
           <p className="mt-1 text-neutral-600">
-            QR kodunu oluşturmadan önce bir mağaza oluşturman gerekiyor.
+            QR kodunu oluşturmadan önce bir tezgah oluşturman gerekiyor.
           </p>
         </>
       );
@@ -34,9 +34,9 @@ export default async function MagazaQrPage() {
       icerik = (
         <>
           <div className="print:hidden">
-            <h1 className="text-xl font-bold text-neutral-900">Mağaza QR Kodu</h1>
+            <h1 className="text-xl font-bold text-neutral-900">Tezgah QR Kodu</h1>
             <p className="mt-1 text-sm text-neutral-600">
-              Yazdırıp tezgahına koy — okutan doğrudan mağaza sayfana gider.
+              Yazdırıp tezgahına koy — okutan doğrudan tezgah sayfana gider.
             </p>
           </div>
           <div className="mt-4">

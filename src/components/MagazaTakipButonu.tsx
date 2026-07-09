@@ -62,12 +62,12 @@ export function MagazaTakipButonu({
       {takipEdiliyor ? (
         <>
           <BellRing className="h-3.5 w-3.5" strokeWidth={2} />
-          Mağaza Takip Ediliyor
+          Tezgah Takip Ediliyor
         </>
       ) : (
         <>
           <Bell className="h-3.5 w-3.5" strokeWidth={2} />
-          Mağazayı Takip Et
+          Tezgahı Takip Et
         </>
       )}
     </button>

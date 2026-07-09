@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   const magaza = await prisma.magaza.findUnique({ where: { id: magazaId }, select: { id: true, silindiMi: true } });
   if (!magaza || magaza.silindiMi) {
-    return NextResponse.json({ hata: "mağaza bulunamadı" }, { status: 404 });
+    return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
   }
 
   const sonuc = await magazaTakipToggle({ kullaniciId: session.user.id, magazaId });

@@ -50,7 +50,7 @@ export function KullaniciYasaklaButonu({ kullaniciId, yasakliMi }: { kullaniciId
       {onay ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-neutral-600">
-            Yasaklanınca yeni rezervasyon/mağaza/yorum/şikayet oluşturamaz. Emin misin?
+            Yasaklanınca yeni rezervasyon/tezgah/yorum/şikayet oluşturamaz. Emin misin?
           </span>
           <button
             type="button"

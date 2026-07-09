@@ -43,7 +43,7 @@ export default async function AdminMagazaUrunEklePage({
         <AdminNav aktif="magazalar" />
         <p className="mt-3 text-sm text-neutral-600">
           Bu ürün, satıcının kendi eklediği ürünler gibi doğrudan{" "}
-          <span className="font-semibold">{magaza.ad}</span> mağazasında görünecek.
+          <span className="font-semibold">{magaza.ad}</span> tezgahında görünecek.
         </p>
         <div className="mt-4 max-w-2xl">
           <AdminUrunEkleForm

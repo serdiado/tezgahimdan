@@ -79,13 +79,13 @@ export function AdminUrunEkleForm({
           <h2 className="text-lg font-bold">Ürün eklendi!</h2>
         </div>
         <p className="mt-2 text-sm text-neutral-700">
-          <span className="font-semibold">{basariBaslik}</span>, {magazaAd} mağazasına eklendi.
+          <span className="font-semibold">{basariBaslik}</span>, {magazaAd} tezgahına eklendi.
         </p>
         <Link
           href={`/admin/magazalar/${magazaId}/urun-ekle`}
           className="mt-4 inline-block rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white hover:bg-primary-700"
         >
-          Bu mağazaya bir ürün daha ekle
+          Bu tezgaha bir ürün daha ekle
         </Link>
       </div>
     );

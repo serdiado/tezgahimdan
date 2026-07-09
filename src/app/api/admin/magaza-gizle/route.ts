@@ -27,13 +27,13 @@ export async function POST(request: Request) {
     select: { id: true, gizliMi: true, silindiMi: true },
   });
   if (!magaza) {
-    return NextResponse.json({ hata: "mağaza bulunamadı" }, { status: 404 });
+    return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
   }
   // Soft-delete edilmis magaza icin gizle/goster anlamsiz - bugun hicbir akis
   // silindiMi=true yazmiyor (magaza silme ozelligi yok), ama ileride eklenirse
   // tutarli davranmasi icin savunmaci kontrol.
   if (magaza.silindiMi) {
-    return NextResponse.json({ hata: "silinmiş mağaza gizlenemez/gösterilemez" }, { status: 409 });
+    return NextResponse.json({ hata: "silinmiş tezgah gizlenemez/gösterilemez" }, { status: 409 });
   }
   if (magaza.gizliMi === gizle) {
     return NextResponse.json({ tur: "degismedi", gizliMi: magaza.gizliMi });

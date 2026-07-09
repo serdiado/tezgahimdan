@@ -33,7 +33,7 @@ export default async function AdminMagazaSablonuPage() {
       tur: b.tur,
       baslik: BILESEN_BASLIGI[b.tur] ?? b.tur,
       aktifMi: b.aktifMi,
-      aktifEtiketi: "Mağaza sayfasında göster",
+      aktifEtiketi: "Tezgah sayfasında göster",
       ilkMi: index === 0,
       sonMi: index === bilesenler.length - 1,
       ayarlar: undefined,
@@ -42,10 +42,10 @@ export default async function AdminMagazaSablonuPage() {
 
     icerik = (
       <>
-        <h1 className="text-xl font-bold text-neutral-900">Mağaza Sayfası Şablonu</h1>
+        <h1 className="text-xl font-bold text-neutral-900">Tezgah Sayfası Şablonu</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Bu sıra/görünürlük ayarı <span className="font-semibold">tüm mağazalar</span> için geçerli tek bir
-          şablon kararıdır — tekil mağaza içeriği (ad, açıklama, WhatsApp numarası vb.) hâlâ satıcının kendi
+          Bu sıra/görünürlük ayarı <span className="font-semibold">tüm tezgahlar</span> için geçerli tek bir
+          şablon kararıdır — tekil tezgah içeriği (ad, açıklama, WhatsApp numarası vb.) hâlâ satıcının kendi
           panelinden yönetilir.
         </p>
         <AdminNav aktif="magaza-sablonu" />

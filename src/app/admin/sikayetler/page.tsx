@@ -91,7 +91,7 @@ export default async function AdminSikayetlerPage({
                 : s.hedefUrun
                   ? `/magaza/${s.hedefUrun.magaza.slug}?urun=${s.hedefUrunId}`
                   : null;
-              const hedefTuruEtiketi = s.hedefMagaza ? "Mağaza" : "Ürün";
+              const hedefTuruEtiketi = s.hedefMagaza ? "Tezgah" : "Ürün";
               return (
                 <SikayetKartAdmin
                   key={s.id}

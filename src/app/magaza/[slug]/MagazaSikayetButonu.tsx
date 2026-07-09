@@ -37,7 +37,7 @@ export function MagazaSikayetButonu({
         className="flex items-center gap-1 text-xs font-medium text-neutral-400 hover:text-neutral-600"
       >
         <Flag className="h-3.5 w-3.5" strokeWidth={2} />
-        Bu mağazayı şikayet et
+        Bu tezgahı şikayet et
       </button>
       {modalAcik && (
         <SikayetModal

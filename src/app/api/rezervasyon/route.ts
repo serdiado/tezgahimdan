@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ hata: "kapasite dolu" }, { status: 409 });
     case "magaza-gizli":
       return NextResponse.json(
-        { hata: "Bu mağaza şu anda aktif değil, rezervasyon alınamıyor." },
+        { hata: "Bu tezgah şu anda aktif değil, rezervasyon alınamıyor." },
         { status: 409 },
       );
     case "satista-degil":

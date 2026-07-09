@@ -31,7 +31,7 @@ export function MagazaYorumlari({
   return (
     <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-neutral-900">Mağaza Yorumları</h2>
+        <h2 className="font-semibold text-neutral-900">Tezgah Yorumları</h2>
         <Link
           href={`/magaza/${magazaSlug}/yorumlar`}
           className="flex items-center gap-0.5 text-sm font-medium text-primary-600 hover:underline"

@@ -33,7 +33,7 @@ export function YorumlarSekmeleri({
               : "bg-white text-neutral-600 ring-1 ring-inset ring-neutral-200 hover:bg-neutral-100"
           }`}
         >
-          Mağaza Yorumları ({magazaYorumlari.length})
+          Tezgah Yorumları ({magazaYorumlari.length})
         </button>
         <button
           type="button"
@@ -51,7 +51,7 @@ export function YorumlarSekmeleri({
       {sekme === "magaza" && (
         <div className="mt-4 space-y-3">
           {magazaYorumlari.length === 0 ? (
-            <p className="text-neutral-500">Bu mağaza için henüz yorum yok.</p>
+            <p className="text-neutral-500">Bu tezgah için henüz yorum yok.</p>
           ) : (
             magazaYorumlari.map((y) => (
               <div key={y.id} className="rounded-2xl bg-white p-4 shadow-sm">
@@ -70,7 +70,7 @@ export function YorumlarSekmeleri({
       {sekme === "urun" && (
         <div className="mt-4 space-y-3">
           {urunYorumlari.length === 0 ? (
-            <p className="text-neutral-500">Bu mağazanın ürünleri için henüz yorum yok.</p>
+            <p className="text-neutral-500">Bu tezgahın ürünleri için henüz yorum yok.</p>
           ) : (
             urunYorumlari.map((y) => (
               <div key={y.id} className="rounded-2xl bg-white p-4 shadow-sm">

@@ -38,7 +38,7 @@ export function MagazaIcerik({
   const satilanUrunler = gorunenUrunler.filter((u) => u.durum === "satildi");
 
   if (urunler.length === 0) {
-    return <p className="text-neutral-500">Bu mağazada şu an sergide ürün yok.</p>;
+    return <p className="text-neutral-500">Bu tezgahta şu an sergide ürün yok.</p>;
   }
 
   return (

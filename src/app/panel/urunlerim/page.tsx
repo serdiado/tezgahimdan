@@ -32,11 +32,11 @@ export default async function UrunlerimPage({
     if (!magaza) {
       icerik = (
         <>
-          <h1 className="text-xl font-bold text-neutral-900">Henüz Mağazanız Yok</h1>
+          <h1 className="text-xl font-bold text-neutral-900">Henüz Tezgahınız Yok</h1>
           <p className="mt-1 text-neutral-600">
             Ürün eklemek için önce{" "}
             <Link href="/panel/urun-ekle" className="text-primary-600 underline">
-              mağazanı oluştur
+              tezgahını oluştur
             </Link>
             .
           </p>

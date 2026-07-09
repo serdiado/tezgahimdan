@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   if (hedefMagazaId) {
     const magaza = await prisma.magaza.findUnique({ where: { id: hedefMagazaId }, select: { id: true } });
     if (!magaza) {
-      return NextResponse.json({ hata: "mağaza bulunamadı" }, { status: 404 });
+      return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
     }
   } else {
     const urun = await prisma.urun.findUnique({ where: { id: hedefUrunId! }, select: { id: true } });

@@ -37,12 +37,12 @@ export default async function UrunEklePage({
       });
       icerik = (
         <>
-          <h1 className="text-xl font-bold text-neutral-900">Önce Mağazanı Oluştur</h1>
+          <h1 className="text-xl font-bold text-neutral-900">Önce Tezgahını Oluştur</h1>
           {hata && <p className="mt-1 text-red-600">{hata}</p>}
           <div className="mt-4">
             {pazarlar.length === 0 ? (
               <p className="mt-4 rounded-lg border border-neutral-200 p-3 text-sm text-neutral-600">
-                Şu anda aktif bir pazar yok, bu yüzden mağaza açılamıyor. Lütfen daha sonra tekrar
+                Şu anda aktif bir pazar yok, bu yüzden tezgah açılamıyor. Lütfen daha sonra tekrar
                 deneyin.
               </p>
             ) : (

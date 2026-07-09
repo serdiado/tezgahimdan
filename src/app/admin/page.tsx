@@ -81,7 +81,7 @@ export default async function AdminSayfasi() {
 
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <IstatistikKarti
-            baslik="Aktif Mağaza"
+            baslik="Aktif Tezgah"
             deger={toplamMagaza}
             altYazi={`${yeniMagaza} yeni (son 7 gün)`}
           />
@@ -109,7 +109,7 @@ export default async function AdminSayfasi() {
 
         {enCokUrunluMagazalar.length > 0 && (
           <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <h2 className="font-semibold text-neutral-900">En Aktif Mağazalar</h2>
+            <h2 className="font-semibold text-neutral-900">En Aktif Tezgahlar</h2>
             <p className="text-xs text-neutral-400">Toplam rezervasyon sayısına göre</p>
             <ul className="mt-2 space-y-1 text-sm">
               {enCokUrunluMagazalar.map((m) => (
@@ -128,7 +128,7 @@ export default async function AdminSayfasi() {
           <AdminKart
             href="/admin/magazalar"
             ikon={Store}
-            baslik="Mağazalar"
+            baslik="Tezgahlar"
             aciklama="Görünürlük, moderasyon"
           />
           <AdminKart
@@ -170,8 +170,8 @@ export default async function AdminSayfasi() {
           <AdminKart
             href="/admin/magaza-sablonu"
             ikon={PanelsTopLeft}
-            baslik="Mağaza Şablonu"
-            aciklama="Hero bileşen sırası (tüm mağazalar)"
+            baslik="Tezgah Şablonu"
+            aciklama="Hero bileşen sırası (tüm tezgahlar)"
           />
           <AdminKart
             href="/admin/icerik"

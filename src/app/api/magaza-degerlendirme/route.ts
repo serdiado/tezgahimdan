@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const magaza = await prisma.magaza.findUnique({ where: { id: magazaId }, select: { id: true, silindiMi: true } });
   if (!magaza || magaza.silindiMi) {
-    return NextResponse.json({ hata: "mağaza bulunamadı" }, { status: 404 });
+    return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
   }
 
   const sonuc = await magazaDegerlendirmeUpsert({
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
   if (sonuc.tur === "satin-alinmadi") {
     return NextResponse.json(
-      { hata: "bu mağazayı değerlendirmek için önce bir üründen satın almış olmalısınız" },
+      { hata: "bu tezgahı değerlendirmek için önce bir üründen satın almış olmalısınız" },
       { status: 403 },
     );
   }

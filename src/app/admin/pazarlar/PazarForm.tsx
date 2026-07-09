@@ -239,9 +239,9 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
             Aktif
           </label>
           <p className="mt-1 text-xs text-neutral-500">
-            Pazar pasif yapıldığında: bağlı mağazalar anasayfa/vitrinde görünmez, o pazardaki
+            Pazar pasif yapıldığında: bağlı tezgahlar anasayfa/vitrinde görünmez, o pazardaki
             satıcılar panellerine giremez (&quot;bu pazar aktif değil&quot; uyarısı görürler).
-            Hiçbir kayıt kalıcı silinmez — bir pazarı kaldırmak yerine (bağlı mağazalar
+            Hiçbir kayıt kalıcı silinmez — bir pazarı kaldırmak yerine (bağlı tezgahlar
             olduğu için silinemez) burada pasifleştirebilirsiniz.
           </p>
         </div>

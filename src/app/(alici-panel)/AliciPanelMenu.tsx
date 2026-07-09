@@ -14,9 +14,9 @@ import { ShoppingBag, Heart, Store, Star, MessageSquare, Bell, Settings, Flag } 
 const OGELER = [
   { etiket: "Rezervasyonlarım", href: "/rezervasyonum", ikon: ShoppingBag },
   { etiket: "Favorilerim", href: "/favorilerim", ikon: Heart },
-  { etiket: "Takip Ettiğim Mağazalar", href: "/takip-ettigim-magazalar", ikon: Store },
+  { etiket: "Takip Ettiğim Tezgahlar", href: "/takip-ettigim-magazalar", ikon: Store },
   { etiket: "Ürün Değerlendirmelerim", href: "/degerlendirmelerim/urunler", ikon: Star },
-  { etiket: "Mağaza Değerlendirmelerim", href: "/degerlendirmelerim/magazalar", ikon: MessageSquare },
+  { etiket: "Tezgah Değerlendirmelerim", href: "/degerlendirmelerim/magazalar", ikon: MessageSquare },
   { etiket: "Şikayetlerim", href: "/sikayetlerim", ikon: Flag },
   { etiket: "Bildirimlerim", href: "/bildirimlerim", ikon: Bell },
   { etiket: "Ayarlar", href: "/ayarlar", ikon: Settings },

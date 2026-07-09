@@ -30,13 +30,13 @@ export default async function MagazaAcPage() {
     <div className="min-h-screen bg-neutral-50">
       <SiteHeader />
       <main className="mx-auto max-w-md px-4 py-6">
-        <h1 className="text-xl font-bold text-neutral-900">Mağazanı Aç</h1>
+        <h1 className="text-xl font-bold text-neutral-900">Tezgahını Aç</h1>
         <p className="mt-1 text-sm text-neutral-600">
-          Birkaç adımda mağazanı kur, ürünlerini sergilemeye başla.
+          Birkaç adımda tezgahını kur, ürünlerini sergilemeye başla.
         </p>
         {pazarlar.length === 0 ? (
           <p className="mt-4 rounded-lg border border-neutral-200 p-3 text-sm text-neutral-600">
-            Şu anda aktif bir pazar yok, bu yüzden mağaza açılamıyor. Lütfen daha sonra tekrar
+            Şu anda aktif bir pazar yok, bu yüzden tezgah açılamıyor. Lütfen daha sonra tekrar
             deneyin.
           </p>
         ) : (

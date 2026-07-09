@@ -10,7 +10,7 @@ export function MagazaVitrini({
   if (magazalar.length === 0) {
     return (
       <p className="text-neutral-500">
-        Henüz aktif mağaza yok. Yakında burada tezgahlar açılacak.
+        Henüz aktif tezgah yok. Yakında burada tezgahlar açılacak.
       </p>
     );
   }

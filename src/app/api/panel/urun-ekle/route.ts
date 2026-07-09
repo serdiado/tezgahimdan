@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   // turetilir, yoksa bir satici baskasinin magazasina urun ekleyebilirdi.
   const magaza = await getOwnMagaza(session.user.id);
   if (!magaza) {
-    return NextResponse.json({ hata: "once magaza olusturulmali" }, { status: 409 });
+    return NextResponse.json({ hata: "once tezgah olusturulmali" }, { status: 409 });
   }
 
   const formData = await request.formData();
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       await bildirimGonderMagazaTakipcilerine({
         magazaId: magaza.id,
         urunId: sonuc.urun.id,
-        mesaj: `Takip ettiğiniz "${magaza.ad}" mağazasına yeni bir ürün eklendi: "${baslik.trim()}"`,
+        mesaj: `Takip ettiğiniz "${magaza.ad}" tezgahına yeni bir ürün eklendi: "${baslik.trim()}"`,
         haricKullaniciId: session.user.id,
       });
       return NextResponse.json({ id: sonuc.urun.id, fotograflar: sonuc.urun.fotograflar }, { status: 201 });

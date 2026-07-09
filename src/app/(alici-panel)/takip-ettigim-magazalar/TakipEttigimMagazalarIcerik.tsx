@@ -10,8 +10,8 @@ export function TakipEttigimMagazalarIcerik({ magazalar }: { magazalar: MagazaKa
   if (magazalar.length === 0) {
     return (
       <p className="mt-4 text-neutral-600">
-        Henüz hiçbir mağazayı takip etmiyorsunuz. Beğendiğiniz bir mağazanın
-        sayfasından Mağazayı Takip Et butonuna basarak yeni ürünlerinden haberdar
+        Henüz hiçbir tezgahı takip etmiyorsunuz. Beğendiğiniz bir tezgahın
+        sayfasından Tezgahı Takip Et butonuna basarak yeni ürünlerinden haberdar
         olabilirsiniz.
       </p>
     );
