@@ -221,16 +221,14 @@ export default async function PazarSayfasi({
                 alt alta duser (ayrac gizli), sol blok once. */}
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
               <div className="sm:flex-1">
-                {/* Mobil kompakt yerlesim (2026-07-10, kullanici ikinci
-                    duzeltmesi): logo+belediye adi kendi basina DAR bir sol
-                    sutunda yalniz kalsin diye 3'lu grid (1 sutun logo/
-                    belediye, 2 sutun pazar adi/saat) - ilk denemedeki 50/50
-                    bolunme "Seferihisar Belediyesi"yi "Her Çarşamba..."
-                    satiriyla yanlislikla yan yana hizaliyordu. Konum +
-                    Haritada Gor AYRI, tam genislik tek satirlik alt sira
-                    (kullanici: "sanki bir satir var gibi tek satirda olsun").
-                    sm: ustunde gizlenir, yerine asagidaki ORIJINAL tek-
-                    sutunlu blok gorunur (degismedi). */}
+                {/* Mobil kompakt yerlesim (2026-07-10, kullanici UCUNCU
+                    duzeltmesi): konum artik pazar adinin USTUNDE, sag
+                    sutunun kendi genisligine (col-span-2, ~193px) sigacak
+                    kucuk punto + truncate guvenlik agi ile. Haritada Gor
+                    kendi tek-elemanli satirinda sola yaslanir (varsayilan
+                    blok akisi - flex/justify gerekmiyor artik, konum o
+                    satirdan tasindigi icin). sm: ustunde gizlenir, yerine
+                    asagidaki ORIJINAL tek-sutunlu blok gorunur (degismedi). */}
                 <div className="sm:hidden">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="col-span-1">
@@ -240,32 +238,26 @@ export default async function PazarSayfasi({
                         <p className="mt-2 text-xs font-medium text-primary-200">{pazar.belediyeAdi}</p>
                       )}
                     </div>
-                    <div className="col-span-2">
-                      <h1 className="text-xl font-bold tracking-tight">{pazar.ad}</h1>
+                    <div className="col-span-2 min-w-0">
+                      <p className="flex items-center gap-1 text-[11px] font-medium text-primary-100">
+                        <MapPin className="h-3 w-3 shrink-0" strokeWidth={2} />
+                        <span className="truncate">
+                          {pazar.il} · {pazar.ilce}
+                          {pazar.semt ? ` · ${pazar.semt}` : ""}
+                        </span>
+                      </p>
+                      <h1 className="mt-1 text-xl font-bold tracking-tight">{pazar.ad}</h1>
                       <p className="mt-1.5 text-xs font-medium text-primary-100">{zamanMetni}</p>
                     </div>
                   </div>
-                  {/* flex-wrap YOK, konum flex-1+min-w-0+truncate: buton HER
-                      ZAMAN tam boyutuyla tek satirda kalir, konum metni
-                      gerekirse (uzun il/ilce/semt) ucla kisalir - "tek
-                      satirda olsun" istegi boylece garanti altina alinir,
-                      hicbir icerik uzunlugunda alt satira dusmez. */}
-                  <div className="mt-4 flex items-center gap-1.5">
-                    <p className="flex min-w-0 flex-1 items-center gap-1 text-xs font-medium text-primary-100">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-                      <span className="truncate">
-                        {pazar.il} · {pazar.ilce}
-                        {pazar.semt ? ` · ${pazar.semt}` : ""}
-                      </span>
-                    </p>
-                    {/* Bu satirda ikonsuz (dar alan) - masaustunde ikon aynen
-                        kaliyor, sadece bu kompakt siradaki tam metin sigsin diye. */}
+                  <div className="mt-4">
                     <a
                       href={pazar.googleHaritaLinki}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="shrink-0 rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap text-primary-700 hover:bg-primary-50"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"
                     >
+                      <ExternalLink className="h-3.5 w-3.5" strokeWidth={2} />
                       Haritada Gör
                     </a>
                   </div>
