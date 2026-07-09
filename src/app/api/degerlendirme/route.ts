@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const urun = await prisma.urun.findUnique({
     where: { id: urunId },
-    select: { id: true, silindiMi: true, baslik: true, magaza: { select: { sahipId: true } } },
+    select: { id: true, silindiMi: true, baslik: true, magaza: { select: { sahipId: true, slug: true } } },
   });
   if (!urun || urun.silindiMi) {
     return NextResponse.json({ hata: "ürün bulunamadı" }, { status: 404 });
@@ -61,11 +61,19 @@ export async function POST(request: Request) {
   // Bildirim: motor cagrisi (yukarida) tamamlandiktan SONRA, sadece ILK KEZ
   // birakilan degerlendirmede (guncellemede bildirim YOK), kendine bildirim yok
   // (satici kendi urununu degerlendiremez zaten, ama yine de kontrol edilir).
+  // 2026-07-09 duzeltmesi: mesaj puan/yorum icermiyordu, hedefYolu (/panel/
+  // urunlerim) yorumu HIC GOSTERMIYORDU - satici bildirimden hicbir bilgi
+  // alamiyordu (canli kullanicida bulunan gercek bug). Puan + yorum ozeti
+  // mesaja eklendi, hedef gercekten yorumlarin gorundugu vitrin sayfasina
+  // (sekme=urun ile dogrudan ilgili sekmeye) cekildi.
   if (sonuc.yeniMi && session.user.id !== urun.magaza.sahipId) {
+    const yorumOzeti = sonuc.yorum
+      ? `: "${sonuc.yorum.length > 80 ? `${sonuc.yorum.slice(0, 80)}…` : sonuc.yorum}"`
+      : ".";
     await bildirimGonderKullaniciya({
       kullaniciId: urun.magaza.sahipId,
-      mesaj: `"${urun.baslik}" ürününe yeni bir değerlendirme aldın.`,
-      hedefYolu: "/panel/urunlerim",
+      mesaj: `"${urun.baslik}" ürününe ${sonuc.puan}/5 yıldız değerlendirme aldın${yorumOzeti}`,
+      hedefYolu: `/magaza/${urun.magaza.slug}/yorumlar?sekme=urun`,
     });
   }
 

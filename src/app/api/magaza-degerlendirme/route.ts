@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 
   const magaza = await prisma.magaza.findUnique({
     where: { id: magazaId },
-    select: { id: true, silindiMi: true, sahipId: true },
+    select: { id: true, silindiMi: true, sahipId: true, slug: true },
   });
   if (!magaza || magaza.silindiMi) {
     return NextResponse.json({ hata: "tezgah bulunamadı" }, { status: 404 });
@@ -61,10 +61,18 @@ export async function POST(request: Request) {
   // Bildirim: motor cagrisi (yukarida) tamamlandiktan SONRA, sadece ILK KEZ
   // birakilan degerlendirmede (guncellemede bildirim YOK), kendine bildirim yok
   // (satici kendi tezgahini degerlendiremez zaten, ama yine de kontrol edilir).
+  // 2026-07-09 duzeltmesi: mesaj puan/yorum icermiyordu VE hedefYolu hic
+  // yoktu (Bildirim.hedefYolu bos -> kart tiklanamiyordu, bkz. Bildirim
+  // modeli yorumu) - ürün-degerlendirme bildirimiyle AYNI duzeltme burada da
+  // uygulandi.
   if (sonuc.yeniMi && session.user.id !== magaza.sahipId) {
+    const yorumOzeti = sonuc.yorum
+      ? `: "${sonuc.yorum.length > 80 ? `${sonuc.yorum.slice(0, 80)}…` : sonuc.yorum}"`
+      : ".";
     await bildirimGonderKullaniciya({
       kullaniciId: magaza.sahipId,
-      mesaj: "Tezgahına yeni bir değerlendirme aldın.",
+      mesaj: `Tezgahına ${sonuc.puan}/5 yıldız değerlendirme aldın${yorumOzeti}`,
+      hedefYolu: `/magaza/${magaza.slug}/yorumlar`,
     });
   }
 

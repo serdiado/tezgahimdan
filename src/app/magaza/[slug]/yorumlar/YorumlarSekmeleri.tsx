@@ -14,12 +14,14 @@ export function YorumlarSekmeleri({
   magazaSlug,
   magazaYorumlari,
   urunYorumlari,
+  baslangicSekmesi = "magaza",
 }: {
   magazaSlug: string;
   magazaYorumlari: MagazaYorumu[];
   urunYorumlari: UrunYorumu[];
+  baslangicSekmesi?: "magaza" | "urun";
 }) {
-  const [sekme, setSekme] = useState<"magaza" | "urun">("magaza");
+  const [sekme, setSekme] = useState<"magaza" | "urun">(baslangicSekmesi);
 
   return (
     <div>

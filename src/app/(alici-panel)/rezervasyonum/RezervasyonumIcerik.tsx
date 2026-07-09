@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DegerlendirmeFormu } from "@/components/DegerlendirmeFormu";
+import { MagazaDegerlendirmeFormu } from "@/components/MagazaDegerlendirmeFormu";
 import { siraMesaji } from "@/lib/rezervasyon-metin";
 
 type Rezervasyon = {
@@ -14,10 +15,13 @@ type Rezervasyon = {
   durum: string;
   urunId: string;
   urunBaslik: string;
+  magazaId: string;
   magazaAd: string;
   magazaSlug: string;
   mevcutPuan: number | null;
   mevcutYorum: string | null;
+  magazaMevcutPuan: number | null;
+  magazaMevcutYorum: string | null;
 };
 
 const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
@@ -27,15 +31,29 @@ const DURUM_STIL: Record<string, { etiket: string; className: string }> = {
   iptal: { etiket: "İptal edildi", className: "bg-neutral-200 text-neutral-600" },
 };
 
-// Magaza-bazli degerlendirme blogu buradan CIKARILDI, /degerlendirmelerim/magazalar
-// sayfasina tasindi (tek sorumluluk: bu sayfa SADECE rezervasyon listesi).
-// Urun-bazli "Degerlendir" butonu KALDI - rezervasyon baglaminda dogal yer.
+// 2026-07-09 duzeltmesi: magaza-bazli degerlendirme butonu geri eklendi (bkz.
+// page.tsx yorumu) - urun-bazli "Degerlendir" butonunun YANINDA, ayni magazadan
+// birden fazla urun alinmis olsa bile magaza basina TEK kez gosterilir
+// (magazaButonuGosterilecekRezervId ile ilk-gorulen rezervasyona atanir).
 export function RezervasyonumIcerik({ rezervasyonlar }: { rezervasyonlar: Rezervasyon[] }) {
   const router = useRouter();
   const [onayId, setOnayId] = useState<string | null>(null);
   const [bekleyenId, setBekleyenId] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [degerlendirilenRezervId, setDegerlendirilenRezervId] = useState<string | null>(null);
+  const [degerlendirilenMagazaId, setDegerlendirilenMagazaId] = useState<string | null>(null);
+
+  // Magaza basina TEK buton: her magazaId icin, "satildi" durumundaki ILK
+  // rezervasyonun id'sini tutar - render sirasinda sadece o rezervasyon
+  // karti magaza degerlendirme butonunu gosterir.
+  const magazaButonuGosterilecekRezervId = useMemo(() => {
+    const harita = new Map<string, string>();
+    for (const r of rezervasyonlar) {
+      if (r.durum === "satildi" && !harita.has(r.magazaId)) harita.set(r.magazaId, r.id);
+    }
+    return harita;
+  }, [rezervasyonlar]);
+  const degerlendirilenMagaza = rezervasyonlar.find((r) => r.magazaId === degerlendirilenMagazaId);
 
   async function vazgec(rezervId: string) {
     setHata(null);
@@ -133,13 +151,24 @@ export function RezervasyonumIcerik({ rezervasyonlar }: { rezervasyonlar: Rezerv
               ))}
 
             {r.durum === "satildi" && (
-              <button
-                type="button"
-                onClick={() => setDegerlendirilenRezervId(r.id)}
-                className="mt-3 w-full rounded-md border border-primary-300 px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50"
-              >
-                {r.mevcutPuan ? "Değerlendirmeni Düzenle" : "Değerlendir"}
-              </button>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setDegerlendirilenRezervId(r.id)}
+                  className="flex-1 rounded-md border border-primary-300 px-3 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+                >
+                  {r.mevcutPuan ? "Ürünü Düzenle" : "Ürünü Değerlendir"}
+                </button>
+                {magazaButonuGosterilecekRezervId.get(r.magazaId) === r.id && (
+                  <button
+                    type="button"
+                    onClick={() => setDegerlendirilenMagazaId(r.magazaId)}
+                    className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                  >
+                    {r.magazaMevcutPuan ? "Tezgahı Düzenle" : "Tezgahı Değerlendir"}
+                  </button>
+                )}
+              </div>
             )}
 
             {degerlendirilenRezervId === r.id && (
@@ -154,6 +183,16 @@ export function RezervasyonumIcerik({ rezervasyonlar }: { rezervasyonlar: Rezerv
           </div>
         );
       })}
+
+      {degerlendirilenMagaza && (
+        <MagazaDegerlendirmeFormu
+          magazaId={degerlendirilenMagaza.magazaId}
+          magazaAd={degerlendirilenMagaza.magazaAd}
+          mevcutPuan={degerlendirilenMagaza.magazaMevcutPuan}
+          mevcutYorum={degerlendirilenMagaza.magazaMevcutYorum}
+          onClose={() => setDegerlendirilenMagazaId(null)}
+        />
+      )}
     </div>
   );
 }

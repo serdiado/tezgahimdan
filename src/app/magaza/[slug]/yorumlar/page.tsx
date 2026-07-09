@@ -18,10 +18,16 @@ const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "l
 // "kucuk kalacagi varsayimi" kapsam karari).
 export default async function MagazaYorumlariSayfasi({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  // ?sekme=urun: urun-degerlendirme bildiriminden gelen satici dogrudan ilgili
+  // sekmeye dussun diye (bkz. /api/degerlendirme route.ts) - baska bir deger
+  // gelirse (ya da hic gelmezse) varsayilan "magaza" sekmesi acilir.
+  searchParams: Promise<{ sekme?: string }>;
 }) {
   const { slug } = await params;
+  const { sekme } = await searchParams;
   const magaza = await getMagazaBySlug(slug);
   if (!magaza) notFound();
 
@@ -50,6 +56,7 @@ export default async function MagazaYorumlariSayfasi({
         <div className="mt-4">
           <YorumlarSekmeleri
             magazaSlug={magaza.slug}
+            baslangicSekmesi={sekme === "urun" ? "urun" : "magaza"}
             magazaYorumlari={magazaYorumlari.map((y) => ({
               id: y.id,
               kullaniciAd: y.kullaniciAd,
