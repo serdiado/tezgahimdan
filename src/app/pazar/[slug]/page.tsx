@@ -162,37 +162,68 @@ export default async function PazarSayfasi({
                 : "bg-linear-to-br from-primary-600 to-primary-700"
             }`}
           >
-            {pazar.belediyeLogoUrl && (
-              <div className="mb-4 inline-flex rounded-lg bg-white p-2 shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={pazar.belediyeLogoUrl}
-                  alt={pazar.belediyeAdi ?? "Belediye logosu"}
-                  className="h-12 w-auto object-contain sm:h-14"
-                />
+            {/* Iki sutun (2026-07-10 kullanici istegi): SOLDA kimlik+bilgiler
+                (logo, konum, ad, saat, belediye, harita), dikey ayrac
+                (HaftalikRitim'deki bg-white/30 cizgi deseni), SAGDA aciklama.
+                Aciklama yoksa ayrac da yok, sol blok tam genislik. Mobilde
+                alt alta duser (ayrac gizli), sol blok once. */}
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
+              <div className="sm:flex-1">
+                {pazar.belediyeLogoUrl &&
+                  (pazar.belediyeLogoLink ? (
+                    <a
+                      href={pazar.belediyeLogoLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mb-4 inline-flex rounded-lg bg-white p-2 shadow-sm transition-shadow hover:shadow-md hover:ring-2 hover:ring-white/60"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={pazar.belediyeLogoUrl}
+                        alt={pazar.belediyeAdi ?? "Belediye logosu"}
+                        className="h-12 w-auto object-contain sm:h-14"
+                      />
+                    </a>
+                  ) : (
+                    <div className="mb-4 inline-flex rounded-lg bg-white p-2 shadow-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={pazar.belediyeLogoUrl}
+                        alt={pazar.belediyeAdi ?? "Belediye logosu"}
+                        className="h-12 w-auto object-contain sm:h-14"
+                      />
+                    </div>
+                  ))}
+                <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
+                  <MapPin className="h-4 w-4" strokeWidth={2} />
+                  {pazar.il} · {pazar.ilce}
+                  {pazar.semt ? ` · ${pazar.semt}` : ""}
+                </p>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight">{pazar.ad}</h1>
+                <p className="mt-2 text-sm font-medium text-primary-100">{zamanMetni}</p>
+                {pazar.belediyeAdi && (
+                  <p className="mt-1 text-sm text-primary-200">{pazar.belediyeAdi}</p>
+                )}
+                <div className="mt-4">
+                  <a
+                    href={pazar.googleHaritaLinki}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-50"
+                  >
+                    <ExternalLink className="h-4 w-4" strokeWidth={2} />
+                    Haritada Gör
+                  </a>
+                </div>
               </div>
-            )}
-            <p className="flex items-center gap-1.5 text-sm font-medium text-primary-100">
-              <MapPin className="h-4 w-4" strokeWidth={2} />
-              {pazar.il} · {pazar.ilce}
-              {pazar.semt ? ` · ${pazar.semt}` : ""}
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">{pazar.ad}</h1>
-            {pazar.aciklama && <p className="mt-2 max-w-xl text-primary-50">{pazar.aciklama}</p>}
-            <p className="mt-2 text-sm font-medium text-primary-100">{zamanMetni}</p>
-            {pazar.belediyeAdi && (
-              <p className="mt-1 text-sm text-primary-200">{pazar.belediyeAdi}</p>
-            )}
-            <div className="mt-4">
-              <a
-                href={pazar.googleHaritaLinki}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-50"
-              >
-                <ExternalLink className="h-4 w-4" strokeWidth={2} />
-                Haritada Gör
-              </a>
+              {pazar.aciklama && (
+                <>
+                  <div className="hidden w-px self-stretch bg-white/30 sm:block" />
+                  <div className="border-t border-white/30 pt-5 sm:flex-1 sm:border-t-0 sm:pt-0">
+                    <p className="text-primary-50">{pazar.aciklama}</p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

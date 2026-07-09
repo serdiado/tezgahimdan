@@ -16,6 +16,7 @@ export type PazarFormVeri = {
   googleHaritaLinki: string;
   belediyeAdi: string | null;
   belediyeLogoUrl: string | null;
+  belediyeLogoLink: string | null;
   kapakFotoUrl: string | null;
   aciklama: string | null;
   sorumluAdi: string | null;
@@ -154,6 +155,7 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
   const [semt, setSemt] = useState(mevcut?.semt ?? "");
   const [googleHaritaLinki, setGoogleHaritaLinki] = useState(mevcut?.googleHaritaLinki ?? "");
   const [belediyeAdi, setBelediyeAdi] = useState(mevcut?.belediyeAdi ?? "");
+  const [belediyeLogoLink, setBelediyeLogoLink] = useState(mevcut?.belediyeLogoLink ?? "");
   const [aciklama, setAciklama] = useState(mevcut?.aciklama ?? "");
   const [sorumluAdi, setSorumluAdi] = useState(mevcut?.sorumluAdi ?? "");
   const [sorumluTelefon, setSorumluTelefon] = useState(mevcut?.sorumluTelefon ?? "");
@@ -194,6 +196,7 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
       semt: semt.trim() || null,
       googleHaritaLinki: googleHaritaLinki.trim(),
       belediyeAdi: belediyeAdi.trim() || null,
+      belediyeLogoLink: belediyeLogoLink.trim() || null,
       aciklama: aciklama.trim() || null,
       sorumluAdi: sorumluAdi.trim() || null,
       sorumluTelefon: sorumluTelefon.trim() || null,
@@ -314,6 +317,19 @@ export function PazarForm({ mevcut }: { mevcut?: PazarFormVeri }) {
         <p className="mt-1 text-xs text-neutral-400">
           Hangi belediyeye ait olduğunu kaydeder - birden fazla belediye eklendiğinde
           raporlama/ayrım için kullanılır.
+        </p>
+        <label className="mt-3 block text-sm font-medium text-neutral-700">
+          Belediye Web Sitesi (opsiyonel)
+          <input
+            type="url"
+            value={belediyeLogoLink}
+            onChange={(e) => setBelediyeLogoLink(e.target.value)}
+            placeholder="https://seferihisar.bel.tr"
+            className={inputClass}
+          />
+        </label>
+        <p className="mt-1 text-xs text-neutral-400">
+          Doldurulursa pazar sayfasındaki belediye logosu bu adrese tıklanabilir olur.
         </p>
       </div>
 

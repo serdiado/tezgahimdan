@@ -48,8 +48,10 @@ model Pazar {
   // kapak fotografi hero arka plani (yari saydam gradyan overlay ile) olur.
   // Ikisi de bos birakilabilir - o zaman duz gradyan gorunum aynen kalir.
   // Yukleme /api/admin/pazar-gorsel ile (site-icerik gorsel deseni).
-  belediyeLogoUrl String?
-  kapakFotoUrl    String?
+  // belediyeLogoLink: doluysa logo cipi tiklanabilir olur (belediye web sitesi).
+  belediyeLogoUrl  String?
+  belediyeLogoLink String?
+  kapakFotoUrl     String?
   sorumluAdi     String? // pazar sorumlusu (PLAN.md SS7'deki gelecek rolun temeli) - admin ic referansi
   sorumluTelefon String?
   // baslangic*: pazarin acilis (ceza esigi) ani. sifirlama*: pazarin GERCEK/ilan

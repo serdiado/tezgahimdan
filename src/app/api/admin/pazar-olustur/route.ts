@@ -27,6 +27,8 @@ export async function POST(request: Request) {
   const googleHaritaLinki =
     typeof body?.googleHaritaLinki === "string" ? body.googleHaritaLinki.trim() : "";
   const belediyeAdiHam = typeof body?.belediyeAdi === "string" ? body.belediyeAdi.trim() : "";
+  const belediyeLogoLinkHam =
+    typeof body?.belediyeLogoLink === "string" ? body.belediyeLogoLink.trim() : "";
   const aciklamaHam = typeof body?.aciklama === "string" ? body.aciklama.trim() : "";
   const sorumluAdiHam = typeof body?.sorumluAdi === "string" ? body.sorumluAdi.trim() : "";
   const sorumluTelefonHam =
@@ -63,6 +65,13 @@ export async function POST(request: Request) {
   }
   if (belediyeAdiHam.length > 150) {
     return NextResponse.json({ hata: "belediye adı en fazla 150 karakter olabilir" }, { status: 400 });
+  }
+  // Logo linki opsiyonel; doluysa gecerli http(s) URL olmali (logo cipi buna tiklanir).
+  if (belediyeLogoLinkHam && (!gecerliUrlMi(belediyeLogoLinkHam) || belediyeLogoLinkHam.length > 500)) {
+    return NextResponse.json(
+      { hata: "belediye logo linki geçerli bir bağlantı (http/https) olmalı" },
+      { status: 400 },
+    );
   }
   if (aciklamaHam.length > 1000) {
     return NextResponse.json({ hata: "açıklama en fazla 1000 karakter olabilir" }, { status: 400 });
@@ -137,6 +146,7 @@ export async function POST(request: Request) {
         semt: semtHam || null,
         googleHaritaLinki,
         belediyeAdi: belediyeAdiHam || null,
+        belediyeLogoLink: belediyeLogoLinkHam || null,
         aciklama: aciklamaHam || null,
         sorumluAdi: sorumluAdiHam || null,
         sorumluTelefon: sorumluTelefonHam || null,

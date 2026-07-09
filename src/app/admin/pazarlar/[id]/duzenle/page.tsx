@@ -41,6 +41,7 @@ export default async function PazarDuzenlePage({ params }: { params: Promise<{ i
             googleHaritaLinki: pazar.googleHaritaLinki,
             belediyeAdi: pazar.belediyeAdi,
             belediyeLogoUrl: pazar.belediyeLogoUrl,
+            belediyeLogoLink: pazar.belediyeLogoLink,
             kapakFotoUrl: pazar.kapakFotoUrl,
             aciklama: pazar.aciklama,
             sorumluAdi: pazar.sorumluAdi,
