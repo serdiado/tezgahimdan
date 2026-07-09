@@ -20,6 +20,16 @@ export const DURUM_STIL: Record<string, { etiket: string; className: string }> =
   satildi: { etiket: "Satıldı", className: "bg-neutral-200 text-neutral-600" },
 };
 
+const BEKLEMEDE_STIL = { etiket: "Beklemede", className: "bg-neutral-300 text-neutral-700" };
+
+// UrunKarti VE UrunDetayModal ayni rozet/kapanma mantigini paylasir - iki
+// yerde ayri ayri "beklemedeMi ? ... : DURUM_STIL[...]" yazmak yerine tek yer.
+export function urunDurumStili(urun: Pick<UrunKartiVeri, "durum" | "beklemedeMi">) {
+  return urun.beklemedeMi
+    ? BEKLEMEDE_STIL
+    : (DURUM_STIL[urun.durum] ?? { etiket: urun.durum, className: "bg-neutral-200 text-neutral-600" });
+}
+
 const fiyatFormat = new Intl.NumberFormat("tr-TR", {
   style: "currency",
   currency: "TRY",
@@ -51,6 +61,12 @@ export type UrunKartiVeri = {
   // varsa "Rezerve Et" yerine kendi sira durumu gosterilir (bkz. rezervasyon.ts
   // benimRezervasyonlarimHaritasi). id: vazgec butonu icin.
   benimRezervasyonum: { id: string; tip: "aktif" | "yedek"; siraNo: number; rezervKodu: string } | null;
+  // 2026-07-09 karari: saticinin isaretlemedigi, islem-sonu ani gecmis bir
+  // rezervasyonu varsa urun TAMAMEN pasiflesir (bkz. rezervasyon.ts
+  // pasifUrunIdSeti) - alici satici ihmalinden ASLA etkilenmemeli, bu yuzden
+  // belirsizlik cozulene kadar yeni rezervasyon kabul edilmez. Opsiyonel:
+  // gecmemis (satildi listesi gibi) yerlerde hic gecilmeyebilir.
+  beklemedeMi?: boolean;
 };
 
 // Magaza (tezgah) puani icin TEK yildiz, orani (ortalama/5) kadar dolu -
@@ -114,10 +130,11 @@ export function UrunKarti({
   const [aktifFotoIndex, setAktifFotoIndex] = useState(0);
   const aktifFoto = urun.fotograflar[aktifFotoIndex];
   const kapakFoto = urun.fotograflar[0];
-  const durumStil = DURUM_STIL[urun.durum] ?? { etiket: urun.durum, className: "bg-neutral-200 text-neutral-600" };
+  const durumStil = urunDurumStili(urun);
   // Kapasite (stok+5) dolunca rezervasyon kapanir (PLAN.md SS3); 'doldu'
   // durumu tam bu esikte, rezervasyon API'sinin icinde atomik olarak atanir.
-  const rezervasyonKapali = urun.durum !== "sergide";
+  // beklemedeMi de kapatir (satici ihmali cozulene kadar yeni rezervasyon yok).
+  const rezervasyonKapali = urun.durum !== "sergide" || !!urun.beklemedeMi;
 
   // Paylasilan link (?urun=<id>) ile gelen ziyaretci bu urune kaydirilir ve kisa
   // sure vurgulanir. Ilk render'da vurgu acik baslar (setState-in-effect yerine),
@@ -309,7 +326,7 @@ export function UrunKarti({
                   : "bg-primary-500 text-white hover:bg-primary-600"
               }`}
             >
-              {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
+              {rezervasyonKapali ? (urun.beklemedeMi ? "Beklemede" : "Sıra kapandı") : "Rezerve Et"}
             </button>
           )}
           <span className="shrink-0 text-xs text-neutral-500 sm:hidden">

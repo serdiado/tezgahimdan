@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import { getOwnMagaza } from "@/lib/magaza";
+import { saticininBekleyenIslemleriGetir } from "@/lib/rezervasyon";
 import { SiteHeader } from "@/components/SiteHeader";
+import { BekleyenIslemlerEkrani } from "./BekleyenIslemlerEkrani";
 
 // Panel'deki TUM sayfalar icin TEK ortak kapi: pazar pasiflestirilince (bkz.
 // schema.prisma Pazar.aktifMi yorumu) bagli magazanin sahibi hicbir panel
@@ -27,6 +29,16 @@ export default async function PanelLayout({ children }: { children: ReactNode })
           </main>
         </div>
       );
+    }
+    // 2026-07-09 karari: satici, islem-sonu ani gecmis ama isaretlenmemis
+    // rezervasyonu oldugu surece panelin geri kalanina erisemez (bkz.
+    // BekleyenIslemlerEkrani.tsx yorumu - alici satici ihmalinden ASLA
+    // cezalanmamali, gercegi bilen taraf isaretlemeye zorlanir).
+    if (magaza) {
+      const bekleyenler = await saticininBekleyenIslemleriGetir(session.user.id);
+      if (bekleyenler.length > 0) {
+        return <BekleyenIslemlerEkrani magazaId={magaza.id} bekleyenler={bekleyenler} />;
+      }
     }
   }
   return <>{children}</>;

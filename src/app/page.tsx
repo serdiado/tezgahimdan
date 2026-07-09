@@ -3,7 +3,7 @@ import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
 import { begeniSayilariHaritasi, enCokBegenilenUrunIdleriGetir, kullaniciFavoriHaritasi } from "@/lib/favori";
-import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
+import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi, pasifUrunIdSeti } from "@/lib/rezervasyon";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { magazaDegerlendirmeOzetiHaritasi } from "@/lib/magaza-degerlendirme";
 import { sayfaModulleriGetir } from "@/lib/sayfa-modulu";
@@ -181,6 +181,7 @@ export default async function AnaSayfa({
     degerlendirmeOzeti,
     yorumlar,
     magazaDegerlendirmeOzeti,
+    pasifUrunIdler,
   ] = await Promise.all([
     begeniSayilariHaritasi(tumUrunIdler),
     kullaniciFavoriHaritasi(session?.user?.id, tumUrunIdler),
@@ -189,6 +190,8 @@ export default async function AnaSayfa({
     degerlendirmeOzetiHaritasi(tumUrunIdler),
     urunYorumlariHaritasi(tumUrunIdler),
     magazaDegerlendirmeOzetiHaritasi(tumMagazaIdler),
+    // Capraz-magaza vitrin oldugu icin magazaId scope'suz (global) cagrilir.
+    pasifUrunIdSeti(),
   ]);
 
   // Hem "Bu Hafta Eklenenler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
@@ -215,6 +218,7 @@ export default async function AnaSayfa({
       aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
       yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
       benimRezervasyonum: benimRezervasyonlarim.get(urun.id) ?? null,
+      beklemedeMi: pasifUrunIdler.has(urun.id),
       degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
       degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
       yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({

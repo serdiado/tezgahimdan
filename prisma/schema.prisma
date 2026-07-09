@@ -255,6 +255,12 @@ model Rezervasyon {
   // tekrar acilinca eski uyelere "oncelikli davet" bildirimi icin.
   bildirimGonderildi Boolean           @default(false)
   bildirimKanali     String?
+  // 2026-07-09 karari: aktif-since-start + isaretlenmemis rezervasyonlar ARTIK
+  // OTOMATIK "gelmedi" olmuyor (alici asla satici ihmalinden cezalanmaz) -
+  // bunun yerine satici panele girene VE isaretleyene kadar bekler (bkz.
+  // src/app/panel/layout.tsx). Bu bayrak, isaretlenmeden 3 gun gecerse
+  // admin'e giden tek seferlik uyarinin idempotency'sini saglar (saticiIhmalUyarilariGonder).
+  saticiIhmalUyarisiGonderildi Boolean @default(false)
   createdAt          DateTime          @default(now())
 }
 

@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getMagazaBySlug } from "@/lib/magaza";
 import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
-import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi } from "@/lib/rezervasyon";
+import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi, pasifUrunIdSeti } from "@/lib/rezervasyon";
 import { kullaniciMagazaTakipDurumu } from "@/lib/magaza-takip";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { magazaDegerlendirmeOzeti, magazaYorumlariGetir } from "@/lib/magaza-degerlendirme";
@@ -124,6 +124,7 @@ export default async function MagazaSayfasi({
     magazaDegerlendirmeSonucu,
     magazaYorumlari,
     heroModulleri,
+    pasifUrunIdler,
   ] = await Promise.all([
     begeniSayilariHaritasi(urunIdler),
     kullaniciFavoriHaritasi(session?.user?.id, urunIdler),
@@ -135,6 +136,7 @@ export default async function MagazaSayfasi({
     magazaDegerlendirmeOzeti(magaza.id),
     magazaYorumlariGetir(magaza.id, { take: 4 }),
     sayfaModulleriGetir("magaza_hero"),
+    pasifUrunIdSeti(magaza.id),
   ]);
 
   return (
@@ -190,6 +192,7 @@ export default async function MagazaSayfasi({
             aktifSayisi: kuyrukSayilari.get(urun.id)?.aktif ?? 0,
             yedekSayisi: kuyrukSayilari.get(urun.id)?.yedek ?? 0,
             benimRezervasyonum: benimRezervasyonlarim.get(urun.id) ?? null,
+            beklemedeMi: pasifUrunIdler.has(urun.id),
             degerlendirmeOrtalamasi: degerlendirmeOzeti.get(urun.id)?.ortalama ?? null,
             degerlendirmeSayisi: degerlendirmeOzeti.get(urun.id)?.sayi ?? 0,
             yorumlar: (yorumlar.get(urun.id) ?? []).map((y) => ({

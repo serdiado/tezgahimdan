@@ -10,7 +10,7 @@ import { TakipButonu } from "@/components/TakipButonu";
 import { PaylasButonlari } from "@/components/PaylasButonlari";
 import { YildizGosterge } from "@/components/YildizGosterge";
 import { ZoomluGorsel } from "@/components/ZoomluGorsel";
-import { DURUM_STIL, MagazaYildizi, type UrunKartiVeri } from "./UrunKarti";
+import { MagazaYildizi, urunDurumStili, type UrunKartiVeri } from "./UrunKarti";
 import { RezervasyonDurumuButon } from "./RezervasyonDurumuButon";
 
 const fiyatFormat = new Intl.NumberFormat("tr-TR", {
@@ -41,8 +41,8 @@ export function UrunDetayModal({
   const [aktifIndex, setAktifIndex] = useState(0);
   const renk = kategoriRengiSec(urun.kategori.id);
   const kategoriIkonu = kategoriIkonuSec(urun.kategori.ad);
-  const durumStil = DURUM_STIL[urun.durum] ?? { etiket: urun.durum, className: "bg-neutral-200 text-neutral-600" };
-  const rezervasyonKapali = urun.durum !== "sergide";
+  const durumStil = urunDurumStili(urun);
+  const rezervasyonKapali = urun.durum !== "sergide" || !!urun.beklemedeMi;
   const aktifFoto = urun.fotograflar[aktifIndex];
 
   // Modal acikken arka sayfa kaymasin: fare tekerlegiyle zoom yaparken
@@ -186,7 +186,7 @@ export function UrunDetayModal({
                   : "bg-primary-500 text-white hover:bg-primary-600"
               }`}
             >
-              {rezervasyonKapali ? "Sıra kapandı" : "Rezerve Et"}
+              {rezervasyonKapali ? (urun.beklemedeMi ? "Beklemede" : "Sıra kapandı") : "Rezerve Et"}
             </button>
           )}
           <span className="shrink-0 text-xs text-neutral-500">

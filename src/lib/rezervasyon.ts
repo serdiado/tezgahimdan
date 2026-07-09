@@ -772,19 +772,31 @@ function isoHafta(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Tek bir urunun kuyrugunu (kilit altinda) sifirlar. Kapanis vakti gecmis
+// Tek bir urunun kuyrugunu (kilit altinda) sifirlar. Islem-sonu ani gecmis
 // bekleyen kayitlar temizlenir:
-//  - Pazar BASLANGICINDA aktif olan (aktifOlmaZamani < baslangicAni) ve hala
-//    bekleyen -> gelmedi (no-show cezasi, DurumGecmisi'ne otomatik formatta).
 //  - Sonradan yukselen aktifler + tum yedekler -> iptal (cezasiz).
+//  - Pazar BASLANGICINDA aktif olan (aktifOlmaZamani < baslangicAni) ve hala
+//    bekleyen -> ARTIK OTOMATIK ISLENMEZ (2026-07-09 karari asagida).
 //  - Temizlenen herkese bildirim izi (bildirimKanali; gonderim YOK, Faz 2).
 //  - satildi/gelmedi/iptal olanlara DOKUNULMAZ (sorgu sadece durum=bekliyor).
-type SifirlaSonucu = { etkilenen: number; noShowlar: { urunId: string; aliciId: string }[] };
+//
+// 2026-07-09 karari (onemli davranis degisikligi): "pazar baslangicinda aktif
+// + hala isaretlenmemis" kategori ESKIDEN burada otomatik "gelmedi" oluyordu
+// (alici cezalandiriliyordu). Kullanici gerekcesi: sistem "satici mi unuttu
+// yoksa alici mi hic gelmedi" ayrimini YAPAMAZ - iki durum da disaridan ayni
+// gorunur (kayit bekliyor kalir). Alici bu belirsizlikten ASLA ceza almamali.
+// Yeni model: bu kayitlar BURADA HIC DOKUNULMADAN "bekliyor" kalir - satici
+// panele girip bizzat "Sattim/Gelmedi" diyene kadar (bkz. panel/layout.tsx
+// zorunlu ekran + saticininBekleyenIslemleriGetir). Boylece ne alici cezalanir
+// ne de sistem yanlis bir tahminde bulunur - gercegi bilen tek taraf (satici)
+// konusturulur. Ilgili urun de ayrica vitrin sorgularinda "beklemede" gosterilir
+// (Urun.durum'a DOKUNULMADAN, ayri bir gorunurluk katmaninda).
+type SifirlaSonucu = { etkilenen: number };
 
 async function urunSifirla(urunId: string, now: Date): Promise<SifirlaSonucu> {
   return prisma.$transaction(
     async (tx): Promise<SifirlaSonucu> => {
-      const bos = { etkilenen: 0, noShowlar: [] };
+      const bos = { etkilenen: 0 };
       const kilitli = await tx.$queryRaw<
         { id: string; durum: string }[]
       >`SELECT "id", "durum" FROM "Urun" WHERE "id" = ${urunId} FOR UPDATE`;
@@ -805,44 +817,37 @@ async function urunSifirla(urunId: string, now: Date): Promise<SifirlaSonucu> {
 
       let etkilenen = 0;
       const haftaSayilari = new Map<string, number>();
-      // Favori/bildirim sistemi icin: sadece cezali no-show'lar (her zaman
-      // aktif-tier) toplanir - cezasiz iptal (karisik aktif+yedek) bilincli
-      // olarak bildirim kapsamina alinmadi (kullanici karari).
-      const noShowlar: { urunId: string; aliciId: string }[] = [];
       for (const rez of kuyruk) {
         // Islem-sonu ani (varsayilan gun sonu/gece yarisi, admin manuel
         // ayarlarsa Pazar.islemSonGunu/Saati - bkz. pazarIslemSonAni) henuz
         // gelmedi ise atla - satici kapanistan itibaren bu ana kadar
-        // isaretleme suresine sahip (kullanici karari, 2026-07-09). Kapanis
-        // ANI (pazarKapanisAni) artik BURADA tetikleyici DEGIL, sadece no-show
-        // esigi (baslangic) hesabinda dolayli kullaniliyor.
+        // isaretleme suresine sahip. Kapanis ANI (pazarKapanisAni) artik
+        // BURADA tetikleyici DEGIL, sadece no-show esigi (baslangic) hesabinda
+        // dolayli kullaniliyor.
         if (now < pazarIslemSonAni(pazar, rez.pazarHaftasi)) continue;
 
         const baslangic = pazarBaslangicAni(pazar, rez.pazarHaftasi);
-        // No-show cezasi SADECE pazar baslangicinda zaten aktif olana.
-        const noShow =
+        const saticiSorumluOlmasiGereken =
           rez.tip === "aktif" && rez.aktifOlmaZamani != null && rez.aktifOlmaZamani < baslangic;
-        const hafta = isoHafta(rez.pazarHaftasi);
+        // Yukaridaki 2026-07-09 karari: bu kategoriye HIC DOKUNMA, satici
+        // bizzat isaretlesin.
+        if (saticiSorumluOlmasiGereken) continue;
 
+        const hafta = isoHafta(rez.pazarHaftasi);
         await tx.rezervasyon.update({
           where: { id: rez.id },
-          data: { durum: noShow ? "gelmedi" : "iptal", bildirimKanali: "whatsapp" },
+          data: { durum: "iptal", bildirimKanali: "whatsapp" },
         });
         await tx.durumGecmisi.create({
           data: {
             kullaniciId: rez.aliciId,
             varlikTuru: "Rezervasyon",
             varlikId: rez.id,
-            // Puan sistemi (sonraki adim) 'rezervasyon_gelmedi:otomatik:%' ile
-            // no-show'lari sayar. Cezasiz temizlik ayri olay - ceza degil.
-            olay: noShow
-              ? `rezervasyon_gelmedi:otomatik:${hafta}`
-              : `rezervasyon_sifirlama_iptal:${hafta}`,
+            olay: `rezervasyon_sifirlama_iptal:${hafta}`,
           },
         });
         etkilenen++;
         haftaSayilari.set(hafta, (haftaSayilari.get(hafta) ?? 0) + 1);
-        if (noShow) noShowlar.push({ urunId, aliciId: rez.aliciId });
       }
 
       if (etkilenen === 0) return bos;
@@ -864,19 +869,19 @@ async function urunSifirla(urunId: string, now: Date): Promise<SifirlaSonucu> {
           DO UPDATE SET "etkilenenSayi" = "PazarSifirlama"."etkilenenSayi" + ${sayi}`;
       }
 
-      return { etkilenen, noShowlar };
+      return { etkilenen };
     },
     { maxWait: 5000, timeout: 15000 },
   );
 }
 
-// Cron tarafindan cagrilir. ZAMANA degil DURUMA bakar: gun sonu (gece yarisi)
-// gecmis VE hala bekleyen kuyrugu olan urunleri sifirlar (catch-up: restart'ta
+// Cron tarafindan cagrilir. ZAMANA degil DURUMA bakar: islem-sonu ani gecmis
+// VE hala bekleyen kuyrugu olan urunleri sifirlar (catch-up: restart'ta
 // kaçmaz). Idempotent: ikinci cagride bekleyen kalmadigi icin no-op. Her urun
 // ayri transaction + FOR UPDATE (kisa kilit, kismi basari toleransi).
 export async function pazarlariSifirla(
   now: Date = new Date(),
-): Promise<{ islenenUrun: number; toplamEtkilenen: number; tumNoShowlar: { urunId: string; aliciId: string }[] }> {
+): Promise<{ islenenUrun: number; toplamEtkilenen: number }> {
   const bekleyenler = await prisma.rezervasyon.findMany({
     where: { durum: "bekliyor" },
     select: {
@@ -895,16 +900,14 @@ export async function pazarlariSifirla(
 
   let islenenUrun = 0;
   let toplamEtkilenen = 0;
-  const tumNoShowlar: { urunId: string; aliciId: string }[] = [];
   for (const urunId of sifirlanacak) {
-    const { etkilenen, noShowlar } = await urunSifirla(urunId, now);
+    const { etkilenen } = await urunSifirla(urunId, now);
     if (etkilenen > 0) {
       islenenUrun++;
       toplamEtkilenen += etkilenen;
-      tumNoShowlar.push(...noShowlar);
     }
   }
-  return { islenenUrun, toplamEtkilenen, tumNoShowlar };
+  return { islenenUrun, toplamEtkilenen };
 }
 
 // Kapanistan SONRA saticiya hatirlatma (kullanici karari 2026-07-09: kapanistan
@@ -985,20 +988,13 @@ export async function pazarHatirlatmalariGonder(
     const saticiIdler = [...new Set(bekleyenler.map((b) => b.urun.magaza.sahipId))];
     if (saticiIdler.length === 0) continue;
 
-    // Mesajdaki saat sabit "gece yarisi" DEGIL, gercek islemSonAni'ndan
-    // formatlanir - gece pazarlarinda (ozel yapilandirilmis islemSon*) bu
-    // gece yarisindan farkli bir saat olabilir.
-    const islemSonAni = pazarIslemSonAni(pazar, pazarHaftasi);
-    const islemSonSaatMetni = new Intl.DateTimeFormat("tr-TR", {
-      timeZone: pazar.saatDilimi || "Europe/Istanbul",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(islemSonAni);
-
+    // 2026-07-09 karari sonrasi: artik "otomatik gelmedi" YOK - mesaj bunun
+    // yerine gercek sonucu (pasif urun + panel kilidi) anlatir (kullanici
+    // onayladigi metin, hafifce duzenlendi).
     await prisma.bildirim.createMany({
       data: saticiIdler.map((kullaniciId) => ({
         kullaniciId,
-        mesaj: `${pazar.ad} pazarı kapandı. İşaretlemediğin rezervasyonlar varsa saat ${islemSonSaatMetni}'e kadar "Sattım/Gelmedi" olarak işaretle - yoksa o saatte otomatik "gelmedi" sayılacaklar.`,
+        mesaj: `${pazar.ad} pazarı kapandı. Tezgah satışlarınızla ilgili "Sattım/Gelmedi" işlemini yapmazsanız, işlem yapana kadar ürünleriniz pasif görünecek ve panele giriş yapamayacaksınız.`,
         hedefYolu: "/panel/rezervasyonlar",
       })),
     });
@@ -1006,4 +1002,165 @@ export async function pazarHatirlatmalariGonder(
     hatirlatilanSaticiSayisi += saticiIdler.length;
   }
   return { hatirlatilanPazarSayisi, hatirlatilanSaticiSayisi };
+}
+
+// ---------------------------------------------------------------------------
+// Satici ihmali -> ASLA alici cezasi (2026-07-09 karari)
+// ---------------------------------------------------------------------------
+//
+// urunSifirla artik "pazar baslangicinda aktif + isaretlenmemis" kategoriye
+// HIC DOKUNMUYOR (yukaridaki yorum). Bu kayitlar "bekliyor" kalir - satici
+// panele girip bizzat "Sattim/Gelmedi" diyene kadar. Bu bolumdeki fonksiyonlar
+// UC farkli tuketici icin AYNI temel sorguyu paylasir (tutarsizlik riski
+// olmasin diye tek dogru kaynak):
+//   1. panel/layout.tsx zorunlu ekrani (satici bazinda, TAM detay)
+//   2. SiteHeader uyari banner'i (satici bazinda, sadece "var mi" bilgisi)
+//   3. Vitrin "beklemede" gorunumu (urun bazinda, magaza/global)
+
+export type BekleyenIslem = {
+  rezervId: string;
+  urunId: string;
+  urunBaslik: string;
+  siraNo: number;
+  rezervKodu: string;
+  aliciAd: string;
+  aliciTelefon: string | null;
+  pazarHaftasi: Date;
+};
+
+// Bir saticinin TUM magazalarindaki, islem-sonu ani gecmis ama hala
+// isaretlenmemis rezervasyonlari - panel/layout.tsx zorunlu ekrani ve
+// SiteHeader banner'i bunu kullanir.
+export async function saticininBekleyenIslemleriGetir(
+  saticiId: string,
+  now: Date = new Date(),
+): Promise<BekleyenIslem[]> {
+  const adaylar = await prisma.rezervasyon.findMany({
+    where: { durum: "bekliyor", tip: "aktif", urun: { magaza: { sahipId: saticiId } } },
+    select: {
+      id: true,
+      urunId: true,
+      siraNo: true,
+      rezervKodu: true,
+      pazarHaftasi: true,
+      aktifOlmaZamani: true,
+      alici: { select: { ad: true, telefon: true } },
+      urun: { select: { baslik: true, magaza: { select: { pazar: true } } } },
+    },
+    orderBy: { pazarHaftasi: "asc" },
+  });
+
+  const sonuc: BekleyenIslem[] = [];
+  for (const r of adaylar) {
+    const pazar = r.urun.magaza.pazar;
+    if (now < pazarIslemSonAni(pazar, r.pazarHaftasi)) continue;
+    const baslangic = pazarBaslangicAni(pazar, r.pazarHaftasi);
+    if (r.aktifOlmaZamani == null || r.aktifOlmaZamani >= baslangic) continue;
+    sonuc.push({
+      rezervId: r.id,
+      urunId: r.urunId,
+      urunBaslik: r.urun.baslik,
+      siraNo: r.siraNo,
+      rezervKodu: r.rezervKodu,
+      aliciAd: r.alici.ad,
+      aliciTelefon: r.alici.telefon,
+      pazarHaftasi: r.pazarHaftasi,
+    });
+  }
+  return sonuc;
+}
+
+// Vitrin gorunumu icin: "beklemede" gosterilmesi gereken urunId'lerin kumesi.
+// magazaId verilirse tek magaza sayfasina (ör. magaza/[slug]) gore daraltilir,
+// verilmezse TUM platform taranir (ör. anasayfa vitrini, coklu-magaza).
+// saticininBekleyenIslemleriGetir ile AYNI filtre mantigi (kasitli - tek
+// dogru kaynak, iki fonksiyon arasinda sapma riski olmasin).
+export async function pasifUrunIdSeti(
+  magazaId?: string,
+  now: Date = new Date(),
+): Promise<Set<string>> {
+  const adaylar = await prisma.rezervasyon.findMany({
+    where: {
+      durum: "bekliyor",
+      tip: "aktif",
+      ...(magazaId ? { urun: { magazaId } } : {}),
+    },
+    select: {
+      urunId: true,
+      pazarHaftasi: true,
+      aktifOlmaZamani: true,
+      urun: { select: { magaza: { select: { pazar: true } } } },
+    },
+  });
+
+  const urunIdler = new Set<string>();
+  for (const r of adaylar) {
+    if (urunIdler.has(r.urunId)) continue; // ayni urun icin birden fazla adayda tekrar hesaplamaya gerek yok
+    const pazar = r.urun.magaza.pazar;
+    if (now < pazarIslemSonAni(pazar, r.pazarHaftasi)) continue;
+    const baslangic = pazarBaslangicAni(pazar, r.pazarHaftasi);
+    if (r.aktifOlmaZamani != null && r.aktifOlmaZamani < baslangic) {
+      urunIdler.add(r.urunId);
+    }
+  }
+  return urunIdler;
+}
+
+// Cron tarafindan (pazar-sifirlama route icinde) cagrilir: islem-sonundan 3+
+// gun gecmis hala isaretlenmemis rezervasyonlar icin admin'e TEK SEFERLIK
+// uyari gonderir (satici muhtemelen platformu terk etmis/uzun sure girmemis -
+// alici sonsuza kadar askida kalmasin diye admin'e haber verilir, kullanici
+// karari 2026-07-09). Idempotency: Rezervasyon.saticiIhmalUyarisiGonderildi
+// bayragi (once-atomik UPDATE...WHERE ile).
+const IHMAL_UYARISI_GUN = 3;
+
+export async function saticiIhmalUyarilariGonder(
+  now: Date = new Date(),
+): Promise<{ uyarilanRezervasyonSayisi: number }> {
+  const adaylar = await prisma.rezervasyon.findMany({
+    where: { durum: "bekliyor", tip: "aktif", saticiIhmalUyarisiGonderildi: false },
+    select: {
+      id: true,
+      urunId: true,
+      rezervKodu: true,
+      pazarHaftasi: true,
+      aktifOlmaZamani: true,
+      urun: {
+        select: {
+          baslik: true,
+          magaza: { select: { ad: true, sahipId: true, pazar: true } },
+        },
+      },
+    },
+  });
+
+  let uyarilanRezervasyonSayisi = 0;
+  for (const r of adaylar) {
+    const pazar = r.urun.magaza.pazar;
+    const islemSonAni = pazarIslemSonAni(pazar, r.pazarHaftasi);
+    const esikAni = new Date(islemSonAni.getTime() + IHMAL_UYARISI_GUN * 24 * 60 * 60 * 1000);
+    if (now < esikAni) continue;
+    const baslangic = pazarBaslangicAni(pazar, r.pazarHaftasi);
+    if (r.aktifOlmaZamani == null || r.aktifOlmaZamani >= baslangic) continue;
+
+    // Atomik "sadece hala false ise" guncelleme - ayni anda iki cron
+    // tetiklemesi olsa bile cift bildirim gitmez (satir zaten idempotent
+    // WHERE kosuluyla korunuyor, ek bir kilit gerekmiyor - tek satirlik UPDATE).
+    const guncellenen = await prisma.rezervasyon.updateMany({
+      where: { id: r.id, saticiIhmalUyarisiGonderildi: false },
+      data: { saticiIhmalUyarisiGonderildi: true },
+    });
+    if (guncellenen.count === 0) continue; // baska bir cron tetiklemesi zaten isledi
+
+    const adminler = await prisma.kullanici.findMany({ where: { rol: "admin" }, select: { id: true } });
+    await prisma.bildirim.createMany({
+      data: adminler.map((a) => ({
+        kullaniciId: a.id,
+        mesaj: `"${r.urun.magaza.ad}" tezgahı, "${r.urun.baslik}" ürünündeki bir rezervasyonu (${r.rezervKodu}) ${IHMAL_UYARISI_GUN} günden uzun süredir işaretlemedi - satıcı platforma girmemiş olabilir.`,
+        hedefYolu: "/admin/magazalar",
+      })),
+    });
+    uyarilanRezervasyonSayisi++;
+  }
+  return { uyarilanRezervasyonSayisi };
 }
