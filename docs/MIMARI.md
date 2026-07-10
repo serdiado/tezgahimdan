@@ -106,6 +106,14 @@ tutacak şekilde genişletildi.
 
 ---
 
+## Çoklu pazar ve çoklu gün (PLANLANMIŞ — henüz uygulanmadı)
+
+Pilot sonrası büyüme için kararları sağlama alan planlanan revizyon. İki gerçek ihtiyaç: **A** satıcı birden çok pazarda tezgah açar (Seferihisar+Sığacık), **B** aynı pazar haftada çok gün kurulur (2 günlük belediye / Eskişehir 7 gün). Kilitlenen kararlar: ceza GLOBAL + üst üste-3 (mevcut model zaten karşılıyor); Magaza↔Pazar çoka-çok (tek marka, çok pazar, self-servis Tezgah Ekle); Ürün↔Pazar etiketi (tek katalog); **stok tek ortak havuz**; `Pazar.acikGunler` (gün seti); rezervasyona `pazarId`+occurrence eklenir. Asıl karar — ortak stokta kuyruk sırası: **erken kurulan pazar (occurrence) önceliklidir, geç pazar baştan yedek başlar, erken pazar kapanınca stok kaldıysa geç pazar yedekleri asile terfi eder (düşme yok, şeffaflık şartıyla adil)**. Bugünkü haftalık-tek-gün motoru pilot için korunur; uygulama zamanı dosya üzerinde tekrar tasarım turu yapılacak.
+
+→ Detay: [`docs/mimari/coklu-pazar-ve-coklu-gun.md`](./mimari/coklu-pazar-ve-coklu-gun.md)
+
+---
+
 ## WhatsApp iletişim + Tezgah bilgisi/kroki + Mağaza değerlendirmesi
 
 Üç bağımsız özellik, aynı oturumda mağaza sayfası etrafında eklendi. **WhatsApp**:
