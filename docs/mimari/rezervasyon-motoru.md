@@ -125,6 +125,8 @@ Her red `DurumGecmisi`'ne **`geri_alma_reddedildi:{rezervId}:{sebep}`** olarak y
 
 **Asimetri:** Satıldı geri alma neredeyse hep güvenli (birim geri döner, `kalanBirim +1`, kişi kendi açtığı slota oturur, aktif taşmaz). Gelmedi geri alma riskli (birim başkasına gitmiş olabilir; `kalanBirim` sabit, bekleyen +1 → kapasite baskısı, taşma/red mümkün).
 
+**Üçüncü engel — alıcı aynı ürünü yeniden rezerve etmişse (`islenemez: alici-ayni-urunde-bekliyor`, 2026-07-10 motor incelemesinde bulunup düzeltildi):** Eski kayıt gelmedi/satildi olduğu için alıcının önünde engel yoktur, aynı ürüne yeni bir `bekliyor` açmış olabilir. Geri alma bu durumda aynı (urunId, aliciId) için İKİNCİ bekliyor oluşturup partial unique index'e çarpar ve 500'e dönerdi (veri bozulmuyordu — transaction geri sarılıyordu, kilit görevini yapıyordu; canlı kanıtlandı). Artık kilit altında ön-kontrolle dostça reddedilir, satıcıya okunur mesaj döner.
+
 **Test kanıtı (9 ürün, eşzamanlılık dahil):**
 - Gelmedi geri al (stok=1): geri alınan aktif#1'e döndü, yükselmiş yedek yedek#1'e indi, kuyruk boşluksuz, ürün `doldu`. ✓
 - Satıldı geri al (stok=3): aktif#1'e döndü, `satildi 1→0`, 3 aktif + 5 yedek, taşma yok. ✓
