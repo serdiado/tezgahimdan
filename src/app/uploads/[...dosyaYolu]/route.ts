@@ -15,7 +15,7 @@ import { NextResponse } from "next/server";
 // (yeni) dosyalar icin devreye giriyor.
 
 const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
-const IZINLI_ALT_DIZINLER = new Set(["urunler", "magaza-kroki", "site-icerik", "pazar"]);
+const IZINLI_ALT_DIZINLER = new Set(["urunler", "magaza-kroki", "site-icerik", "pazar", "duyuru"]);
 const UZANTI_CONTENT_TYPE: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",

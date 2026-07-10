@@ -2,9 +2,92 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { gorseliIsle } from "@/lib/gorsel";
 
 type DuyuruTur = "bilgi" | "egitim" | "uyari";
 type HedefKitle = "hepsi" | "satici" | "alici";
+
+// Duyuru gorseli yukleme alani - form kaydetmeden BAGIMSIZ calisir (sec ->
+// aninda POST /api/admin/duyuru-gorsel -> onizleme guncellenir), pazar hero
+// gorseli akisiyla ayni his. Sadece DUZENLEME modunda (duyuru id var) gorunur;
+// yeni duyuruda once "Taslak Olarak Kaydet" gerekir. Telefon fotografi
+// gorseliIsle ile kucultulur.
+function DuyuruGorselAlani({ duyuruId, baslangicUrl }: { duyuruId: string; baslangicUrl: string | null }) {
+  const router = useRouter();
+  const [url, setUrl] = useState(baslangicUrl);
+  const [mesgul, setMesgul] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
+
+  async function yukle(e: React.ChangeEvent<HTMLInputElement>) {
+    const secilen = e.target.files?.[0];
+    e.target.value = "";
+    if (!secilen) return;
+    setHata(null);
+    setMesgul(true);
+    const dosya = await gorseliIsle(secilen);
+    const formData = new FormData();
+    formData.append("duyuruId", duyuruId);
+    formData.append("gorsel", dosya);
+    const res = await fetch("/api/admin/duyuru-gorsel", { method: "POST", body: formData });
+    setMesgul(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setHata(data.hata ?? "görsel yüklenemedi");
+      return;
+    }
+    const data = await res.json();
+    setUrl(data.deger);
+    router.refresh();
+  }
+
+  async function kaldir() {
+    setHata(null);
+    setMesgul(true);
+    const res = await fetch("/api/admin/duyuru-gorsel", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ duyuruId }),
+    });
+    setMesgul(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setHata(data.hata ?? "görsel kaldırılamadı");
+      return;
+    }
+    setUrl(null);
+    router.refresh();
+  }
+
+  return (
+    <div className="rounded-2xl bg-white p-5 shadow-sm">
+      <p className="text-sm font-medium text-neutral-700">Görsel (opsiyonel)</p>
+      <p className="mt-0.5 text-xs text-neutral-400">Duyuru detay sayfasında başlığın altında görünür.</p>
+      {url && (
+        <div className="mt-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="Duyuru görseli" className="h-32 w-full rounded-md object-cover" />
+        </div>
+      )}
+      <div className="mt-2 flex items-center gap-2">
+        <label className="cursor-pointer rounded-md border border-primary-300 px-3 py-1.5 text-sm font-semibold text-primary-700 hover:bg-primary-50">
+          {mesgul ? "Yükleniyor…" : url ? "Değiştir" : "Görsel Seç"}
+          <input type="file" accept="image/*" onChange={yukle} disabled={mesgul} className="hidden" />
+        </label>
+        {url && (
+          <button
+            type="button"
+            onClick={kaldir}
+            disabled={mesgul}
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm font-semibold text-neutral-600 hover:bg-neutral-100"
+          >
+            Kaldır
+          </button>
+        )}
+      </div>
+      {hata && <p className="mt-1 text-sm text-red-600">{hata}</p>}
+    </div>
+  );
+}
 
 export type DuyuruFormVeri = {
   id: string;
@@ -12,6 +95,7 @@ export type DuyuruFormVeri = {
   govde: string;
   tur: DuyuruTur;
   hedefKitle: HedefKitle;
+  gorselUrl: string | null;
   yayinlandiMi: boolean;
   gonderilenSayisi: number;
   okunanSayisi: number;
@@ -195,6 +279,10 @@ export function DuyuruForm({ duyuru }: { duyuru: DuyuruFormVeri | null }) {
           {bekliyor ? "Kaydediliyor…" : duyuru ? "Değişiklikleri Kaydet" : "Taslak Olarak Kaydet"}
         </button>
       </form>
+
+      {/* Gorsel yalniz duzenleme modunda (id gerekir) - yeni duyuruda once
+          "Taslak Olarak Kaydet" ile kayit olusur, sonra gorsel yuklenir. */}
+      {duyuru && <DuyuruGorselAlani duyuruId={duyuru.id} baslangicUrl={duyuru.gorselUrl} />}
 
       {duyuru && (
         <div className="flex flex-wrap gap-3 rounded-2xl bg-white p-5 shadow-sm">
