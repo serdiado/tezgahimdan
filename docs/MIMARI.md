@@ -114,6 +114,14 @@ Pilot sonrası büyüme için kararları sağlama alan planlanan revizyon. İki 
 
 ---
 
+## Mobil uygulama (PLANLANMIŞ — henüz uygulanmadı)
+
+Amaç: **satıcıları mobilde organize etmek + sürekli push bildirimle yönlendirmek** (ör. "açık işlemlerinizi tamamlayın"); alıcıyı mobile taşımak öncelik değil. Web'den **farklı arayüz/işleyiş istenmiyor**. Karar: **Capacitor** — mevcut web'i saran tek koddan Android + iOS; kullanıcı aynı paneli cepten yapar, web değişiklikleri mobile **otomatik yansır** (React Native gibi ayrı UI kod tabanı yok). İş mantığı zaten sunucuda paylaşımlı. Asıl yeni iş **push**: mevcut bildirim tetiklerine (yeni rezervasyon, kapanış hatırlatması, satıcı ihmali — `bildirimKanali` kancası) eklenen bir teslim kanalı; cihaz-token tablosu + FCM (Android) / APNs (iOS) + gönderim servisi + mağaza hesapları. Push'a dokununca deep-link `/panel/rezervasyonlar`. Sıra: PWA → Capacitor Android+FCM → iOS+APNs.
+
+→ Detay: [`docs/mimari/mobil-uygulama.md`](./mimari/mobil-uygulama.md)
+
+---
+
 ## WhatsApp iletişim + Tezgah bilgisi/kroki + Mağaza değerlendirmesi
 
 Üç bağımsız özellik, aynı oturumda mağaza sayfası etrafında eklendi. **WhatsApp**:
