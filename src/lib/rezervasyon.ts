@@ -651,6 +651,19 @@ export async function rezervasyonGeriAl(params: {
         return { tur: "islenemez", sebep: `durum:${rez?.durum ?? "yok"}` };
       }
 
+      // Alici bu urunu SONRADAN yeniden rezerve etmis olabilir (eski kayit
+      // gelmedi/satildi oldugu icin onunde engel yoktu) - geri alma o zaman
+      // ayni (urunId, aliciId) icin IKINCI bir 'bekliyor' olusturur ve partial
+      // unique index'e carpip tum transaction'i patlatirdi (2026-07-10 motor
+      // incelemesinde bulundu, canli kanitlandi). Dostca reddet.
+      const ayniUrundeBekleyen = await tx.rezervasyon.findFirst({
+        where: { urunId: urun?.id ?? rezOn.urunId, aliciId: rez.aliciId, durum: "bekliyor" },
+        select: { id: true },
+      });
+      if (ayniUrundeBekleyen) {
+        return { tur: "islenemez", sebep: "alici-ayni-urunde-bekliyor" };
+      }
+
       const redKaydi = async (sebep: GeriAlSebep) => {
         await tx.durumGecmisi.create({
           data: {

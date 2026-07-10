@@ -84,7 +84,9 @@ export async function POST(request: Request) {
             hedefYolu: "/rezervasyonum",
           });
           for (const iptal of yasak.iptaller) {
-            const haric = [cikti.aliciId];
+            // Vazgec akisiyla ayni haric kurali: eylemi tetikleyen (isaretleyen
+            // satici) + yasaklanan alici + varsa yukselen, takipci bildirimi almaz.
+            const haric = [cikti.aliciId, session.user.id];
             if (iptal.yukselenKodu) {
               const yukselenAliciId = await bildirimGonderYukselenKullaniciya({
                 yukselenKodu: iptal.yukselenKodu,

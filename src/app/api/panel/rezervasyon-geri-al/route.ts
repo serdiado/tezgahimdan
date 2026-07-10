@@ -59,6 +59,15 @@ export async function POST(request: Request) {
     case "bulunamadi":
       return NextResponse.json({ hata: "rezervasyon bulunamadi" }, { status: 404 });
     case "islenemez":
-      return NextResponse.json({ hata: "geri alinamaz", sebep: cikti.sebep }, { status: 409 });
+      return NextResponse.json(
+        {
+          hata:
+            cikti.sebep === "alici-ayni-urunde-bekliyor"
+              ? "Alıcının bu üründe zaten bekleyen yeni bir rezervasyonu var; geri alma çift kayıt oluşturacağı için yapılamadı."
+              : "geri alinamaz",
+          sebep: cikti.sebep,
+        },
+        { status: 409 },
+      );
   }
 }
