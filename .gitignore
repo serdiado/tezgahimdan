@@ -44,3 +44,6 @@ next-env.d.ts
 
 # kullanici tarafindan yuklenen urun fotograflari (disk-lokal, ileride R2'ye tasinacak)
 /public/uploads
+
+# Claude Code yerel oturum/ayar dosyalari (paylasilan repoya girmez)
+/.claude
