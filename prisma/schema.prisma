@@ -374,6 +374,11 @@ model Bildirim {
   hedefYolu   String?
   mesaj       String
   okunduMu    Boolean   @default(false)
+  // Kullanici kendi bildirimini listeden temizleyince set edilir (2026-07-10).
+  // Kalici silme YOK (proje ilkesi) - soft-delete: DB'de durur, /bildirimlerim
+  // ve SiteHeader rozet sorgulari silindiMi=false filtreler. Admin moderasyonu
+  // degil (o gizliMi deseni) - burada kaydin SAHIBI kendi gorunumunden kaldirir.
+  silindiMi   Boolean   @default(false)
   createdAt   DateTime  @default(now())
 
   @@index([kullaniciId, okunduMu])

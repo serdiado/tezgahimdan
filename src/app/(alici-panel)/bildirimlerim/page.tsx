@@ -14,13 +14,13 @@ export default async function BildirimlerimSayfasi() {
   }
 
   const bildirimler = await prisma.bildirim.findMany({
-    where: { kullaniciId: session.user.id },
+    where: { kullaniciId: session.user.id, silindiMi: false },
     include: { urun: { select: { baslik: true, magaza: { select: { slug: true } } } } },
     orderBy: { createdAt: "desc" },
   });
 
   await prisma.bildirim.updateMany({
-    where: { kullaniciId: session.user.id, okunduMu: false },
+    where: { kullaniciId: session.user.id, okunduMu: false, silindiMi: false },
     data: { okunduMu: true },
   });
 

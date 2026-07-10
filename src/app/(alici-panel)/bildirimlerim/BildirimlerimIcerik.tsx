@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useTransition } from "react";
 import Link from "next/link";
-import { Bell } from "lucide-react";
-import { bildirimRozetiTazele } from "./actions";
+import { Bell, X } from "lucide-react";
+import { bildirimRozetiTazele, bildirimSil, bildirimleriTemizle } from "./actions";
 
 type BildirimSatir = {
   id: string;
@@ -27,6 +27,8 @@ const tarihFormat = new Intl.DateTimeFormat("tr-TR", {
 // oluyor - burada SADECE Router Cache'i tazeleyip SiteHeader rozetinin baska
 // sayfalara F5 gerekmeden yansimasini sagliyoruz (bkz. actions.ts).
 export function BildirimlerimIcerik({ bildirimler }: { bildirimler: BildirimSatir[] }) {
+  const [bekliyor, gecisBaslat] = useTransition();
+
   useEffect(() => {
     bildirimRozetiTazele();
   }, []);
@@ -45,6 +47,16 @@ export function BildirimlerimIcerik({ bildirimler }: { bildirimler: BildirimSati
 
   return (
     <div className="mt-4 space-y-3">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => gecisBaslat(() => bildirimleriTemizle())}
+          disabled={bekliyor}
+          className="rounded-md px-2 py-1 text-xs font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 focus:ring-2 focus:ring-primary-200 focus:outline-none disabled:opacity-50"
+        >
+          Tümünü Temizle
+        </button>
+      </div>
       {bildirimler.map((b) => {
         // Hedef sirasi: urun varsa urune, yoksa (ör. sikayet sonucu) verilen
         // hedefYolu'na. Ikisi de yoksa (ör. toplu duyuru) kart TIKLANAMAZ -
@@ -57,19 +69,33 @@ export function BildirimlerimIcerik({ bildirimler }: { bildirimler: BildirimSati
             <p className="mt-1 text-xs text-neutral-500">{tarihFormat.format(new Date(b.createdAt))}</p>
           </>
         );
-        const sinif = `block rounded-2xl p-4 shadow-sm ${b.yeniMi ? "bg-primary-50 ring-1 ring-primary-200" : "bg-white"}`;
+        // Sil butonu icerigin USTUNE bindirilir (mutlak konum) - <Link> icine
+        // gomulmez (ic ice tiklanabilir oge olmaz). Icerige sag padding verilir
+        // ki metin X'in altina girmesin.
+        const sinif = `block rounded-2xl p-4 pr-10 shadow-sm ${b.yeniMi ? "bg-primary-50 ring-1 ring-primary-200" : "bg-white"}`;
+        const silButonu = (
+          <button
+            type="button"
+            onClick={() => gecisBaslat(() => bildirimSil(b.id))}
+            disabled={bekliyor}
+            aria-label="Bildirimi kaldır"
+            className="absolute right-2 top-2 rounded-md p-1.5 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600 focus:ring-2 focus:ring-primary-200 focus:outline-none disabled:opacity-50"
+          >
+            <X className="h-4 w-4" strokeWidth={2} />
+          </button>
+        );
 
-        if (!href) {
-          return (
-            <div key={b.id} className={sinif}>
-              {icerik}
-            </div>
-          );
-        }
         return (
-          <Link key={b.id} href={href} className={sinif}>
-            {icerik}
-          </Link>
+          <div key={b.id} className="relative">
+            {href ? (
+              <Link href={href} className={sinif}>
+                {icerik}
+              </Link>
+            ) : (
+              <div className={sinif}>{icerik}</div>
+            )}
+            {silButonu}
+          </div>
         );
       })}
     </div>

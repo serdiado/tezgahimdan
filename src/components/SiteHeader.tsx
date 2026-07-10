@@ -23,7 +23,7 @@ export async function SiteHeader() {
   const satici = rol === "satici";
   const admin = rol === "admin";
   const [okunmamisSayisi, bekleyenIslemSayisi] = await Promise.all([
-    girisli ? prisma.bildirim.count({ where: { kullaniciId: session.user.id, okunduMu: false } }) : 0,
+    girisli ? prisma.bildirim.count({ where: { kullaniciId: session.user.id, okunduMu: false, silindiMi: false } }) : 0,
     satici ? saticininBekleyenIslemleriGetir(session!.user.id).then((b) => b.length) : 0,
   ]);
 
