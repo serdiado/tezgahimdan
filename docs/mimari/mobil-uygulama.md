@@ -76,3 +76,29 @@ yönlendirme".
   FCM/APNs + gönderim + platform hesapları.
 - Başlanınca ayrı bir kulvar olarak adım adım planlanır (pilot/web işleyişini
   bozmadan; mobil yalnızca aynı backend'i tüketir).
+
+## 7. İş bölümü ve gereksinimler (uygulama günü)
+
+Mobil, "ya Claude ya dış araç" değil: **kodun tamamı Claude'da, platform/hesap/
+derleme adımları kullanıcıda** (Claude her portal adımını tek tek yönlendirir).
+
+**Claude (kod):** web→PWA (manifest + service worker + ikonlar); Capacitor
+kurulumu + config + android/ios platform ekleme; push backend (`CihazTokeni`
+tablosu + migration, token kaydetme route'u, FCM/APNs gönderim servisi, mevcut
+bildirim tetiklerine bağlama); istemci push kaydı; deep-link (`/panel/rezervasyonlar`);
+web/PWA tarafının tarayıcı testi.
+
+**Kullanıcı (dış araç + hesap, yönlendirmeyle):**
+- **Android derleme:** Android Studio + Android SDK — **Windows'ta yapılabilir.**
+- **iOS derleme:** **Mac + Xcode ZORUNLU** (iOS yalnız macOS'ta derlenir).
+  Geliştirme makinesi **Windows** olduğu için iOS'ta ya bir Mac ya da bir
+  **bulut derleme** servisi (Ionic Appflow / EAS Build / GitHub Actions macOS
+  runner) gerekir. **Erken planlanacak kritik gereksinim budur.**
+- **Firebase/FCM:** proje + `google-services.json` (birkaç tık).
+- **Apple Developer (~99$/yıl) + APNs anahtarı**, **Google Play (~25$ tek sefer)**.
+- İmza anahtarları/sertifikalar (keystore / iOS sertifikaları) — güvenlik-hassas,
+  kullanıcı tutar.
+- Gerçek cihazda test: izin + token akışı + test push doğrulaması.
+
+**Sonuç:** "önce Android" planı bu açıdan da doğru — Windows'ta doğrudan
+ilerlenebilir; iOS'a geçmeden önce Mac/bulut-derleme ayarı yapılır.
