@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
+import { bildirimGonderKullaniciya } from "@/lib/bildirim";
 
 // Kalici muafiyet DEGIL: Kullanici.guvenilirlikSifirlamaTarihi'ni simdiki
 // zamana yazar VE varsa aktif gelmedi yasagini kaldirir (2026-07-10: af,
@@ -20,12 +21,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ hata: "kullaniciId zorunlu" }, { status: 400 });
   }
 
-  const kullanici = await prisma.kullanici.findUnique({ where: { id: kullaniciId }, select: { id: true } });
+  const kullanici = await prisma.kullanici.findUnique({
+    where: { id: kullaniciId },
+    select: { id: true, rezervasyonYasagiBitisi: true },
+  });
   if (!kullanici) {
     return NextResponse.json({ hata: "kullanıcı bulunamadı" }, { status: 404 });
   }
 
   const simdi = new Date();
+  // Af, AKTIF bir yasagi kaldirdiysa alici bilgilendirilmeli (satici geri-alma
+  // yasagi kaldirinca oldugu gibi) - yoksa "yasakliyim" sanip denemez. Sadece
+  // gecmis seri sifirlandiysa (aktif yasak yoktu) bildirime gerek yok.
+  const aktifYasakVardi =
+    kullanici.rezervasyonYasagiBitisi != null && kullanici.rezervasyonYasagiBitisi > simdi;
+
   await prisma.$transaction([
     prisma.kullanici.update({
       where: { id: kullaniciId },
@@ -40,6 +50,14 @@ export async function POST(request: Request) {
       },
     }),
   ]);
+
+  if (aktifYasakVardi) {
+    await bildirimGonderKullaniciya({
+      kullaniciId,
+      mesaj: "Rezervasyon yasağın kaldırıldı, yeniden rezervasyon yapabilirsin.",
+      hedefYolu: "/rezervasyonum",
+    });
+  }
 
   return NextResponse.json({ tur: "guncellendi", guvenilirlikSifirlamaTarihi: simdi.toISOString() });
 }

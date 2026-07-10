@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
 import { urunGuncelle } from "@/lib/urun";
-import { bildirimGonderTakipcilere } from "@/lib/bildirim";
+import { bildirimGonderKullaniciya, bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 const fiyatFormat = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY" });
 
@@ -66,6 +66,19 @@ export async function POST(request: Request) {
           urunId: sonuc.urun.id,
           mesaj: `Takip ettiğiniz "${sonuc.urun.baslik}" için fiyat düştü: ${fiyatFormat.format(sonuc.eskiFiyat)} → ${fiyatFormat.format(sonuc.urun.fiyat)}`,
           haricKullaniciIdler: [session.user.id],
+        });
+      }
+      // Tezgah sahibine haber ver (admin moderasyon amacli urununu duzenledi;
+      // magaza-gizle deseni). Sahip = eylemi yapan admin ise atlanir.
+      const magaza = await prisma.magaza.findUnique({
+        where: { id: sonuc.urun.magazaId },
+        select: { sahipId: true },
+      });
+      if (magaza && magaza.sahipId !== session.user.id) {
+        await bildirimGonderKullaniciya({
+          kullaniciId: magaza.sahipId,
+          mesaj: `"${sonuc.urun.baslik}" ürünün admin tarafından düzenlendi.`,
+          hedefYolu: "/panel/urunlerim",
         });
       }
       return NextResponse.json({ id: sonuc.urun.id, fotograflar: sonuc.urun.fotograflar, magazaId: sonuc.urun.magazaId });

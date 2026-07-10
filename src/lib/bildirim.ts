@@ -46,17 +46,18 @@ export async function bildirimGonderTakipcilere(params: {
 
 // bildirimGonderMagazaTakipcilerine ile AYNI iskelet, farkli alici kitlesi:
 // takipciler DEGIL, o pazara bagli AKTIF (silindiMi=false, gizliMi=false)
-// magazalarin sahipleri. Admin bir Pazar'i pasife alinca cagrilir (bkz.
-// api/admin/pazar-guncelle/route.ts) - urunId'siz genel bildirim oldugu icin
-// hedefYolu da verilmez (girisler zaten kapanacagi icin yonlendirilecek bir
-// panel sayfasi yok).
+// magazalarin sahipleri. Admin bir Pazar'i pasife/aktife alinca cagrilir (bkz.
+// api/admin/pazar-guncelle/route.ts). Mesaj + opsiyonel hedefYolu caller
+// tarafindan verilir (pasiflesmede hedef yok - giris kapaniyor; yeniden
+// aktiflesmede /panel'e yonlendirilir).
 export async function bildirimGonderPazarSaticilarina(params: {
   pazarId: string;
-  pazarAdi: string;
   // Admin ayni zamanda o pazarda bir magazanin sahibi olabilir (magazaAc()
   // admin rolunu degistirmez, admin de satici olabilir - bkz. magaza.ts).
   // Eylemi yapan admin kendine bildirim almamali.
   haricKullaniciId: string;
+  mesaj: string;
+  hedefYolu?: string;
 }): Promise<void> {
   const saticilar = await prisma.magaza.findMany({
     where: {
@@ -72,7 +73,8 @@ export async function bildirimGonderPazarSaticilarina(params: {
   await prisma.bildirim.createMany({
     data: saticilar.map((m) => ({
       kullaniciId: m.sahipId,
-      mesaj: `Bağlı olduğun ${params.pazarAdi} pazarı artık aktif değil, panele giriş yapamayacaksın.`,
+      mesaj: params.mesaj,
+      hedefYolu: params.hedefYolu,
     })),
   });
 }

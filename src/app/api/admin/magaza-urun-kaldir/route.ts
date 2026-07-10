@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
 import { urunKaldir } from "@/lib/urun";
+import { bildirimGonderKullaniciya } from "@/lib/bildirim";
 
 // api/panel/urun-kaldir ile AYNI urunKaldir() lib fonksiyonunu kullanir -
 // sahiplik kontrolu yok (admin herhangi bir saticinin urununu kaldirabilir).
@@ -40,6 +41,21 @@ export async function POST(request: Request) {
       olay: "urun_kaldirildi:admin_adina",
     },
   });
+
+  // Tezgah sahibine haber ver: urunu vitrinden kaybolan satici nedenini bilmeli
+  // (magaza-gizle deseni - moderasyon etkilenen sahibe bildirilir). Urun
+  // soft-delete oldugu icin hala okunabilir (baslik + sahip).
+  const urun = await prisma.urun.findUnique({
+    where: { id },
+    select: { baslik: true, magaza: { select: { sahipId: true } } },
+  });
+  if (urun && urun.magaza.sahipId !== session.user.id) {
+    await bildirimGonderKullaniciya({
+      kullaniciId: urun.magaza.sahipId,
+      mesaj: `"${urun.baslik}" ürünün admin tarafından tezgahından kaldırıldı.`,
+      hedefYolu: "/panel/urunlerim",
+    });
+  }
 
   return NextResponse.json({ tur: "kaldirildi" });
 }

@@ -184,10 +184,23 @@ export async function POST(request: Request) {
   ]);
 
   // Motor/kilit disinda, transaction basariyla dondukten SONRA: pazar
-  // aktif->pasif gecisinde bagli tum aktif saticilar giris yapamayacaklarina
-  // dair bilgilendirilir (aktifMi gonderilmediyse veya zaten pasifse tetiklenmez).
+  // aktiflik gecisinde bagli tum aktif saticilar bilgilendirilir. Iki yon
+  // simetrik: pasiflesmede "giris yapamayacaksin" (hedefsiz - panel kapali),
+  // yeniden aktiflesmede "tekrar yonetebilirsin" (/panel hedefli). aktifMi
+  // gonderilmediyse ya da durum degismediyse tetiklenmez.
   if (aktifMiGonderildi && mevcut.aktifMi === true && aktifMi === false) {
-    await bildirimGonderPazarSaticilarina({ pazarId: id, pazarAdi: ad, haricKullaniciId: session.user.id });
+    await bildirimGonderPazarSaticilarina({
+      pazarId: id,
+      haricKullaniciId: session.user.id,
+      mesaj: `Bağlı olduğun ${ad} pazarı artık aktif değil, panele giriş yapamayacaksın.`,
+    });
+  } else if (aktifMiGonderildi && mevcut.aktifMi === false && aktifMi === true) {
+    await bildirimGonderPazarSaticilarina({
+      pazarId: id,
+      haricKullaniciId: session.user.id,
+      mesaj: `Bağlı olduğun ${ad} pazarı yeniden aktif oldu, tekrar tezgahını yönetebilirsin.`,
+      hedefYolu: "/panel",
+    });
   }
 
   return NextResponse.json({ tur: "guncellendi" });
