@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
+import { gecerliUrlMi } from "@/lib/url";
 import type { DuyuruTuru } from "@/generated/prisma";
 
 // Duyuru olustur (id yoksa) ya da guncelle (id varsa) - tek route (form kucuk,
@@ -24,6 +25,8 @@ export async function POST(request: Request) {
   const govde = typeof body?.govde === "string" ? body.govde.trim() : "";
   const tur = body?.tur;
   const hedefKitle = body?.hedefKitle;
+  const baglantiUrlHam = typeof body?.baglantiUrl === "string" ? body.baglantiUrl.trim() : "";
+  const baglantiMetniHam = typeof body?.baglantiMetni === "string" ? body.baglantiMetni.trim() : "";
 
   if (!baslik || baslik.length > BASLIK_MAX) {
     return NextResponse.json({ hata: `başlık zorunlu (en fazla ${BASLIK_MAX} karakter)` }, { status: 400 });
@@ -37,6 +40,13 @@ export async function POST(request: Request) {
   if (!(HEDEF_KITLELER as readonly string[]).includes(hedefKitle)) {
     return NextResponse.json({ hata: "geçersiz hedef kitle" }, { status: 400 });
   }
+  // Eylem baglantisi opsiyonel; verilmisse http/https olmali (whatsappNo/pazar
+  // deseniyle ayni gecerliUrlMi). Metin baglanti yoksa anlamsiz - null'lanir.
+  if (baglantiUrlHam && !gecerliUrlMi(baglantiUrlHam)) {
+    return NextResponse.json({ hata: "eylem bağlantısı geçerli bir link (http/https) olmalı" }, { status: 400 });
+  }
+  const baglantiUrl = baglantiUrlHam || null;
+  const baglantiMetni = baglantiUrl ? baglantiMetniHam || null : null;
 
   if (id) {
     // Guncelleme: silinmis duyuru duzenlenemez. hedefKitle yayindan SONRA
@@ -48,13 +58,13 @@ export async function POST(request: Request) {
     }
     await prisma.duyuru.update({
       where: { id },
-      data: { baslik, govde, tur: tur as DuyuruTuru, hedefKitle },
+      data: { baslik, govde, tur: tur as DuyuruTuru, hedefKitle, baglantiUrl, baglantiMetni },
     });
     return NextResponse.json({ tur: "guncellendi", id });
   }
 
   const olusturulan = await prisma.duyuru.create({
-    data: { baslik, govde, tur: tur as DuyuruTuru, hedefKitle, olusturanId: session.user.id },
+    data: { baslik, govde, tur: tur as DuyuruTuru, hedefKitle, baglantiUrl, baglantiMetni, olusturanId: session.user.id },
     select: { id: true },
   });
   await prisma.durumGecmisi.create({

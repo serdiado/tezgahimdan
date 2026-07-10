@@ -407,8 +407,14 @@ enum DuyuruTuru {
 model Duyuru {
   id         String     @id @default(uuid())
   baslik     String
+  // Markdown (2026-07-10): react-markdown ile render edilir - baglanti, kalin,
+  // baslik, liste, gomulu gorsel. Ham HTML render EDILMEZ (XSS guvenli).
   govde      String     @db.Text
   gorselUrl  String?
+  // Detay sayfasinin altinda cikan opsiyonel eylem butonu (or. "Egitime Git").
+  // baglantiUrl http/https dogrulanir; baglantiMetni bos ise jenerik etiket.
+  baglantiUrl   String?
+  baglantiMetni String?
   tur        DuyuruTuru @default(bilgi)
   // "hepsi" | "satici" | "alici" (mevcut duyuru-gonder ile ayni; "hepsi" =
   // satici+alici, admin haric). Yayin aninda rol filtresine cevrilir.

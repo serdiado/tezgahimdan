@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { SiteHeader } from "@/components/SiteHeader";
+import { DuyuruMarkdown } from "@/components/DuyuruMarkdown";
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", {
   day: "numeric",
@@ -34,7 +35,15 @@ export default async function DuyuruDetaySayfasi({ params }: { params: Promise<{
 
   const duyuru = await prisma.duyuru.findFirst({
     where: { id, silindiMi: false, yayinlandiMi: true },
-    select: { baslik: true, govde: true, gorselUrl: true, tur: true, yayinTarihi: true },
+    select: {
+      baslik: true,
+      govde: true,
+      gorselUrl: true,
+      tur: true,
+      yayinTarihi: true,
+      baglantiUrl: true,
+      baglantiMetni: true,
+    },
   });
   if (!duyuru) {
     notFound();
@@ -64,7 +73,19 @@ export default async function DuyuruDetaySayfasi({ params }: { params: Promise<{
               className="mt-4 w-full rounded-xl object-cover"
             />
           )}
-          <div className="mt-4 whitespace-pre-wrap text-neutral-700">{duyuru.govde}</div>
+          <div className="mt-4">
+            <DuyuruMarkdown govde={duyuru.govde} />
+          </div>
+          {duyuru.baglantiUrl && (
+            <a
+              href={duyuru.baglantiUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+            >
+              {duyuru.baglantiMetni?.trim() || "Bağlantıya Git"}
+            </a>
+          )}
         </article>
       </main>
     </div>

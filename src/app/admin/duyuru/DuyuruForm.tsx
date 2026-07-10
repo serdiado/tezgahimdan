@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { gorseliIsle } from "@/lib/gorsel";
+import { useDegisiklikUyarisi } from "@/lib/degisiklik-uyarisi";
+import { DuyuruMarkdown } from "@/components/DuyuruMarkdown";
 
 type DuyuruTur = "bilgi" | "egitim" | "uyari";
 type HedefKitle = "hepsi" | "satici" | "alici";
@@ -59,9 +61,12 @@ function DuyuruGorselAlani({ duyuruId, baslangicUrl }: { duyuruId: string; basla
   }
 
   return (
-    <div className="rounded-2xl bg-white p-5 shadow-sm">
+    <div>
       <p className="text-sm font-medium text-neutral-700">Görsel (opsiyonel)</p>
-      <p className="mt-0.5 text-xs text-neutral-400">Duyuru detay sayfasında başlığın altında görünür.</p>
+      <p className="mt-0.5 text-xs text-neutral-400">
+        Detay sayfasında başlığın altında görünür. <strong>Seçtiğin an kaydedilir</strong> — aşağıdaki
+        &quot;Kaydet&quot; yalnızca yazıyı kaydeder.
+      </p>
       {url && (
         <div className="mt-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -96,6 +101,8 @@ export type DuyuruFormVeri = {
   tur: DuyuruTur;
   hedefKitle: HedefKitle;
   gorselUrl: string | null;
+  baglantiUrl: string | null;
+  baglantiMetni: string | null;
   yayinlandiMi: boolean;
   gonderilenSayisi: number;
   okunanSayisi: number;
@@ -116,11 +123,18 @@ export function DuyuruForm({ duyuru }: { duyuru: DuyuruFormVeri | null }) {
   const [govde, setGovde] = useState(duyuru?.govde ?? "");
   const [tur, setTur] = useState<DuyuruTur>(duyuru?.tur ?? "bilgi");
   const [hedefKitle, setHedefKitle] = useState<HedefKitle>(duyuru?.hedefKitle ?? "hepsi");
+  const [baglantiUrl, setBaglantiUrl] = useState(duyuru?.baglantiUrl ?? "");
+  const [baglantiMetni, setBaglantiMetni] = useState(duyuru?.baglantiMetni ?? "");
   const [bekliyor, setBekliyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
   const [basarili, setBasarili] = useState<string | null>(null);
   const [yayinOnay, setYayinOnay] = useState(false);
   const [kaldirOnay, setKaldirOnay] = useState(false);
+  // Kaydedilmemis YAZI alanlari (baslik/govde/tur/hedef/baglanti) icin uyari.
+  // Gorsel bu takibin DISINDA - kendi anlik upload'ini yapar (Kaydet'i
+  // beklemez), bu yuzden gorsel secimi "dirty" isaretlemez.
+  const [dirty, setDirty] = useState(false);
+  useDegisiklikUyarisi(dirty);
 
   const yayinlandi = duyuru?.yayinlandiMi ?? false;
 
@@ -136,7 +150,15 @@ export function DuyuruForm({ duyuru }: { duyuru: DuyuruFormVeri | null }) {
     const res = await fetch("/api/admin/duyuru-kaydet", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: duyuru?.id, baslik: baslik.trim(), govde: govde.trim(), tur, hedefKitle }),
+      body: JSON.stringify({
+        id: duyuru?.id,
+        baslik: baslik.trim(),
+        govde: govde.trim(),
+        tur,
+        hedefKitle,
+        baglantiUrl: baglantiUrl.trim(),
+        baglantiMetni: baglantiMetni.trim(),
+      }),
     });
     setBekliyor(false);
     if (!res.ok) {
@@ -145,6 +167,7 @@ export function DuyuruForm({ duyuru }: { duyuru: DuyuruFormVeri | null }) {
       return;
     }
     const data = await res.json();
+    setDirty(false);
     if (!duyuru) {
       // Yeni olusturuldu -> duzenleme sayfasina gec (artik yayinlanabilir).
       router.push(`/admin/duyuru/${data.id}/duzenle`);
@@ -212,77 +235,131 @@ export function DuyuruForm({ duyuru }: { duyuru: DuyuruFormVeri | null }) {
       )}
 
       <form onSubmit={kaydet} className="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">
-            Başlık
-            <input
-              type="text"
-              value={baslik}
-              onChange={(e) => setBaslik(e.target.value)}
-              maxLength={200}
-              placeholder="ör. Yeni teslim alma işleyişi"
-              className={inputClass}
-            />
-          </label>
-          <p className="mt-1 text-xs text-neutral-400">
-            Bildirim listesinde bu başlık görünür; tıklayınca aşağıdaki içerik açılır.
-          </p>
+        {/* onChange SADECE yazi alanlarinda - gorsel bunun DISINDA (kendi anlik
+            upload'i var, Kaydet'i beklemez), dirty isaretlememeli. */}
+        <div className="space-y-4" onChange={() => setDirty(true)}>
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">
+              Başlık
+              <input
+                type="text"
+                value={baslik}
+                onChange={(e) => setBaslik(e.target.value)}
+                maxLength={200}
+                placeholder="ör. Yeni teslim alma işleyişi"
+                className={inputClass}
+              />
+            </label>
+            <p className="mt-1 text-xs text-neutral-400">
+              Bildirim listesinde bu başlık görünür; tıklayınca aşağıdaki içerik açılır.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-medium text-neutral-700">
+              Tür
+              <select value={tur} onChange={(e) => setTur(e.target.value as DuyuruTur)} className={inputClass}>
+                <option value="bilgi">Bilgi</option>
+                <option value="egitim">Eğitim</option>
+                <option value="uyari">Uyarı</option>
+              </select>
+            </label>
+            <label className="block text-sm font-medium text-neutral-700">
+              Hedef Kitle
+              <select
+                value={hedefKitle}
+                onChange={(e) => setHedefKitle(e.target.value as HedefKitle)}
+                disabled={yayinlandi}
+                className={`${inputClass} disabled:bg-neutral-100 disabled:text-neutral-500`}
+              >
+                <option value="hepsi">{HEDEF_ETIKETI.hepsi}</option>
+                <option value="satici">{HEDEF_ETIKETI.satici}</option>
+                <option value="alici">{HEDEF_ETIKETI.alici}</option>
+              </select>
+              {yayinlandi && <span className="mt-1 block text-xs text-neutral-400">Yayından sonra değiştirilemez.</span>}
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-neutral-700">
+              İçerik
+              <textarea
+                value={govde}
+                onChange={(e) => setGovde(e.target.value)}
+                rows={8}
+                maxLength={5000}
+                placeholder="Duyurunun tam metni. Markdown yazabilirsin."
+                className={inputClass}
+              />
+            </label>
+            <p className="mt-1 text-xs text-neutral-400">
+              Markdown desteklenir: <code className="rounded bg-neutral-100 px-1">**kalın**</code>,{" "}
+              <code className="rounded bg-neutral-100 px-1">[bağlantı](https://…)</code>,{" "}
+              <code className="rounded bg-neutral-100 px-1">- liste</code>. Altta canlı önizleme görünür.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-medium text-neutral-700">
+              Eylem Bağlantısı (opsiyonel)
+              <input
+                type="url"
+                value={baglantiUrl}
+                onChange={(e) => setBaglantiUrl(e.target.value)}
+                placeholder="https://… (ör. eğitim sayfası)"
+                className={inputClass}
+              />
+            </label>
+            <label className="block text-sm font-medium text-neutral-700">
+              Buton Metni
+              <input
+                type="text"
+                value={baglantiMetni}
+                onChange={(e) => setBaglantiMetni(e.target.value)}
+                maxLength={60}
+                placeholder="ör. Eğitime Git"
+                className={inputClass}
+              />
+            </label>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-neutral-700">
-            Tür
-            <select value={tur} onChange={(e) => setTur(e.target.value as DuyuruTur)} className={inputClass}>
-              <option value="bilgi">Bilgi</option>
-              <option value="egitim">Eğitim</option>
-              <option value="uyari">Uyarı</option>
-            </select>
-          </label>
-          <label className="block text-sm font-medium text-neutral-700">
-            Hedef Kitle
-            <select
-              value={hedefKitle}
-              onChange={(e) => setHedefKitle(e.target.value as HedefKitle)}
-              disabled={yayinlandi}
-              className={`${inputClass} disabled:bg-neutral-100 disabled:text-neutral-500`}
-            >
-              <option value="hepsi">{HEDEF_ETIKETI.hepsi}</option>
-              <option value="satici">{HEDEF_ETIKETI.satici}</option>
-              <option value="alici">{HEDEF_ETIKETI.alici}</option>
-            </select>
-            {yayinlandi && <span className="mt-1 block text-xs text-neutral-400">Yayından sonra değiştirilemez.</span>}
-          </label>
-        </div>
+        {/* Canli onizleme - detay sayfasindakiyle AYNI render (DuyuruMarkdown). */}
+        {govde.trim() && (
+          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-4">
+            <p className="mb-1 text-xs font-medium text-neutral-400">Önizleme</p>
+            <DuyuruMarkdown govde={govde} />
+            {baglantiUrl.trim() && (
+              <span className="mt-3 inline-flex rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white">
+                {baglantiMetni.trim() || "Bağlantıya Git"}
+              </span>
+            )}
+          </div>
+        )}
 
-        <div>
-          <label className="block text-sm font-medium text-neutral-700">
-            İçerik
-            <textarea
-              value={govde}
-              onChange={(e) => setGovde(e.target.value)}
-              rows={8}
-              maxLength={5000}
-              placeholder="Duyurunun tam metni. Uzun olabilir; satır boşlukları korunur."
-              className={inputClass}
-            />
-          </label>
-        </div>
+        {/* Gorsel yalniz duzenleme modunda (id gerekir; yeni duyuruda once
+            "Taslak Olarak Kaydet"). ANLIK upload - Kaydet'i beklemez, dirty
+            takibinin DISINDA. Kaydet butonunun USTUNDE. */}
+        {duyuru && (
+          <div className="border-t border-neutral-200 pt-4">
+            <DuyuruGorselAlani duyuruId={duyuru.id} baslangicUrl={duyuru.gorselUrl} />
+          </div>
+        )}
 
         {hata && <p className="text-sm text-red-600">{hata}</p>}
         {basarili && !hata && <p className="text-sm text-green-700">{basarili}</p>}
 
-        <button
-          type="submit"
-          disabled={bekliyor}
-          className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
-        >
-          {bekliyor ? "Kaydediliyor…" : duyuru ? "Değişiklikleri Kaydet" : "Taslak Olarak Kaydet"}
-        </button>
+        <div className="border-t border-neutral-200 pt-4">
+          <button
+            type="submit"
+            disabled={bekliyor}
+            className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+          >
+            {bekliyor ? "Kaydediliyor…" : duyuru ? "Değişiklikleri Kaydet" : "Taslak Olarak Kaydet"}
+          </button>
+          {dirty && <p className="mt-1 text-xs text-neutral-500">Kaydedilmemiş değişiklikleriniz var.</p>}
+        </div>
       </form>
-
-      {/* Gorsel yalniz duzenleme modunda (id gerekir) - yeni duyuruda once
-          "Taslak Olarak Kaydet" ile kayit olusur, sonra gorsel yuklenir. */}
-      {duyuru && <DuyuruGorselAlani duyuruId={duyuru.id} baslangicUrl={duyuru.gorselUrl} />}
 
       {duyuru && (
         <div className="flex flex-wrap gap-3 rounded-2xl bg-white p-5 shadow-sm">
