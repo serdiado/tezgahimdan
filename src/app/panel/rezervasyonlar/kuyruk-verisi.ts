@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import { aliciGuvenilirlikHaritasi } from "@/lib/rezervasyon";
-import { platformAyarlariGetir } from "@/lib/platform-ayarlari";
 
 // rezervasyonlar/page.tsx VE panel/BekleyenIslemlerEkrani.tsx (zorunlu ekran)
 // AYNI KuyrukKarti veri seklini uretir - tek yerde tutulur, iki sayfa arasinda
@@ -29,13 +28,13 @@ export async function saticininKuyrukKartVerisi(magazaId: string, urunIdFiltresi
   for (const urun of urunler) {
     for (const r of urun.rezervasyonlar) aliciIdSeti.add(r.aliciId);
   }
-  const [guvenilirlik, ayarlar] = await Promise.all([
-    aliciGuvenilirlikHaritasi([...aliciIdSeti]),
-    platformAyarlariGetir(),
-  ]);
+  const guvenilirlik = await aliciGuvenilirlikHaritasi([...aliciIdSeti]);
   function guvenilirlikOzeti(aliciId: string) {
-    const veri = guvenilirlik.get(aliciId) ?? { satildi: 0, gelmedi: 0 };
-    return { ...veri, kisitliMi: veri.gelmedi >= ayarlar.guvenilirlikEsigi };
+    const veri = guvenilirlik.get(aliciId) ?? { satildi: 0, gelmedi: 0, yasakliMi: false };
+    // kisitliMi (2026-07-10'dan beri): alicinin SU AN aktif bir gelmedi yasagi
+    // var mi - motor kapisiyla birebir ayni anlam (eskiden "esik asildi"
+    // demekti ve kapiyla tutarsiz kalabiliyordu).
+    return { satildi: veri.satildi, gelmedi: veri.gelmedi, kisitliMi: veri.yasakliMi };
   }
 
   return urunler.map((urun) => {

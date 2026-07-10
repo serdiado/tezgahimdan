@@ -135,11 +135,20 @@ model Kullanici {
   // engellenir. Enforcement noktalari icin bkz. src/lib/yetki.ts
   // kullaniciYasakliMi().
   yasakliMi Boolean       @default(false)
-  // Admin "guvenilirlik kisitlamasini kaldirdi" dediginde bu alana now() yazilir.
-  // Kalici muafiyet DEGIL: rezervasyonOlustur'daki gelmedi sayimi bu tarihten
-  // SONRAKI kayitlari sayar - yeniden GUVENILIRLIK_ESIGI'ni asarsa kisit tekrar
-  // devreye girer (bkz. src/lib/rezervasyon.ts, docs/mimari/rezervasyon-motoru.md).
+  // Gelmedi serisinin baslangic noktasi: seri hesabi SADECE bu tarihten SONRA
+  // olusturulmus kayitlari kapsar (kayitlar silinmez, sadece filtrelenir). IKI
+  // yazari var (2026-07-10): (1) admin affi (kullanici-guvenilirlik-sifirla),
+  // (2) otomatik yasak baslangici - seri dolunca yasakla birlikte sayac da
+  // sifirlanir, yasak bitince alici temiz sayfayla doner (bkz.
+  // src/lib/rezervasyon.ts gelmediYasagiKontrolEt,
+  // docs/mimari/guvenilirlik-sistemi.md).
   guvenilirlikSifirlamaTarihi DateTime?
+  // Gelmedi yasagi (2026-07-10): UST USTE esik kadar "gelmedi" biriktiren alici
+  // bu ana kadar YENI rezervasyon olusturamaz (yasak baslarken bekleyen
+  // rezervasyonlari da otomatik iptal edilir - bkz. yasakSupurmesi). Gecmis
+  // tarih = yasak yok demektir (ayrica temizlik gerektirmez); satici "gelmedi"
+  // geri alirsa veya admin af verirse null'lanir.
+  rezervasyonYasagiBitisi DateTime?
   createdAt DateTime      @default(now())
 
   // E-posta/Google girisi icin: ikisi de opsiyonel (telefon+SMS ile gelen kullanicida
@@ -448,8 +457,13 @@ model MagazaDegerlendirme {
 // sabitti, artik admin panelinden (/admin/ayarlar) degistirilebilir.
 model PlatformAyarlari {
   id                String   @id @default("singleton")
+  // guvenilirlikEsigi: UST USTE kac "gelmedi" yasagi tetikler (2026-07-10'dan
+  // beri seri/ardisik sayim - "satildi" seriyi bozar, alicinin kendi vazgecmesi
+  // notrdur; bkz. gelmediYasagiKontrolEt).
   guvenilirlikEsigi Int      @default(3)
   maxYedek          Int      @default(5)
+  // Seri dolunca uygulanan yeni-rezervasyon yasaginin suresi (gun).
+  yasakSuresiGun    Int      @default(7)
   guncellenmeZamani DateTime @updatedAt
 }
 

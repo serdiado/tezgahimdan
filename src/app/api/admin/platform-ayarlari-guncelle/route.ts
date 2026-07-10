@@ -10,6 +10,8 @@ const MIN_ESIK = 1;
 const MAX_ESIK = 20;
 const MIN_YEDEK = 0;
 const MAX_YEDEK_SINIRI = 50;
+const MIN_YASAK_GUN = 1;
+const MAX_YASAK_GUN = 30;
 
 export async function POST(request: Request) {
   const { session, yetkili } = await getAdminSession();
@@ -20,6 +22,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const guvenilirlikEsigi = Number(body?.guvenilirlikEsigi);
   const maxYedek = Number(body?.maxYedek);
+  const yasakSuresiGun = Number(body?.yasakSuresiGun);
 
   if (!Number.isInteger(guvenilirlikEsigi) || guvenilirlikEsigi < MIN_ESIK || guvenilirlikEsigi > MAX_ESIK) {
     return NextResponse.json(
@@ -33,22 +36,28 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
+  if (!Number.isInteger(yasakSuresiGun) || yasakSuresiGun < MIN_YASAK_GUN || yasakSuresiGun > MAX_YASAK_GUN) {
+    return NextResponse.json(
+      { hata: `yasak süresi ${MIN_YASAK_GUN}-${MAX_YASAK_GUN} gün arasında bir tam sayı olmalı` },
+      { status: 400 },
+    );
+  }
 
   await prisma.$transaction([
     prisma.platformAyarlari.upsert({
       where: { id: PLATFORM_AYARLARI_ID },
-      create: { id: PLATFORM_AYARLARI_ID, guvenilirlikEsigi, maxYedek },
-      update: { guvenilirlikEsigi, maxYedek },
+      create: { id: PLATFORM_AYARLARI_ID, guvenilirlikEsigi, maxYedek, yasakSuresiGun },
+      update: { guvenilirlikEsigi, maxYedek, yasakSuresiGun },
     }),
     prisma.durumGecmisi.create({
       data: {
         kullaniciId: session.user.id,
         varlikTuru: "PlatformAyarlari",
         varlikId: PLATFORM_AYARLARI_ID,
-        olay: `platform_ayarlari_guncellendi:esik=${guvenilirlikEsigi}:yedek=${maxYedek}`,
+        olay: `platform_ayarlari_guncellendi:esik=${guvenilirlikEsigi}:yedek=${maxYedek}:yasak=${yasakSuresiGun}g`,
       },
     }),
   ]);
 
-  return NextResponse.json({ tur: "guncellendi", guvenilirlikEsigi, maxYedek });
+  return NextResponse.json({ tur: "guncellendi", guvenilirlikEsigi, maxYedek, yasakSuresiGun });
 }

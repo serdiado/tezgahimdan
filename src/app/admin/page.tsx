@@ -147,13 +147,13 @@ export default async function AdminSayfasi() {
             href="/admin/guvenilirlik"
             ikon={ShieldQuestion}
             baslik="Güvenilirlik"
-            aciklama="Kısıtlı kullanıcılar, sıfırlama"
+            aciklama="Rezervasyon yasakları, af"
           />
           <AdminKart
             href="/admin/ayarlar"
             ikon={Settings}
             baslik="Platform Ayarları"
-            aciklama="Güvenilirlik eşiği, yedek kuyruk"
+            aciklama="Gelmedi serisi eşiği, yasak süresi, yedek kuyruk"
           />
           <AdminKart
             href="/admin/duyuru"

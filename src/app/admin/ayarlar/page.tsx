@@ -30,6 +30,7 @@ export default async function AdminAyarlarPage() {
           <PlatformAyarlariForm
             guvenilirlikEsigi={ayarlar.guvenilirlikEsigi}
             maxYedek={ayarlar.maxYedek}
+            yasakSuresiGun={ayarlar.yasakSuresiGun}
           />
         </div>
       </>

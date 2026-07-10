@@ -50,14 +50,19 @@ const SONUC_STIL: Record<string, { etiket: string; className: string }> = {
 // PLAN.md SS3: "Saticiya rezervasyonda alicinin orani gosterilir". Toplam
 // sonuc (satildi+gelmedi) sifirsa hic gecmisi yok demektir, rozet gosterilmez -
 // ilk kez gelen her aliciya "yeni" etiketi yapistirmak gereksiz gurultu olur.
+// Istisna: kisitliMi (su an aktif gelmedi yasagi) doluysa rozet HER ZAMAN
+// cikar - yasak baslarken sayac sifirlandigi icin gelmedi=0 gorunebilir,
+// "Kisitli" cipi sayilardan bagimsiz gosterilmeli (2026-07-10).
 function GuvenilirlikRozeti({ guvenilirlik }: { guvenilirlik: Guvenilirlik }) {
   const toplam = guvenilirlik.satildi + guvenilirlik.gelmedi;
-  if (toplam === 0) return null;
+  if (toplam === 0 && !guvenilirlik.kisitliMi) return null;
   return (
     <span className="inline-flex items-center gap-1">
-      <span className="text-xs text-neutral-400">
-        {guvenilirlik.satildi}/{toplam} aldı
-      </span>
+      {toplam > 0 && (
+        <span className="text-xs text-neutral-400">
+          {guvenilirlik.satildi}/{toplam} aldı
+        </span>
+      )}
       {guvenilirlik.kisitliMi && (
         <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">
           Kısıtlı

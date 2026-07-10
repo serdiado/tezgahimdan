@@ -5,6 +5,16 @@ import { rezervasyonOlustur } from "@/lib/rezervasyon";
 import { telefonNormallestir } from "@/lib/telefon";
 import { bildirimGonderKullaniciya, bildirimGonderTakipcilere } from "@/lib/bildirim";
 
+// Gelmedi yasagi bitisini kullaniciya soylerken: "17 Temmuz 14:30" (yil yok -
+// yasak en fazla 30 gun, yil bilgisi gurultu olur).
+const yasakTarihFormat = new Intl.DateTimeFormat("tr-TR", {
+  day: "numeric",
+  month: "long",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Istanbul",
+});
+
 export async function POST(request: Request) {
   // KP-1: rezervasyon icin giris zorunlu. Vitrin/kesif girissiz acik, yalniz bu
   // eylem kimlik ister. girissizse istemci login'e yonlendirir (girisGerekli).
@@ -114,13 +124,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ hata: "ürün satışta değil" }, { status: 409 });
     case "urun-yok":
       return NextResponse.json({ hata: "ürün bulunamadı" }, { status: 404 });
-    case "guvenilirlik-kisitli":
+    case "gelmedi-yasagi":
+      // Suresi belli, kendiliginden biten kisit - admin bani ("yasakli", 403)
+      // ile ayni HTTP kodu: ikisi de "hesap su an bu eylemi yapamaz" sinifi.
       return NextResponse.json(
         {
-          hata:
-            "Şu an aktif bir rezervasyonunuz var. Yeni bir rezervasyon yapabilmek için önce onu tamamlamanız gerekiyor.",
+          hata: `Üst üste teslim alınmayan rezervasyonların nedeniyle ${yasakTarihFormat.format(
+            sonuc.bitis,
+          )} tarihine kadar yeni rezervasyon yapamazsın.`,
         },
-        { status: 409 },
+        { status: 403 },
       );
     case "yasakli":
       return NextResponse.json(

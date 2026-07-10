@@ -3,10 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getAdminSession } from "@/lib/yetki";
 
 // Kalici muafiyet DEGIL: Kullanici.guvenilirlikSifirlamaTarihi'ni simdiki
-// zamana yazar. rezervasyonOlustur (src/lib/rezervasyon.ts) bu tarihten
-// SONRAKI gelmedi kayitlarini sayar - kullanici yeniden GUVENILIRLIK_ESIGI'ni
-// asarsa kisit tekrar devreye girer. AP-6 tarzi tek yonlu islem: "geri alma"
-// yok, tekrar gerekirse admin yeniden sifirlar (tarih guncellenir).
+// zamana yazar VE varsa aktif gelmedi yasagini kaldirir (2026-07-10: af,
+// hem seriyi hem yasagi temizler). gelmediYasagiKontrolEt bu tarihten SONRAKI
+// kayitlara bakar - kullanici yeniden ust uste seri doldurursa yasak tekrar
+// devreye girer. AP-6 tarzi tek yonlu islem: "geri alma" yok, tekrar
+// gerekirse admin yeniden sifirlar (tarih guncellenir).
 export async function POST(request: Request) {
   const { session, yetkili } = await getAdminSession();
   if (!yetkili || !session) {
@@ -26,7 +27,10 @@ export async function POST(request: Request) {
 
   const simdi = new Date();
   await prisma.$transaction([
-    prisma.kullanici.update({ where: { id: kullaniciId }, data: { guvenilirlikSifirlamaTarihi: simdi } }),
+    prisma.kullanici.update({
+      where: { id: kullaniciId },
+      data: { guvenilirlikSifirlamaTarihi: simdi, rezervasyonYasagiBitisi: null },
+    }),
     prisma.durumGecmisi.create({
       data: {
         kullaniciId: session.user.id,

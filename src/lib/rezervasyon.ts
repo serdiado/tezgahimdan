@@ -76,7 +76,7 @@ export type RezervasyonSonucu =
   | { tur: "urun-yok" }
   | { tur: "magaza-gizli" }
   | { tur: "satista-degil" }
-  | { tur: "guvenilirlik-kisitli"; gelmediSayisi: number }
+  | { tur: "gelmedi-yasagi"; bitis: Date }
   | { tur: "yasakli" };
 
 // 0/O, 1/I gibi karistirilabilir karakterler yok - kod pazarda sozlu soylenecek.
@@ -107,19 +107,25 @@ export async function rezervasyonOlustur(params: {
   // kullaniciya bagli, motor kilidine ihtiyaci yok).
   if (await kullaniciYasakliMi(params.aliciId)) return { tur: "yasakli" };
 
-  // Guvenilirlik afi: admin bir sifirlama tarihi atadiysa (bkz.
-  // api/admin/kullanici-guvenilirlik-sifirla), asagidaki gelmediSayisi sayimi
-  // SADECE bu tarihten SONRAKI kayitlari sayar - kalici muafiyet degil, yeniden
-  // esigi asarsa kisit tekrar devreye girer. Tek kullaniciya bagli, kilide
-  // girmeden okunabilir (yasakliMi ile ayni konum/gerekce).
-  const guvenilirlik = await prisma.kullanici.findUnique({
+  // Gelmedi yasagi kapisi (2026-07-10): ust uste esik kadar "gelmedi" sonrasi
+  // gelmediYasagiKontrolEt bu alana bir bitis ani yazar - o ana kadar YENI
+  // rezervasyon olusturulamaz (eski iki-sartli "aktif rezervasyonu varken
+  // alamaz" kapisinin YERINI aldi). Tek kullaniciya bagli, kilide girmeden
+  // okunabilir (yasakliMi ile ayni konum/gerekce). Yasak tam bu anda
+  // baslatiliyorsa kucuk bir yaris penceresi var (kontrol kilit disi) -
+  // kabul edilen risk: sizan kayit yasak supurmesinin ikinci turunda iptal
+  // edilir (bkz. yasakSupurmesi, docs/mimari/guvenilirlik-sistemi.md).
+  const aliciKisit = await prisma.kullanici.findUnique({
     where: { id: params.aliciId },
-    select: { guvenilirlikSifirlamaTarihi: true },
+    select: { rezervasyonYasagiBitisi: true },
   });
-  const guvenilirlikBaslangici = guvenilirlik?.guvenilirlikSifirlamaTarihi ?? null;
+  const yasakBitisi = aliciKisit?.rezervasyonYasagiBitisi ?? null;
+  if (yasakBitisi && yasakBitisi > new Date()) {
+    return { tur: "gelmedi-yasagi", bitis: yasakBitisi };
+  }
 
-  // Platform ayarlari (guvenilirlik esigi, max yedek) - tek satirlik, sik
-  // degismeyen global config; yasakliMi/guvenilirlik ile AYNI konum/gerekce.
+  // Platform ayarlari (max yedek) - tek satirlik, sik degismeyen global
+  // config; yasakliMi/yasak-kapisi ile AYNI konum/gerekce.
   const ayarlar = await platformAyarlariGetir();
 
   // Hizli 404 + pazar bilgisi (kilide girmeden okunabilir; pazar tanimi
@@ -165,29 +171,6 @@ export async function rezervasyonOlustur(params: {
               siraNo: zaten.siraNo,
               rezervKodu: zaten.rezervKodu,
             };
-          }
-
-          // Guvenilirlik kisitlamasi (PLAN.md SS3): GUVENILIRLIK_ESIGI'ni asan
-          // gelmedi sayisi olan alici, halihazirda (herhangi bir urunde) bir
-          // aktif rezervasyonu varsa YENI rezervasyon (aktif ya da yedek fark
-          // etmez) alamaz - once elindekini sonuclandirmasi gerekir. Bu kontrol
-          // sadece BU urunun kilidi altinda calisiyor; alicinin ayni anda BASKA
-          // bir urune de saldirmasi (iki farkli urun kilidi) ele alinmiyor -
-          // dusuk ihtimalli, kabul edilen bir yaris (bkz. docs/mimari).
-          const gelmediSayisi = await tx.rezervasyon.count({
-            where: {
-              aliciId: params.aliciId,
-              durum: "gelmedi",
-              ...(guvenilirlikBaslangici ? { createdAt: { gt: guvenilirlikBaslangici } } : {}),
-            },
-          });
-          if (gelmediSayisi >= ayarlar.guvenilirlikEsigi) {
-            const aktifRezervasyonVarMi = await tx.rezervasyon.count({
-              where: { aliciId: params.aliciId, durum: "bekliyor", tip: "aktif" },
-            });
-            if (aktifRezervasyonVarMi > 0) {
-              return { tur: "guvenilirlik-kisitli", gelmediSayisi };
-            }
           }
 
           // Kapasiteyi sadece 'bekliyor' kayitlar isgal eder - iptal/gelmedi
@@ -288,10 +271,13 @@ export async function rezervasyonOlustur(params: {
 // Birden fazla alici icin tek sorguda satildi/gelmedi sayilarini doner (satici
 // "Gelen Rezervasyonlar" ekraninda her satir icin ayri sorgu yerine toplu
 // cekim). PLAN.md SS3: "Saticiya rezervasyonda alicinin orani gosterilir".
+// yasakliMi: alicinin SU AN aktif bir gelmedi yasagi var mi (2026-07-10) -
+// satici panelindeki "Kisitli" rozeti artik motor kapisiyla birebir ayni
+// anlami tasir (eskiden "esik asildi" demekti, kapiyla tutarsizdi).
 export async function aliciGuvenilirlikHaritasi(
   aliciIdler: string[],
-): Promise<Map<string, { satildi: number; gelmedi: number }>> {
-  const harita = new Map<string, { satildi: number; gelmedi: number }>();
+): Promise<Map<string, { satildi: number; gelmedi: number; yasakliMi: boolean }>> {
+  const harita = new Map<string, { satildi: number; gelmedi: number; yasakliMi: boolean }>();
   if (aliciIdler.length === 0) return harita;
 
   const satirlar = await prisma.rezervasyon.groupBy({
@@ -300,29 +286,33 @@ export async function aliciGuvenilirlikHaritasi(
     _count: true,
   });
   for (const satir of satirlar) {
-    const mevcut = harita.get(satir.aliciId) ?? { satildi: 0, gelmedi: 0 };
+    const mevcut = harita.get(satir.aliciId) ?? { satildi: 0, gelmedi: 0, yasakliMi: false };
     if (satir.durum === "satildi") mevcut.satildi = satir._count;
     else if (satir.durum === "gelmedi") mevcut.gelmedi = satir._count;
     harita.set(satir.aliciId, mevcut);
   }
 
-  // Guvenilirlik afi (bkz. Kullanici.guvenilirlikSifirlamaTarihi, rezervasyonOlustur):
-  // sifirlanmis kullanicilar icin "gelmedi" yukaridaki TUM-ZAMANLAR toplu
-  // groupBy'da hala eski degeriyle duruyor - sifirlama tarihi kullanici basina
-  // farkli oldugu icin tek sorguda ifade edilemez, bu yuzden SADECE sifirlanmis
-  // olanlar icin (kucuk N) ayri ayri yeniden hesaplanir. Bu fonksiyonu cagiran
-  // satici paneli (panel/rezervasyonlar) "kisitli" rozetini motorla TUTARLI
-  // gostersin diye gerekli.
-  const sifirlanmislar = await prisma.kullanici.findMany({
-    where: { id: { in: aliciIdler }, guvenilirlikSifirlamaTarihi: { not: null } },
-    select: { id: true, guvenilirlikSifirlamaTarihi: true },
+  // Sifirlama afi + yasak durumu tek kullanici sorgusundan: sifirlanmis
+  // kullanicilarda "gelmedi" yukaridaki TUM-ZAMANLAR toplu groupBy'da hala
+  // eski degeriyle duruyor - sifirlama tarihi kullanici basina farkli oldugu
+  // icin tek sorguda ifade edilemez, SADECE sifirlanmis olanlar icin (kucuk N)
+  // ayri ayri yeniden hesaplanir. yasakliMi ise her kullanici icin dolar -
+  // yasakli ama sifir gecmisli gorunen (sayaci yasakla sifirlanmis) alicida
+  // bile rozet dogru cikar.
+  const simdi = new Date();
+  const kullanicilar = await prisma.kullanici.findMany({
+    where: { id: { in: aliciIdler } },
+    select: { id: true, guvenilirlikSifirlamaTarihi: true, rezervasyonYasagiBitisi: true },
   });
-  for (const k of sifirlanmislar) {
-    const yeniGelmedi = await prisma.rezervasyon.count({
-      where: { aliciId: k.id, durum: "gelmedi", createdAt: { gt: k.guvenilirlikSifirlamaTarihi! } },
-    });
-    const mevcut = harita.get(k.id) ?? { satildi: 0, gelmedi: 0 };
-    harita.set(k.id, { ...mevcut, gelmedi: yeniGelmedi });
+  for (const k of kullanicilar) {
+    const mevcut = harita.get(k.id) ?? { satildi: 0, gelmedi: 0, yasakliMi: false };
+    if (k.guvenilirlikSifirlamaTarihi) {
+      mevcut.gelmedi = await prisma.rezervasyon.count({
+        where: { aliciId: k.id, durum: "gelmedi", createdAt: { gt: k.guvenilirlikSifirlamaTarihi } },
+      });
+    }
+    mevcut.yasakliMi = k.rezervasyonYasagiBitisi != null && k.rezervasyonYasagiBitisi > simdi;
+    harita.set(k.id, mevcut);
   }
 
   return harita;
@@ -480,7 +470,8 @@ export async function rezervasyonVazgec(params: {
 export type SonuclandirSonucu =
   // urunId: favori/bildirim tetiklemesi icin (cagiran API route hangi urunun
   // takipcilerine bildirim gonderecegini bilir - her zaman aktif-tier).
-  | { tur: "sonuclandi"; sonuc: "satildi" | "gelmedi"; yukselenKodu: string | null; urunTukendi: boolean; urunId: string }
+  // aliciId: "gelmedi" dalinda route'un gelmediYasagiKontrolEt cagrisi icin.
+  | { tur: "sonuclandi"; sonuc: "satildi" | "gelmedi"; yukselenKodu: string | null; urunTukendi: boolean; urunId: string; aliciId: string }
   | { tur: "yetkisiz" }
   | { tur: "bulunamadi" }
   | { tur: "islenemez"; sebep: string };
@@ -595,7 +586,7 @@ export async function rezervasyonSonuclandir(params: {
         }
       }
 
-      return { tur: "sonuclandi", sonuc: params.sonuc, yukselenKodu, urunTukendi, urunId: rez.urunId };
+      return { tur: "sonuclandi", sonuc: params.sonuc, yukselenKodu, urunTukendi, urunId: rez.urunId, aliciId: rez.aliciId };
     },
     { maxWait: 5000, timeout: 15000 },
   );
@@ -609,7 +600,9 @@ export type GeriAlSebep = "kapasite_dolu" | "urun_satildi";
 
 export type GeriAlSonucu =
   // urunId: favori/bildirim tetiklemesi icin (bkz. VazgecSonucu/SonuclandirSonucu).
-  | { tur: "geri-alindi"; siraNo: number; dusenYedekKodu: string | null; urunId: string }
+  // yasakKaldirildi: geri alinan bir "gelmedi" aktif bir gelmedi yasagini da
+  // kaldirdiysa true - route alicilara "yasagin kalkti" bildirimi gonderebilsin.
+  | { tur: "geri-alindi"; siraNo: number; dusenYedekKodu: string | null; urunId: string; aliciId: string; yasakKaldirildi: boolean }
   | { tur: "yetkisiz" }
   | { tur: "bulunamadi" }
   | { tur: "reddedildi"; sebep: GeriAlSebep }
@@ -712,6 +705,32 @@ export async function rezervasyonGeriAl(params: {
         },
       });
 
+      // Geri alinan bir "gelmedi" ise ve alicinin AKTIF bir gelmedi yasagi
+      // varsa yasak kaldirilir (2026-07-10, alici lehine onyargi): yasagi
+      // baslatan isaretin BU kayit olup olmadigi kesin bilinemez (sayac yasak
+      // aninda sifirlandi), suphe alici lehine yorumlanir. Yasak supurmesinde
+      // iptal edilmis DIGER rezervasyonlar GERI GELMEZ (yerlerine baskalari
+      // yukselmis olabilir) - alici yasagi kalktigi icin hemen yeniden rezerve
+      // edebilir, sadece siradaki yerini kaybetmis olur.
+      let yasakKaldirildi = false;
+      if (rez.durum === "gelmedi") {
+        const kaldirilan = await tx.kullanici.updateMany({
+          where: { id: rez.aliciId, rezervasyonYasagiBitisi: { gt: new Date() } },
+          data: { rezervasyonYasagiBitisi: null },
+        });
+        if (kaldirilan.count > 0) {
+          yasakKaldirildi = true;
+          await tx.durumGecmisi.create({
+            data: {
+              kullaniciId: rez.aliciId,
+              varlikTuru: "Kullanici",
+              varlikId: rez.aliciId,
+              olay: "gelmedi_yasagi_kaldirildi:geri_alma",
+            },
+          });
+        }
+      }
+
       // 3) Aktif tasmasi: yeniKalanBirim'i asan aktif(ler) yedek kuyrugunun
       //    basina iner (gelmedi geri almada en fazla 1; satildi geri almada
       //    kalanBirim de +1 arttigi icin tasma olmaz). Dusen, eski onceligini
@@ -758,10 +777,188 @@ export async function rezervasyonGeriAl(params: {
         });
       }
 
-      return { tur: "geri-alindi", siraNo: eskiSira, dusenYedekKodu, urunId: rez.urunId };
+      return { tur: "geri-alindi", siraNo: eskiSira, dusenYedekKodu, urunId: rez.urunId, aliciId: rez.aliciId, yasakKaldirildi };
     },
     { maxWait: 5000, timeout: 15000 },
   );
+}
+
+// ---------------------------------------------------------------------------
+// Gelmedi yasagi (2026-07-10 kullanici karari)
+// ---------------------------------------------------------------------------
+//
+// Kural: alicinin SONUCLANMIS (satildi/gelmedi) rezervasyonlarina davranis
+// sirasiyla bakilir - en yeni "guvenilirlikEsigi" kadar kaydin HEPSI "gelmedi"
+// ise (UST USTE seri) alici "yasakSuresiGun" boyunca yeni rezervasyon
+// olusturamaz. "satildi" seriyi bozar; alicinin kendi vazgecmesi (iptal)
+// NOTRDUR - sorguya hic girmez, seriyi ne bozar ne uzatir (vazgecmek sorumlu
+// davranistir ama "ucuz bir sey rezerve et + vazgec" ile seri de
+// temizlenememeli). Davranis sirasi = (pazarHaftasi, createdAt): isaretlenme
+// ANI degil pazarin gercekte yasandigi hafta esas alinir - satici gec
+// isaretlese bile seri dogru hesaplanir; araya girmis bir "satildi"
+// (isaretlenme sirasi ne olursa olsun) seriyi bozar.
+//
+// Yasak basladigi anda sayac da sifirlanir (guvenilirlikSifirlamaTarihi=now):
+// yasak bitince alici temiz sayfayla doner, yeniden seri doldurursa yeniden
+// yasaklanir. Tetikleyici: rezervasyon-sonuclandir route'u, motor "gelmedi"
+// sonucunu dondurdukten SONRA cagirir (kilit disi - kontrol/supurme kendi
+// kisa kilitlerini alir).
+
+export type YasakIptalKaydi = {
+  urunId: string;
+  urunBaslik: string;
+  magazaSahipId: string;
+  tip: "aktif" | "yedek";
+  yukselenKodu: string | null;
+};
+
+export type GelmediYasagiSonucu =
+  | { uygulandi: false }
+  | { uygulandi: true; bitis: Date; iptaller: YasakIptalKaydi[] };
+
+// Yasak baslarken alicinin eli TAMAMEN bosaltilir (kullanici karari
+// 2026-07-10: "once elindekini alsin sonra ceza baslasin" YOK - ceza aninda
+// bekleyen her sey iptal olur, alt siradaki/yedekteki yukselir). Istisna:
+// GECMIS haftanin isaretlenmemis kayitlarina DOKUNULMAZ - onlar satici-ihmali
+// mekanizmasinin konusu (2026-07-09 karari: hukmu satici verir, biz iptal
+// edersek "aslinda satilmisti" gercegi kaybolur). Her iptal kendi urununun
+// FOR UPDATE kilidi altinda, vazgec akisiyla ayni kuyruk kurallariyla yapilir.
+async function yasakSupurmesi(aliciId: string, now: Date): Promise<YasakIptalKaydi[]> {
+  const iptaller: YasakIptalKaydi[] = [];
+  // Iki tur: yasak yazilmadan hemen once kapi kontrolunu gecmis (yaris
+  // penceresindeki) bir olusturma ilk turun sorgusundan kacabilir - ikinci
+  // tur onu yakalar. Yasak commit'lendikten sonra yeni kayit olusamayacagi
+  // icin iki tur pratikte yeterli; yine de o pencereye denk gelen tekil bir
+  // kayit sag kalirsa yasagi delmez, kuyrukta normal bir bekleyen olarak
+  // satici/sifirlama akislarinca islenir (kabul edilen mikro-yaris).
+  for (let tur = 0; tur < 2; tur++) {
+    const bekleyenler = await prisma.rezervasyon.findMany({
+      where: { aliciId, durum: "bekliyor" },
+      select: {
+        id: true,
+        urunId: true,
+        pazarHaftasi: true,
+        urun: { select: { baslik: true, magaza: { select: { sahipId: true, pazar: true } } } },
+      },
+    });
+    const hedefler = bekleyenler.filter(
+      (r) => now < pazarIslemSonAni(r.urun.magaza.pazar, r.pazarHaftasi),
+    );
+    if (hedefler.length === 0) break;
+
+    for (const hedef of hedefler) {
+      const sonuc = await prisma.$transaction(
+        async (tx) => {
+          const kilitli = await tx.$queryRaw<
+            { id: string; durum: string }[]
+          >`SELECT "id", "durum" FROM "Urun" WHERE "id" = ${hedef.urunId} FOR UPDATE`;
+          const urun = kilitli[0];
+          // Kilit altinda taze oku - es zamanli vazgec/sonuclandir kaydi
+          // coktan degistirmis olabilir.
+          const rez = await tx.rezervasyon.findUnique({ where: { id: hedef.id } });
+          if (!urun || !rez || rez.durum !== "bekliyor") return null;
+
+          await tx.rezervasyon.update({ where: { id: rez.id }, data: { durum: "iptal" } });
+          await tx.durumGecmisi.create({
+            data: {
+              kullaniciId: rez.aliciId,
+              varlikTuru: "Rezervasyon",
+              varlikId: rez.id,
+              olay: `rezervasyon_yasak_iptali:${rez.tip}:${rez.siraNo}`,
+            },
+          });
+
+          let yukselenKodu: string | null = null;
+          if (rez.tip === "aktif") {
+            yukselenKodu = await aktifSlotBosalt(tx, rez.urunId, rez);
+          } else {
+            await yedekSlotBosalt(tx, rez.urunId, rez);
+          }
+
+          // Kritik bagimlilik (docs/mimari/rezervasyon-motoru.md): iptal tam
+          // bir slot bosaltir; urun 'doldu' idiyse artik degildir.
+          if (urun.durum === "doldu") {
+            await tx.urun.update({ where: { id: rez.urunId }, data: { durum: "sergide" } });
+            await tx.durumGecmisi.create({
+              data: {
+                kullaniciId: rez.aliciId,
+                varlikTuru: "Urun",
+                varlikId: rez.urunId,
+                olay: "urun_tekrar_sergide",
+              },
+            });
+          }
+          return { tip: rez.tip, yukselenKodu };
+        },
+        { maxWait: 5000, timeout: 15000 },
+      );
+      if (sonuc) {
+        iptaller.push({
+          urunId: hedef.urunId,
+          urunBaslik: hedef.urun.baslik,
+          magazaSahipId: hedef.urun.magaza.sahipId,
+          tip: sonuc.tip,
+          yukselenKodu: sonuc.yukselenKodu,
+        });
+      }
+    }
+  }
+  return iptaller;
+}
+
+// "gelmedi" isaretlemesinden SONRA cagrilir (rezervasyon-sonuclandir route).
+// Seri dolmadiysa hicbir sey yapmaz. Doldusa: yasagi kosullu yazar (es zamanli
+// iki isaretleme ayni ani yakalarsa sadece biri kazanir - cift supurme/bildirim
+// olmaz), audit dusulur, supurme calisir. Donen iptaller listesini route
+// bildirime cevirir (motor bildirim GONDERMEZ - bkz. lib/bildirim.ts sozlesmesi).
+export async function gelmediYasagiKontrolEt(
+  aliciId: string,
+  now: Date = new Date(),
+): Promise<GelmediYasagiSonucu> {
+  const ayarlar = await platformAyarlariGetir();
+  const kullanici = await prisma.kullanici.findUnique({
+    where: { id: aliciId },
+    select: { guvenilirlikSifirlamaTarihi: true },
+  });
+  if (!kullanici) return { uygulandi: false };
+  const baslangic = kullanici.guvenilirlikSifirlamaTarihi;
+
+  const sonSonuclananlar = await prisma.rezervasyon.findMany({
+    where: {
+      aliciId,
+      durum: { in: ["satildi", "gelmedi"] },
+      ...(baslangic ? { createdAt: { gt: baslangic } } : {}),
+    },
+    orderBy: [{ pazarHaftasi: "desc" }, { createdAt: "desc" }],
+    take: ayarlar.guvenilirlikEsigi,
+    select: { durum: true },
+  });
+  const seriDoldu =
+    sonSonuclananlar.length >= ayarlar.guvenilirlikEsigi &&
+    sonSonuclananlar.every((r) => r.durum === "gelmedi");
+  if (!seriDoldu) return { uygulandi: false };
+
+  const bitis = new Date(now.getTime() + ayarlar.yasakSuresiGun * 24 * 60 * 60 * 1000);
+  const yazilan = await prisma.kullanici.updateMany({
+    where: {
+      id: aliciId,
+      OR: [{ rezervasyonYasagiBitisi: null }, { rezervasyonYasagiBitisi: { lte: now } }],
+    },
+    data: { rezervasyonYasagiBitisi: bitis, guvenilirlikSifirlamaTarihi: now },
+  });
+  if (yazilan.count === 0) return { uygulandi: false };
+
+  await prisma.durumGecmisi.create({
+    data: {
+      kullaniciId: aliciId,
+      varlikTuru: "Kullanici",
+      varlikId: aliciId,
+      olay: `gelmedi_yasagi_baslatildi:seri=${ayarlar.guvenilirlikEsigi}:gun=${ayarlar.yasakSuresiGun}`,
+    },
+  });
+
+  const iptaller = await yasakSupurmesi(aliciId, now);
+  return { uygulandi: true, bitis, iptaller };
 }
 
 // ---------------------------------------------------------------------------

@@ -4,93 +4,194 @@
 
 Halk diline çevrilmiş, teknik olmayan anlatım için: [`../kilavuz/rezervasyon-ve-guvenilirlik.md`](../kilavuz/rezervasyon-ve-guvenilirlik.md).
 
-Bu dosya önceden `rezervasyon-motoru.md` içinde küçük bir bölümdü ("Güvenilirlik kısıtlaması (PLAN §3)"); sistem büyüdükçe kendi kararlarını taşıyan ayrı bir konu haline geldi, bu yüzden ayrı dosyaya taşındı (`rezervasyon-motoru.md`'de artık sadece pointer var).
+> **2026-07-10: Sistem baştan tasarlandı.** Eski "eşik + iki-şartlı kapı" modeli
+> kaldırıldı, yerine **"üst üste gelmedi serisi → süreli rezervasyon yasağı"**
+> modeli geldi. Bu dosyanın önceki sürümü eski modeli anlatıyordu; karar
+> geçmişi aşağıda "Eski modelden neden vazgeçildi" bölümünde korunuyor.
 
-## Karar: Kalıcı bir "puan" değil, her seferinde yeniden hesaplanan canlı sayım
+## Kural (tek cümle)
 
-`Kullanici` modelinde `puan`/`guvenilirlikPuani` gibi bir sayısal alan **yok**. Sistem, her rezervasyon denemesinde `Rezervasyon` tablosundan o alıcının `durum='gelmedi'` kayıtlarını `COUNT` ile canlı sayar (`rezervasyon.ts:172-178`); sonuç hiçbir yere yazılıp saklanmaz.
+Bir alıcının sonuçlanmış rezervasyonlarında **üst üste `guvenilirlikEsigi`
+(varsayılan 3) kez "gelmedi"** oluştuğu anda, alıcıya **`yasakSuresiGun`
+(varsayılan 7 gün) yeni-rezervasyon yasağı** başlar; o an alıcının **bekleyen
+tüm rezervasyonları iptal edilir** ve gelmedi sayacı **sıfırlanır** — yasak
+bitince alıcı temiz sayfayla döner.
 
-Not: `haftalik-sifirlama.md`'deki "puan sistemine bağlantı (henüz kurulmadı)" ifadesi gelecek zaman kipiyle yazılmış, ama kodda bugün var olan mekanizma zaten bu basit sayaç+eşik modeli — ayrı, daha gelişmiş bir "puan sistemi" hiç inşa edilmedi (`src` genelinde `guvenilirlik|gelmedi` taraması başka bir mekanizma ortaya çıkarmadı). İleride "puan sistemi" adıyla ayrı bir şey planlanıyorsa, bunun bu eşik-modelinin yerine mi geçeceği yoksa üstüne mi ekleneceği netleştirilmeli (bkz. "İleride ele alınacaklar").
+## Neden bu tasarım — reddedilen alternatifler (2026-07-10 tartışması)
 
-## Kısıtlamanın iki şartı (motor kapısı)
+Kullanıcının ilk önerisi **görünür bir -100/+100 puan skalasıydı** (her alıcı
+0'la başlar, -100'de 1 hafta yasak, sonraki hafta -75'le başlar...). Şu
+gerekçelerle **reddedildi** (kullanıcı ikna oldu):
 
-Eşik (`PlatformAyarlari.guvenilirlikEsigi`, varsayılan **3**, `schema.prisma:387`) aşıldığında otomatik/toptan bir yasak uygulanmaz. Kısıtlama yalnızca **iki şart birden** sağlandığında devreye girer (`rezervasyon.ts:179-186`):
+1. **Kutsal kural:** "-100'de yasak, -75'le dönüş" pazardaki teyzeye tek
+   cümlede anlatılamaz; "üst üste 3 kez gelmezsen 1 hafta ceza" anlatılır.
+   Davranışı değiştiren şey yasağın kendisi, puanın matematiği değil.
+2. **Negatif sayı damgalar:** "Puanınız: -25" gören kullanıcı itiraz üretir;
+   gelmedi işaretini satıcı koyduğu için yanlış işaretleme ihtimali her zaman
+   var — ince taneli skor her yanlışı büyütür.
+3. **Pilot ölçeği:** Haftada bir pazar, alıcı başına 1-2 rezervasyonla puan
+   aylarca ~0'da yığılır, anlam üretmez.
+4. **Ödül tarafı (50+ puana indirim) Faz 1'de karşılıksız:** Ödeme yok,
+   platform indirim uygulayamaz. Satıcı zaten alıcının aldı/gelmedi oranını
+   panelde görüyor. İndirim/rozet fikri Faz 2+ notu olarak duruyor.
 
-```
-if (gelmediSayisi >= ayarlar.guvenilirlikEsigi) {
-  const aktifRezervasyonVarMi = ... count(durum:'bekliyor', tip:'aktif')
-  if (aktifRezervasyonVarMi > 0) {
-    return { tur: "guvenilirlik-kisitli", gelmediSayisi };
-  }
-}
-```
+İkinci karar noktası: **"toplam 3" mü "üst üste 3" mü?** Kullanıcı danıştı,
+öneri **üst üste** oldu ve onaylandı:
 
-1. `gelmedi` sayısı eşiğe ulaşmış/geçmiş, **VE**
-2. alıcının **o an** herhangi bir üründe `bekliyor`+`aktif` bir rezervasyonu var.
+- Hedef persona "rezerve edip *hiç* gelmeyen" kişi — ardışıklık tam onu
+  yakalar. "Toplam 3", aylara yayılmış üç dürüst aksiliği de cezalandırırdı
+  (martta hasta, haziranda unuttu, eylülde acil iş → arada 30 düzgün teslim
+  almış kişi eylülde ceza yerdi) — küçük ilçede platform aleyhine anlatılacak
+  hikâye budur.
+- Bilinen ve **kabul edilen** zayıflık: "2 kaçır 1 al" düzenindeki istismarcıyı
+  ardışıklık hiç yakalamaz. Nadir görülür; satıcı oranı zaten görüyor; gerekirse
+  admin eşiği ayarlardan 2'ye çeker. Pilotta izlenecek.
 
-İkinci şart sağlanmıyorsa (elde aktif rezervasyon yok) — geçmiş sayı eşiği çoktan aşmış olsa bile — **yeni rezervasyon yapılabilir**. Kısıtlanan kullanıcıya dönen mesaj: *"Şu an aktif bir rezervasyonunuz var. Yeni bir rezervasyon yapabilmek için önce onu tamamlamanız gerekiyor."* (`api/rezervasyon/route.ts:105-112`). Başka hiçbir şey etkilenmez (giriş, mevcut rezervasyonları görme, vazgeçme, değerlendirme yazma serbest); bu, admin'in `Kullanici.yasakliMi` ile yaptığı tam platform banından **tamamen ayrı** bir mekanizmadır.
+Üçüncü karar: **ceza anında el boşaltma.** "Elindeki rezervasyonu önce alsın,
+sonra ceza başlasın" İSTENMEDİ — 3. gelmedi işaretlendiği an alıcının bekleyen
+her şeyi iptal olur, alt sıradaki/yedekteki yükselir (kullanıcının açık isteği).
 
-**Test kanıtı (canlı, `psql` ile bağımsız doğrulandı):** Stok=1 ürüne 8 gerçek girişli alıcıdan biri (3×`gelmedi` + 1×aktif `bekliyor` geçmişiyle) dahil, 8 paralel istek:
+## Serinin tanımı
 
-```
-alici_3 -> 409 {"hata":"Şu an aktif bir rezervasyonunuz var..."}   <- kısıtlı alıcı
-```
+- Sadece **sonuçlanmış** kayıtlar sayılır: `satildi` ve `gelmedi`.
+- **"Satıldı" seriyi bozar.** Üst üstelik ancak kesintisiz gelmedilerle oluşur.
+- **Alıcının kendi vazgeçmesi (`iptal`) nötrdür** — sorguya hiç girmez, seriyi
+  ne bozar ne uzatır. Vazgeçmek sorumlu davranıştır (slot açar) ama "2 gelmedi
+  biriktir → ucuz bir şey rezerve et → vazgeç → seri temizlendi" kaçışına da
+  izin verilmez.
+- **Davranış sırası = `(pazarHaftasi DESC, createdAt DESC)`**, işaretlenme anı
+  DEĞİL. Satıcı geç işaretlese bile seri, pazarların gerçekte yaşandığı sıraya
+  göre hesaplanır. Sonuç: gecikmiş bir "gelmedi" işareti geldiğinde alıcı
+  arada bir şey satın almışsa (satildi), o satın alma seriyi çoktan bozmuş
+  sayılır ve yasak tetiklenmez — "az önce alışveriş yaptım, ceza yedim"
+  saçmalığı yaşanmaz.
+- Uygulama: `gelmediYasagiKontrolEt` (`src/lib/rezervasyon.ts`) en yeni `esik`
+  kadar sonuçlanmış kaydı çeker (`take: esik`), **hepsi** `gelmedi` ise seri
+  dolmuştur. Sayaç başlangıcı `Kullanici.guvenilirlikSifirlamaTarihi`
+  (`createdAt > tarih` filtresi — kayıt silinmez, filtrelenir).
 
-Kısıtlı alıcı çıkınca kalan 7 kişi kapasite 6'yı (1 aktif + 5 yedek) paylaştı; kısıtlı alıcının bu üründe **0** kaydı oluştu, geçmişi (3 gelmedi + 1 bekliyor) test sırasında değişmedi.
+## Yasak mekanizması
 
-Ardından aynı alıcı tek engeli (aktif rezervasyonu) vazgeçti (gelmedi sayısı hâlâ 3, değişmedi) → hemen sonraki deneme **201 başarılı**. Kısıtlama kalıcı bir "silme" değil, kapının o anki koşulunun sağlanmaması.
+- **Alan:** `Kullanici.rezervasyonYasagiBitisi DateTime?`. Geçmiş tarih = yasak
+  yok; süresi biten yasak **kendiliğinden düşer**, satır temizliği/cron
+  gerekmez.
+- **Tetik:** `rezervasyon-sonuclandir` route'u, motor `gelmedi` sonucu
+  döndükten SONRA (kilit dışı) `gelmediYasagiKontrolEt(aliciId)` çağırır.
+  Gelmedi'nin TEK kaynağı satıcının elle işaretlemesi olduğu için (2026-07-09
+  kararı: otomatik gelmedi yok) tetik noktası tektir.
+- **Çift-tetik koruması:** yasak koşullu `updateMany` ile yazılır (`WHERE
+  yasak IS NULL OR yasak <= now`) — aynı ana denk gelen iki işaretlemeden
+  yalnız biri kazanır, çift süpürme/bildirim olmaz.
+- **Sayaç sıfırlama yasakla atomik aynı update'te:**
+  `guvenilirlikSifirlamaTarihi = now`. Yasak bitince temiz sayfa; yeniden seri
+  dolarsa yeniden yasak. Yasak sırasında geç gelen (eski haftalara ait)
+  "gelmedi" işaretleri sayaç başlangıcından önce oluşturulmuş kayıtlara ait
+  olduğu için yeni seri başlatmaz — yasak üst üste binmez.
+- **Kapı:** `rezervasyonOlustur` kilide girmeden `rezervasyonYasagiBitisi`
+  okur; gelecekteyse `{ tur: "gelmedi-yasagi", bitis }` döner (API 403 +
+  tarihli Türkçe mesaj). Eski iki-şartlı kilit-içi kontrol **kaldırıldı** —
+  kapı artık tek şart, tek okuma.
+- **Kabul edilen mikro-yarış:** kapı kontrolü kilit dışı olduğu için yasak tam
+  yazılırken denk gelen bir oluşturma sızabilir; süpürmenin ikinci turu onu
+  yakalar (aşağıda). O pencereyi de atlatan tekil bir kayıt yasağı delmez —
+  kuyrukta sıradan bir bekleyen olarak satıcı/sıfırlama akışlarınca işlenir.
+- **Audit:** `gelmedi_yasagi_baslatildi:seri=3:gun=7` (`DurumGecmisi`,
+  `varlikTuru: Kullanici`).
 
-## Kapsam: pazar/mağaza sınırı taşımıyor
+## Yasak süpürmesi (`yasakSupurmesi`)
 
-`gelmediSayisi` ve `aktifRezervasyonVarMi` sorguları yalnızca `aliciId`'ye göre filtrelenir, `urunId`/pazar hiç girmez. Bir pazardaki bir tezgahta biriken `gelmedi` geçmişi, tamamen alakasız başka bir pazardaki tezgahta da alıcıyı kısıtlar.
+Yasak başladığı anda alıcının `bekliyor` rezervasyonları iptal edilir:
 
-**Test kanıtı (canlı, çok-pazarlı senaryo):** Bir alıcı Seferihisar pazarındaki bir tezgahta 3×`gelmedi` + 1×aktif `bekliyor` biriktirdi; aynı alıcı alakasız Yeşilyurt pazarındaki farklı bir tezgahın ürününde yeni rezervasyon denedi → `409 guvenilirlik-kisitli`. `psql`: o üründe bu alıcı adına 0 kayıt açıldı.
+- Her iptal, **kendi ürününün `FOR UPDATE` kilidi altında**, vazgeç akışıyla
+  birebir aynı kuyruk kurallarıyla yapılır: aktif iptalse yedek#1 yükselir ve
+  sıra numarasını devralır, yedek iptalse arkası kayar, `doldu → sergide`
+  dönüşü unutulmaz. Audit: `rezervasyon_yasak_iptali:{tip}:{siraNo}`.
+- **İstisna — geçmiş haftanın işaretlenmemiş kayıtları:** `now <
+  pazarIslemSonAni` olmayan (pazarı çoktan bitmiş) kayıtlara DOKUNULMAZ.
+  Onlar satıcı-ihmali mekanizmasının konusu (2026-07-09: hükmü satıcı verir);
+  biz iptal edersek "aslında satılmıştı" gerçeği kaybolur ve satıcının panel
+  kilidi sahte biçimde açılırdı.
+- **İki tur çalışır:** ilk tur sırasında yarış penceresinden sızan kayıt
+  ikinci turda yakalanır; yasak commit'li olduğu için üçüncü tura gerek yok.
+- Ayrı ürün kilitleri sonuçlandırma transaction'ının DIŞINDA tek tek alınır —
+  sonuçlandırmanın tuttuğu kilitle iç içe geçmez, kilit sırası döngüsü
+  (deadlock) yapısal olarak imkânsız.
 
-## Rozet (satıcı/admin ekranları) ile motor kapısı arasındaki fark — bilinçli ayrım
+## Bildirimler (route katmanı — motor bildirim göndermez)
 
-Satıcı panelindeki "Kısıtlı" rozeti (`panel/rezervasyonlar`, `KuyrukKarti.tsx`) ve admin'in `/admin/guvenilirlik` listesi, **yalnızca** `gelmedi >= esik`'e bakar — motorun asıl kapısındaki ikinci şartı (o an aktif rezervasyon var mı) **kontrol etmez/göstermez**. Sonuç: rozette/listede "Kısıtlı" görünen bir alıcının elinde aktif rezervasyon yoksa, aslında yeni rezervasyon yapabilir durumdadır.
+- **Alıcıya tek toplu bildirim:** yasak bitiş tarihi + kaç bekleyeninin iptal
+  edildiği + "temiz sayfa" bilgisi (`/rezervasyonum` hedefli).
+- Süpürülen her üründe: yükselen varsa kişisel "sıra sana geldi", aktif-tier
+  iptalse ürün takipçilerine haber, tezgah sahibine nötr "bir rezervasyon
+  iptal edildi" (alıcının yasağı İFŞA EDİLMEZ).
 
-**Test kanıtı (canlı):** Alıcı tek engeli olan aktif rezervasyonunu vazgeçti (gelmedi hâlâ 3) → yeni rezervasyon **201 başarılı** (motor izin verdi), oysa satıcı panelindeki rozet bu alıcıyı hâlâ "Kısıtlı" gösterecektir.
+## Yanlış işaretleme telafisi (Geri Al etkileşimi)
 
-`/admin/guvenilirlik` sayfa metni şu an "yeni rezervasyon alamazlar" diyor (`admin/guvenilirlik/page.tsx:68-69`) — bu ifade **her zaman doğru değil** (yukarıdaki ayrım yüzünden). UI metni yanıltıcı, düzeltilmesi gerekiyor (bkz. "İleride ele alınacaklar").
+`rezervasyonGeriAl` bir **gelmedi**'yi geri alırken alıcının aktif yasağı
+varsa **yasak kaldırılır** (`gelmedi_yasagi_kaldirildi:geri_alma` audit'i +
+alıcıya bildirim). Gerekçe — **alıcı lehine önyargı**: yasağı başlatan işaretin
+bu kayıt olup olmadığı kesin bilinemez (sayaç yasak anında sıfırlandı), şüphe
+alıcıdan yana yorumlanır.
 
-`/admin/kullanicilar/[id]` sayfasında da aynı `gelmediSayisi` hesabı tekrarlanır; eşiği aşıyorsa uyarı ikonu + sıfırlama butonu gösterilir, ama buton `gelmediSayisi > 0` olduğunda zaten görünür — eşiğin aşılmış olması şart değildir (`admin/kullanicilar/[id]/page.tsx:56-67, 126-160`).
+**Bilinçli asimetri (kullanıcı 2026-07-10'da açıkça kabul etti):** süpürmede
+iptal edilen diğer rezervasyonlar **geri gelmez** (yerlerine başkaları
+yükselmiş olabilir) — alıcı yasağı kalktığı için hemen yeniden rezerve
+edebilir, sadece sıradaki yerini kaybeder. Kullanıcının sözleriyle: satıcı
+yanlış işaretleyip mağdur ederse "alıcı da girip satıcı puanını düşürebilir,
+şikayet yazabilir... Burada bir adaletsizlik var evet ama nadir görülecek bir
+durumdur ve olmaması için daha karmaşık işlemlere gerek yok."
 
-## Sıfırlama mekanizması
+## Admin tarafı
 
-İki yol var:
+- **Af** (`/api/admin/kullanici-guvenilirlik-sifirla`): tek işlemde
+  `guvenilirlikSifirlamaTarihi = now` (seri sıfırlanır) + `rezervasyonYasagiBitisi
+  = null` (varsa yasak kalkar). Kayıt silinmez. Kalıcı muafiyet değildir.
+- **/admin/guvenilirlik:** artık "eşiği aşanlar"ı değil **şu an aktif yasağı
+  olanları** listeler (yasak bitişi + tüm-zamanlar toplam gelmedi ile).
+  Önceki listenin "yeni rezervasyon alamazlar" metni motor kapısıyla
+  tutarsızdı — bu tutarsızlık yeni modelde kökten çözüldü: liste = kapı.
+  Buton: "Yasağı Kaldır" (aynı af API'si).
+- **/admin/kullanicilar/[id]:** sıfırlamadan-beri gelmedi sayısı + aktif
+  yasak varsa kırmızı "yasak bitişi" satırı (⚠️ artık yasak-aktif demek).
+- **Ayarlar** (`/admin/ayarlar`): `guvenilirlikEsigi` 1–20 (artık "üst üste"
+  anlamıyla), **yeni** `yasakSuresiGun` 1–30 gün (varsayılan 7), `maxYedek`
+  0–50. Motor her çağrıda taze okur, deploy gerekmez. Audit:
+  `platform_ayarlari_guncellendi:esik=3:yedek=5:yasak=7g`.
 
-1. **Dolaylı (kullanıcı elinde):** Elindeki aktif rezervasyonu bitirince (alıp/vazgeçince) motor kapısının ikinci şartı ortadan kalkar — geçmiş sayı değişmeden yeni rezervasyon yapılabilir hale gelir.
-2. **Admin sıfırlaması:** `/admin/guvenilirlik` → "Güvenilirliği Sıfırla" → `POST /api/admin/kullanici-guvenilirlik-sifirla` → `Kullanici.guvenilirlikSifirlamaTarihi` alanına `now()` yazılır (`route.ts:27-38`).
+## Satıcı paneli rozeti
 
-**`guvenilirlikSifirlamaTarihi` geçmiş kayıtları SİLMEZ** (proje ilkesi: hiçbir kayıt kalıcı silinmez) — sadece sayım sorgusuna bir tarih filtresi ekler:
+`aliciGuvenilirlikHaritasi` artık `yasakliMi` de döner; "Kısıtlı" çipi
+(`KuyrukKarti`) **şu an aktif yasak** demektir — motor kapısıyla birebir aynı
+anlam (eski modeldeki rozet-kapı tutarsızlığı kalktı). Yasak başlarken sayaç
+sıfırlandığı için rozet sayılardan bağımsız gösterilir (0/0'lık yasaklı alıcıda
+oran gizlenir, çip çıkar).
 
-```
-rezervasyon.ts:172-178:
-where: {
-  aliciId, durum: "gelmedi",
-  ...(guvenilirlikBaslangici ? { createdAt: { gt: guvenilirlikBaslangici } } : {}),
-}
-```
+## Eski modelden neden vazgeçildi (2026-07-10 öncesi davranış)
 
-Sıfırlamadan **önceki** `gelmedi` kayıtları artık sayılmaz (DB'de fiziksel olarak durur), sıfırlamadan **sonraki** yeni `gelmedi` kayıtları sıfırdan sayılmaya başlar ve eşiği yeniden aşarsa kısıtlama **tekrar devreye girer**. Kalıcı bir muafiyet değildir; "geri alma" (sıfırlamayı iptal etme) yoktur, admin gerekirse tekrar sıfırlar, tarih güncellenir.
+Eski kural: `gelmedi >= esik` VE "o an elinde bekliyor+aktif rezervasyon var"
+→ yeni rezervasyon reddedilirdi. İki gerçek sorun:
 
-## Ayarlanabilir parametreler
+1. **Kronik gelmeyeni hiç durdurmuyordu:** satıcı çarşamba akşamı "gelmedi"
+   işaretleyince alıcının eli boşalıyor, ertesi hafta yine rezervasyon
+   yapabiliyordu — süresiz tekrarlanabilir döngü.
+2. **Rozet/liste kapıyla tutarsızdı:** "Kısıtlı" görünen kişi çoğu zaman
+   fiilen rezervasyon yapabiliyordu.
 
-`guvenilirlikEsigi` (varsayılan 3) ve `maxYedek` (yedek kuyruğu sınırı, varsayılan 5) ikisi de `/admin/ayarlar` → `PlatformAyarlariForm.tsx` üzerinden değiştirilebilir, `POST /api/admin/platform-ayarlari-guncelle`'a gider:
-
-- `guvenilirlikEsigi`: tam sayı, **1–20** aralığı zorunlu (`MIN_ESIK=1`, `MAX_ESIK=20`, route.ts:9-10, 24-29).
-- `maxYedek`: **0–50** aralığı zorunlu (`MIN_YEDEK=0`, `MAX_YEDEK_SINIRI=50`).
-- Geçerliyse `PlatformAyarlari` tekil satırı upsert edilir, audit: `platform_ayarlari_guncellendi:esik=X:yedek=Y` (`DurumGecmisi`).
-- Motor bu değerleri **her çağrıda taze okur** (`platformAyarlariGetir()`, kilit öncesi) — admin değiştirdiği an bir sonraki rezervasyon denemesinden itibaren yeni değerler geçerli olur, ayrı bir migration/deploy gerekmez.
-
-## Haftalık sıfırlamayla bağlantı
-
-Otomatik "gelmedi" cezasının bir kaynağı daha var: pazar kapanışında hâlâ `bekliyor` olan ve **pazar başlangıcında zaten aktif** olan kayıtlar otomatik `gelmedi` yazılır (`aktifOlmaZamani < pazarBaslangicAni`, `rezervasyon.ts:813-819`); bu olay da güvenilirlik sayımına girer. Sonradan yükselen aktifler ve tüm yedekler ise cezasız `iptal` edilir. Tam mekanizma: [`haftalik-sifirlama.md`](./haftalik-sifirlama.md).
+Sayım tüm-zamanlardı (sıfırlanmazdı); yeni modelde sayaç yasakla birlikte
+sıfırlanır. **Legacy notu:** deploy anında geçmişten eşik-üstü gelmedisi olan
+kullanıcılar geriye dönük YASAKLANMAZ; seri kuralı ilk YENİ "gelmedi"
+işaretlemesinde, mevcut geçmişleri de dahil ederek değerlendirilir (son `esik`
+sonuçlanmışın hepsi gelmediyse o an yasak başlar).
 
 ## İleride ele alınacaklar
 
-- **Admin listesi/rozet metni yanıltıcı:** `/admin/guvenilirlik` sayfasının "yeni rezervasyon alamazlar" ifadesi ve satıcı panelindeki "Kısıtlı" rozeti, motorun asıl iki-şartlı kapısını yansıtmıyor — sadece eşiği aşmayı gösteriyor. UI metni netleştirilmeli ya da liste ikinci şartı (aktif rezervasyon var mı) da göstermeli.
-- **İtiraz mekanizması yok:** Otomatik "gelmedi" cezaları (özellikle haftalık sıfırlamadan gelenler) admin tarafından görülebilir ama bir alıcının "haksız yere gelmedi yazıldı" itirazını tek işlemle geri almak mümkün değil; şimdilik tek çözüm güvenilirlik sıfırlama (geçmişi silmeden, tarih filtresiyle).
-- **"Puan sistemi" terminolojisi belirsiz:** `haftalik-sifirlama.md` ileride ayrı bir "puan sistemi" ima ediyor ama bugün kodda bu eşik-modelinin dışında bir şey yok. Sistem daha da geliştirilecekse (kullanıcının az önce belirttiği gibi), bu genişlemenin mevcut eşik-modelinin üstüne mi ekleneceği yoksa onun yerini mi alacağı önceden netleştirilmeli.
-- **`guvenilirlikSifirlamaTarihi` sınırsız tekrar sıfırlanabiliyor:** Kod bunu engellemiyor (her admin isteği `now()` ile üzerine yazıyor), bir "kaç kere sıfırlanabilir" politikası yok — bilinçli bir esneklik mi yoksa kötüye kullanım riski mi, değerlendirilmedi.
+- **"2 kaçır 1 al" istismarcısı** ardışıklık kuralına yakalanmaz — pilotta
+  izlenecek; gerekirse eşik düşürülür ya da pencere kuralı eklenir.
+- **Ödül tarafı** (güvenilir alıcıya rozet/indirim) Faz 2+ — ödeme/indirim
+  altyapısı yok, satıcı şimdilik oranı görüp kendi jestini yapabilir.
+- **İtiraz akışı yok:** alıcının "haksız gelmedi" itirazı için tek yol
+  satıcının Geri Al'ı ya da admin affı; yapılandırılmış bir itiraz kaydı
+  ileride düşünülebilir.
+- `guvenilirlikSifirlamaTarihi` sınırsız kez üzerine yazılabilir (admin affı
+  için politika sınırı yok) — bilinçli esneklik, kötüye kullanım riski
+  değerlendirilmedi.

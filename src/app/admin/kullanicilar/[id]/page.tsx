@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getAdminSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
-import { platformAyarlariGetir } from "@/lib/platform-ayarlari";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../../AdminNav";
 import { KullaniciYasaklaButonu } from "./KullaniciYasaklaButonu";
@@ -53,18 +52,19 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
       notFound();
     }
 
-    // rezervasyonOlustur (src/lib/rezervasyon.ts) ile AYNI sayim mantigi -
-    // varsa sifirlama tarihinden SONRAKI gelmedi kayitlari.
-    const [gelmediSayisi, ayarlar] = await Promise.all([
-      prisma.rezervasyon.count({
-        where: {
-          aliciId: kullanici.id,
-          durum: "gelmedi",
-          ...(kullanici.guvenilirlikSifirlamaTarihi ? { createdAt: { gt: kullanici.guvenilirlikSifirlamaTarihi } } : {}),
-        },
-      }),
-      platformAyarlariGetir(),
-    ]);
+    // gelmediYasagiKontrolEt (src/lib/rezervasyon.ts) ile AYNI filtre -
+    // varsa sifirlama tarihinden SONRAKI gelmedi kayitlari. Yasak baslarken
+    // seri sifirlandigi icin aktif yasakli kullanicida bu sayi 0 gorunebilir -
+    // yasak bilgisi ayrica gosterilir (asagida).
+    const gelmediSayisi = await prisma.rezervasyon.count({
+      where: {
+        aliciId: kullanici.id,
+        durum: "gelmedi",
+        ...(kullanici.guvenilirlikSifirlamaTarihi ? { createdAt: { gt: kullanici.guvenilirlikSifirlamaTarihi } } : {}),
+      },
+    });
+    const yasakAktif =
+      kullanici.rezervasyonYasagiBitisi != null && kullanici.rezervasyonYasagiBitisi > new Date();
 
     icerik = (
       <>
@@ -123,15 +123,21 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
                 <dd className="text-neutral-800">{kullanici._count.rezervasyonlar}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-neutral-500">
-                  Gelmedi (güvenilirlik){gelmediSayisi >= ayarlar.guvenilirlikEsigi && " ⚠️"}
-                </dt>
+                <dt className="text-neutral-500">Gelmedi (güvenilirlik){yasakAktif && " ⚠️"}</dt>
                 <dd className="text-neutral-800">
                   {gelmediSayisi}
                   {kullanici.guvenilirlikSifirlamaTarihi &&
                     ` (${tarihFormat.format(kullanici.guvenilirlikSifirlamaTarihi)}'ten beri)`}
                 </dd>
               </div>
+              {yasakAktif && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-neutral-500">Rezervasyon yasağı bitişi</dt>
+                  <dd className="font-medium text-red-600">
+                    {tarihFormat.format(kullanici.rezervasyonYasagiBitisi!)}
+                  </dd>
+                </div>
+              )}
               <div className="flex justify-between gap-4">
                 <dt className="text-neutral-500">Şikayet (gönderdiği)</dt>
                 <dd className="text-neutral-800">{kullanici._count.sikayetler}</dd>
@@ -153,9 +159,12 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
                 <dd className="text-neutral-800">{kullanici._count.magazaTakipleri}</dd>
               </div>
             </dl>
-            {gelmediSayisi > 0 && (
+            {(gelmediSayisi > 0 || yasakAktif) && (
               <div className="mt-3">
-                <GuvenilirlikSifirlaButonu kullaniciId={kullanici.id} />
+                <GuvenilirlikSifirlaButonu
+                  kullaniciId={kullanici.id}
+                  etiket={yasakAktif ? "Yasağı Kaldır ve Sıfırla" : "Güvenilirliği Sıfırla"}
+                />
               </div>
             )}
           </div>

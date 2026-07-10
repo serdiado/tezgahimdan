@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSaticiSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { rezervasyonGeriAl } from "@/lib/rezervasyon";
-import { bildirimGonderTakipcilere } from "@/lib/bildirim";
+import { bildirimGonderKullaniciya, bildirimGonderTakipcilere } from "@/lib/bildirim";
 
 const RED_MESAJI: Record<string, string> = {
   urun_satildi: "Ürün tükendiği için güvenle geri alınamaz. Kaydınız admin'e iletildi.",
@@ -35,6 +35,15 @@ export async function POST(request: Request) {
           urunId: cikti.urunId,
           mesaj: `Takip ettiğiniz "${urun.baslik}" için bir işlem geri alındı.`,
           haricKullaniciIdler: [session.user.id],
+        });
+      }
+      // Geri alinan "gelmedi", alicinin aktif gelmedi yasagini da kaldirdiysa
+      // alici bunu bilmeli - yoksa "yasakliyim" sanip denemez bile.
+      if (cikti.yasakKaldirildi) {
+        await bildirimGonderKullaniciya({
+          kullaniciId: cikti.aliciId,
+          mesaj: `Bir "gelmedi" işareti satıcı tarafından geri alındı; rezervasyon yasağın kaldırıldı, yeniden rezervasyon yapabilirsin.`,
+          hedefYolu: "/rezervasyonum",
         });
       }
       return NextResponse.json({ siraNo: cikti.siraNo, dusenYedekKodu: cikti.dusenYedekKodu });

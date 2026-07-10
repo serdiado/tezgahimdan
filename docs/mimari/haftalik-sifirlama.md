@@ -77,10 +77,10 @@ Aynı cron route'u içinde, sweep'ten ÖNCE çağrılır (ama zaman pencereleri 
   - ~~`rezervasyon_gelmedi:otomatik:{pazarHaftasi}`~~ — KALDIRILDI, artık yazılmıyor. Geçmişte (2026-07-09 ikinci güncellemeden ÖNCE) yazılmış kayıtlar DB'de kalıcı olarak durur (hiçbir kayıt silinmez ilkesi) ama yeni üretilmez.
 - **Ceza SAYILMAYACAK olaylar** (güvenilirlik havuzuna girmemeli):
   - `rezervasyon_sifirlama_iptal:{hafta}` → sıfırlamada cezasız temizlenen (sonradan yükselen aktif + yedekler). Kişi "gelme sözü" vermemişti.
-  - `rezervasyon_iptal:...` → alıcının kendi vazgeçmesi (dürüst çekilme). "Geç iptal hafif kusurdur" gibi bir kural istenirse, o **puan sisteminin** kararı — sıfırlama bunu ceza saymaz.
+  - `rezervasyon_iptal:...` → alıcının kendi vazgeçmesi (dürüst çekilme) ya da yasak süpürmesinin iptali (`rezervasyon_yasak_iptali:...`) — ikisi de seriyi ne bozar ne uzatır.
 - **"Aldı" tarafı** (güvenilirlik oranının paydası) — `satildi` durumundaki rezervasyonlar / `rezervasyon_satildi:%` olayları.
 
-Özetle: bu adım **veri bırakır**, puan **kuralı koymaz**. Kurallar puan-sistemi adımında `DurumGecmisi` üzerinden sayımla gelir (PLAN §3 & §6: "veri kayıtlı kaldığı sürece istatistik sonradan çıkar").
+**2026-07-10 güncellemesi:** Bu bölümün "puan sistemi ileride kurulacak" ifadesi tarihlendi — tüketici artık kuruldu ama adı "puan sistemi" değil **gelmedi yasağı** (görünür puan skalası bilinçli reddedildi, gerekçeler [`guvenilirlik-sistemi.md`](./guvenilirlik-sistemi.md)'de). Yasak tetikleyicisi `DurumGecmisi` olaylarını DEĞİL doğrudan `Rezervasyon.durum` kayıtlarını sayar (üst üste `gelmedi` serisi, `satildi` bozar, `iptal` nötr) — yukarıdaki olay sınıflandırması yine geçerli çünkü durum değerleriyle birebir örtüşür. Sıfırlamanın cezasız `iptal`leri yasak hesabına hiç girmez.
 
 ## İtiraz
 Otomatik ceza artık YOK, dolayısıyla "otomatik cezaya itiraz" senaryosu da ortadan kalktı. Kalan tek admin-müdahale senaryosu: satıcı 3 gün boyunca işaretlemezse (`saticiIhmalUyarilariGonder`) admin'e giden uyarı — admin bu durumda satıcıyla manuel iletişime geçer ya da (henüz kodlanmamış) mağaza/rezervasyon üzerinde elle işlem yapar.

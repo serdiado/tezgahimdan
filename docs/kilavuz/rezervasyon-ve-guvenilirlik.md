@@ -61,48 +61,83 @@ Bu tür bir reddetme olursa, durum kayıt altına alınır ki gerekirse sonradan
 
 ## 2. Güvenilirlik (Ceza-Ödül) Sistemi Nasıl Çalışır
 
-### Bu bir "puan" değil, o anki canlı bir sayım
+> Bu bölüm 2026-07-10'da yenilendi: eski "eşik + elinde rezervasyon varken
+> alamaz" kuralının yerini **"üst üste 3 gelmedi → 1 hafta rezervasyon
+> yasağı"** kuralı aldı.
 
-Sistemde kimsenin bir yerde saklanan "güven puanı" yoktur. Bunun yerine, her rezervasyon denemesinde sistem şu soruyu **o anda yeniden** sorar: *"Bu kişi daha önce kaç kere 'gelmedi' olarak işaretlendi?"* Bu sayı hiçbir yerde kalıcı olarak tutulmaz, sadece o anki karar için hesaplanır.
+### Kural tek cümleyle
 
-### Neyin geçmişi kötü etkilediği, neyin etkilemediği
+**Üst üste 3 kez** rezervasyon yapıp da teslim almayan (satıcı tarafından
+"Gelmedi" işaretlenen) alıcı, **1 hafta boyunca** yeni rezervasyon yapamaz.
+Hafta dolunca sayaç sıfırlanır — temiz bir sayfayla devam eder. Yine üst üste
+3 kez gelmezse yine 1 hafta ceza alır. (Hem "3" hem "1 hafta" belediye/admin
+tarafından ayarlanabilir, aşağıya bakın.)
 
-- **Kötü etkileyen tek şey:** Bir rezervasyonun **"gelmedi"** olarak işaretlenmesi — ister satıcı elle işaretlesin, ister pazar günü sona erip de hâlâ elinde bekleyen aktif bir rezervasyon varsa sistem bunu otomatik olarak "gelmedi" yazsın (bkz. bölüm 3).
-- **Hiçbir olumsuz etkisi olmayan şeyler:**
-  - **Vazgeçmek** ("Ben almayacağım" demek) — bu bir ceza değildir, geçmişe hiç işlenmez.
-  - **Satın almak** ("Sattım" işaretlenmesi) — bu, geçmişteki "gelmedi" sayısını **azaltmaz**. Yani bir kişi 10 kere ürün alsa bile, geçmişteki "gelmedi" sayısı hâlâ aynı şekilde sayılmaya devam eder. İki şey birbirinden bağımsızdır.
+### "Üst üste" ne demek — neyi bozar, neyi bozmaz
 
-**Örnek:** Mehmet, geçmişte 3 kere "gelmedi" yazıldı. Aradan zaman geçti, Mehmet 5 farklı üründen düzgünce alışveriş yaptı. Bu 5 alışveriş, eski 3 "gelmedi" kaydını **silmez veya azaltmaz** — o 3 kayıt hâlâ oradadır.
+- Sayılan tek şey **sonuçlanmış** rezervasyonlardır: "Sattım" ya da "Gelmedi"
+  işaretlenmiş olanlar.
+- **Bir şey satın almak seriyi sıfırlar.** İki kere gelmemiş biri üçüncüde
+  gelip ürününü alırsa serisi bozulur, ceza almaz.
+- **Vazgeçmek ne bozar ne sayılır.** "Ben almayacağım" demek ceza değildir
+  (ürünü başkasına açar, dürüst davranıştır) — ama seriyi de temizlemez, yani
+  "2 gelmedi biriktirdim, bir şey rezerve edip hemen vazgeçeyim de serim
+  bozulsun" hilesi çalışmaz.
+- Sıra, satıcının işaretlediği ana göre değil, **pazarın gerçekte yaşandığı
+  haftaya** göre hesaplanır. Satıcı işaretlemeyi günler sonra yapsa bile sonuç
+  adildir: mesela aradaki hafta bir şey satın aldıysanız, geç gelen "gelmedi"
+  işareti seriyi tamamlayamaz.
 
-### 3 "gelmedi" sonrası ne olur — tam bir yasak mı?
+**Örnek:** Mehmet 1. hafta gelmedi, 2. hafta gelmedi, 3. hafta gelip bir
+kavanoz reçel aldı ("Sattım" işaretlendi). Serisi bozuldu — ceza yok, sayım
+yeniden başlar. Ama Ayşe 3 hafta üst üste rezerve edip hiç gelmediyse, satıcı
+3. "Gelmedi"yi işaretlediği **an** Ayşe'nin 1 haftalık yasağı başlar.
 
-Varsayılan eşik değeri **3**'tür (belediye/admin bu sayıyı isterse değiştirebilir). Ama eşiği geçmiş olmak tek başına yeterli değildir — kısıtlamanın devreye girmesi için **iki şartın birden** sağlanması gerekir:
+### Ceza başladığı anda ne olur
 
-1. Kişinin "gelmedi" sayısı eşiğe ulaşmış veya geçmiş olmalı, **VE**
-2. Kişinin **o an elinde** hâlâ bekleyen bir aktif rezervasyonu (henüz sonuçlanmamış, "tezgahtan alacağım" statüsünde bir siparişi) olmalı.
+Üçüncü "Gelmedi" işaretlendiği an, üç şey birden olur:
 
-Bu ikinci şart sağlanmıyorsa — yani kişinin elinde hiç bekleyen rezervasyon yoksa — geçmiş "gelmedi" sayısı 3'ü çoktan geçmiş olsa bile, **yeni rezervasyon yapabilir.**
+1. Alıcı **1 hafta yeni rezervasyon yapamaz** (rezervasyon denediğinde hangi
+   tarihe kadar bekleyeceği kendisine açıkça söylenir; ayrıca bildirim gider).
+2. Alıcının **o an bekleyen tüm rezervasyonları iptal edilir** — hangi
+   tezgahta olursa olsun. "Elindekini önce alsın, ceza sonra başlasın" YOKTUR.
+   İptal edilen her yerde sıradaki kişi (bekleme listesindeki ilk kişi)
+   otomatik yükselir, kimse mağdur olmaz. Tek istisna: geçmiş pazar
+   haftasından kalmış, satıcısının henüz "Sattım/Gelmedi" demediği kayıtlara
+   dokunulmaz — o kararı satıcı verecektir (bkz. bölüm 3).
+3. **Gelmedi sayacı sıfırlanır.** Yasak bitince kişi geçmişi silinmiş gibi
+   temiz başlar; ödediği bedel yeniden başlamak için yeterlidir.
 
-**Örnek:** Ahmet'in geçmişte 3 "gelmedi" kaydı var ve elinde şu an bir aktif rezervasyon duruyor. Yeni bir ürüne rezervasyon yapmaya çalışırsa, sistem ona önce elindeki rezervasyonu tamamlaması gerektiğini bildirir ve yeni rezervasyona izin vermez. Ama Ahmet o rezervasyondan vazgeçerse (ya da satıcı onu sonuçlandırırsa), o andan itibaren — 3 "gelmedi" kaydı hâlâ orada dursa bile — Ahmet yeniden rezervasyon yapabilir.
+Yasak yalnızca **yeni rezervasyon yapmayı** engeller. Siteye girmek, geçmişi
+görmek, değerlendirme yazmak, şikayet etmek serbesttir. Bu ceza, admin'in bir
+kullanıcıyı platformdan tamamen yasaklamasıyla (kural ihlali gibi sebeplerle)
+karıştırılmamalıdır — o ayrı ve daha ağır bir işlemdir. Yasak tek bir pazara
+özel değildir: platformdaki **her** tezgah için geçerlidir.
 
-Bu kısıtlama sadece **yeni rezervasyon yapmayı** engeller. Kişinin siteye girmesi, mevcut rezervasyonlarını görmesi, vazgeçmesi, değerlendirme yazması gibi hiçbir şeyi etkilemez. Ayrıca bu, admin'in bir kullanıcıyı platformdan tamamen yasaklaması (kural ihlali gibi sebeplerle) ile **karıştırılmamalıdır** — o tamamen ayrı, daha ağır bir işlemdir.
+### Satıcı yanlışlıkla "Gelmedi" işaretlerse
 
-Son olarak: bu kısıtlama tek bir pazara veya tezgaha özel değildir. Bir tezgahta biriken "gelmedi" geçmişi, kişinin platformdaki **her** tezgahtaki rezervasyon hakkını etkiler.
+Satıcı işareti **geri alabilir** (bölüm 1'deki Geri Al). Geri alınan bir
+"Gelmedi", o kişinin devam eden bir yasağı varsa **yasağı da otomatik
+kaldırır** ve alıcıya haber verilir. Ancak ceza anında iptal edilmiş diğer
+rezervasyonlar geri gelmez (yerlerine başkaları yükselmiş olabilir) — alıcı
+yasağı kalktığı için hemen yeniden rezervasyon yapabilir, sadece sıradaki
+yerini kaybetmiş olur. Bu bilinçli bir sadelik tercihidir: böyle bir durum
+nadirdir ve mağdur alıcı satıcıya düşük puan/olumsuz yorum/şikayet ile
+karşılık verebilir.
 
-### Kısıtlama nasıl kalkar?
+### Belediye/admin ne yapabilir?
 
-İki yol vardır:
-
-1. **Kendiliğinden:** Yukarıda anlatıldığı gibi, kişi elindeki bekleyen rezervasyonu bitirdiği (alıp veya vazgeçtiği) an, kısıtlamanın ikinci şartı ortadan kalkar ve tekrar rezervasyon yapabilir hale gelir. Bu bir "silme" değildir — geçmiş kayıt hâlâ durur, sadece o an kapı açıktır.
-2. **Belediye/admin sıfırlaması:** Admin panelinde bir "Güvenilirliği Sıfırla" düğmesi vardır. Buna basıldığında, o kişinin **o tarihten önceki** "gelmedi" kayıtları artık sayılmaz hale gelir (kayıtlar silinmez, projenin "hiçbir kayıt kalıcı silinmez" ilkesi gereği sistemde saklı kalır, ama sayıma dahil edilmezler). Bu sıfırlama **kalıcı bir muafiyet değildir** — sıfırlama tarihinden sonra kişi yeniden "gelmedi" biriktirmeye başlarsa, eşik yine aşılabilir ve kısıtlama tekrar devreye girer.
-
-### Admin ekranındaki listeyle ilgili önemli bir not
-
-Belediye/admin panelindeki "Güvenilirlik" listesi, eşiği aşmış olan **herkesi** gösterir — ama bu, listede gördüğünüz herkesin **şu anda** rezervasyon yapamadığı anlamına gelmez. Yukarıda anlatıldığı gibi, kısıtlamanın gerçekten devrede olması için kişinin elinde bekleyen bir rezervasyon da olması gerekir; liste bu ikinci şartı ayrıca göstermez. Yani listede bir isim görmek, "bu kişi şu an rezervasyon yapamıyor" anlamına gelmeyebilir — sadece "bu kişinin geçmişte eşiği aşan bir gelmedi sayısı var" anlamına gelir.
-
-### Eşik değeri değiştirilebilir mi?
-
-Evet. Varsayılan olarak 3'tür, ama belediye/admin bunu ayarlar ekranından 1 ile 20 arasında bir değere değiştirebilir. Aynı ayarlar ekranından, bölüm 1'de anlatılan bekleme listesi kapasitesi (varsayılan 5 kişi) de 0 ile 50 arasında bir değere değiştirilebilir. Değişiklik yapıldığı anda, bir sonraki rezervasyon denemesinden itibaren yeni değerler geçerli olur — ayrıca bir işlem gerekmez.
+- **Yasağı erken kaldırma (af):** Admin panelindeki "Yasağı Kaldır" düğmesi
+  hem yasağı bitirir hem sayacı sıfırlar. Kayıtlar silinmez ("hiçbir kayıt
+  kalıcı silinmez" ilkesi), sadece sayıma girmez. Af kalıcı muafiyet değildir
+  — kişi yeniden üst üste 3 biriktirirse yeniden yasaklanır.
+- **Yasaklıları görme:** Admin panelindeki "Güvenilirlik" sayfası **şu anda
+  yasağı devam eden** alıcıları, yasağın biteceği tarihle birlikte listeler.
+  (Listede olmak = şu an gerçekten rezervasyon yapamıyor; eski sürümdeki
+  "listede var ama aslında yapabilir" karışıklığı kalktı.)
+- **Ayarlar:** "Üst üste kaç gelmedi" eşiği 1–20 arası (varsayılan 3), yasak
+  süresi 1–30 gün arası (varsayılan 7), bekleme listesi kapasitesi 0–50 arası
+  (varsayılan 5) değiştirilebilir. Değişiklik anında geçerli olur.
 
 ---
 
@@ -112,16 +147,19 @@ Evet. Varsayılan olarak 3'tür, ama belediye/admin bunu ayarlar ekranından 1 i
 
 Her pazarın (örneğin Seferihisar'da çarşamba günü) haftalık döngüsünde iki farklı an vardır:
 
-- **Başlangıç anı:** Pazarın açıldığı gün ve saat. Kimin "gelmedi" cezası alacağına bu an göre karar verilir.
-- **Kapanış/sıfırlama anı:** Pazar gününün bittiği an. Sistemin o haftanın bekleyen kuyruğunu temizlediği andır.
+- **Başlangıç anı:** Pazarın açıldığı gün ve saat. "Bu rezervasyonun hükmünü satıcı vermeli" denen kayıtlar (aşağıya bakın) bu ana göre belirlenir.
+- **Kapanış/işlem-sonu anı:** Pazar gününün bittiği an. Sistemin o haftanın bekleyen kuyruğunu temizlediği andır.
 
 ### Hafta sonunda (kapanışta) bekleyen rezervasyonlara ne olur?
 
-Pazar kapandığında, hâlâ sonuçlanmamış (ne "sattım" ne "gelmedi" ne "vazgeçtim" denmiş) rezervasyonlar için sistem otomatik bir temizlik yapar. Bu temizlik iki farklı sonuç doğurur:
+> Bu bölüm 2026-07-09'da değişti: **sistem artık hiçbir rezervasyonu kendi
+> kendine "gelmedi" yazmaz.** "Gelmedi" kararını yalnızca satıcı verebilir.
 
-- **Pazar başlarken zaten aktif (tezgahtan alacak) durumda olan ve satılmamış rezervasyonlar** → otomatik olarak **"gelmedi"** yazılır. Bu, güvenilirlik geçmişine işlenen bir cezadır — tıpkı satıcının elle "Gelmedi" işaretlemesi gibi.
+Pazar kapandığında, hâlâ sonuçlanmamış rezervasyonlar için sistem şöyle davranır:
 
-  **Örnek:** Fatma, salı akşamı bir ürünü aktif olarak rezerve etti. Çarşamba pazar açıldı, Fatma pazara gitmedi ve satıcı da onu elle işaretlemeyi unuttu. Pazar kapanınca sistem bunu otomatik olarak "gelmedi" yazar — Fatma'nın güvenilirlik geçmişine ceza olarak işlenir.
+- **Pazar başlarken zaten aktif (tezgahtan alacak) durumda olan ve hâlâ işaretlenmemiş rezervasyonlar** → **dokunulmaz, satıcı beklenir.** Sistem "satıcı mı işaretlemeyi unuttu, alıcı mı gerçekten gelmedi" ayrımını yapamaz; bu belirsizlikten alıcının ceza alması kabul edilemez. Gerçeği bilen tek taraf satıcıdır: satıcı panele girdiğinde, bu bekleyen işaretlemeleri yapmadan başka hiçbir işlem yapamaz (panel kilitlenir), tezgahındaki tüm ürünler de vitrinde "Beklemede" görünür. Satıcı "Sattım" derse normal satış olur, "Gelmedi" derse ceza **o an** işlenir (3 gün boyunca hiç girmezse belediye/admin'e uyarı gider).
+
+  **Örnek:** Fatma salı akşamı bir ürünü aktif olarak rezerve etti, çarşamba pazara gitmedi, satıcı da işaretlemeyi unuttu. Fatma'ya hiçbir şey OLMAZ — kayıt, satıcı girip karar verene kadar bekler. Satıcı cuma günü girip "Gelmedi" derse ceza sayacı o cuma işler.
 
 - **Pazar başladıktan sonra sıraya giren ya da yükselen rezervasyonlar (örneğin gün içinde biri vazgeçtiği için bekleme listesinden aktife geçenler) ve hâlâ bekleme listesinde kalanlar** → **cezasız iptal** edilir. Mantık şu: bu kişiler pazar başladığında henüz "gelme sözü" vermiş değillerdi, o yüzden gelmemeleri onlara karşı kullanılmaz.
 
@@ -135,4 +173,4 @@ Kuyruk temizlendikten sonra, ürün stok olarak elde varsa yeniden "sergide" gö
 
 ### İtiraz konusunda şimdilik bir not
 
-Otomatik "gelmedi" cezaları, belediye/admin tarafından görülebilir durumdadır. Ancak şu an için, bir alıcının "haksız yere gelmedi yazıldı" itirazını admin panelinden tek işlemle geri almak mümkün değildir; bu, ileride eklenmesi planlanan bir özelliktir. Böyle bir durumla karşılaşılırsa, çözüm şimdilik yukarıda anlatılan güvenilirlik sıfırlama yoluyla (bölüm 2) sağlanabilir.
+"Haksız yere gelmedi yazıldı" diyen bir alıcı için iki çözüm yolu vardır: satıcı işaretini **Geri Al**abilir (bu, varsa devam eden rezervasyon yasağını da otomatik kaldırır — bkz. bölüm 2), ya da belediye/admin **"Yasağı Kaldır"** ile af verebilir. Yapılandırılmış bir itiraz formu/akışı şu an yoktur; ileride ihtiyaç görülürse eklenecektir.

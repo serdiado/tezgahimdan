@@ -27,71 +27,66 @@ export default async function AdminGuvenilirlikPage() {
   } else {
     const ayarlar = await platformAyarlariGetir();
 
-    // Once ham "gelmedi" sayisi esigi asan adaylari bul (tek groupBy), sonra
-    // HERKES icin ayri ayri (varsa) sifirlama tarihinden SONRAKI sayimi
-    // hesapla - motordaki (rezervasyonOlustur) mantikla birebir ayni, cunku
-    // kullanici basina sifirlama tarihi farkli olabilir (tek bir SQL
-    // sorgusunda ifade edilemez, N kucuk oldugu icin sorun degil).
-    const adaylar = await prisma.rezervasyon.groupBy({
-      by: ["aliciId"],
-      where: { durum: "gelmedi" },
-      _count: true,
-    });
-    const adayIdler = adaylar.filter((a) => a._count >= ayarlar.guvenilirlikEsigi).map((a) => a.aliciId);
-
-    const kullanicilar = await prisma.kullanici.findMany({
-      where: { id: { in: adayIdler } },
-      select: { id: true, ad: true, telefon: true, guvenilirlikSifirlamaTarihi: true },
+    // 2026-07-10'dan beri liste "esigi asanlar" degil "SU AN aktif rezervasyon
+    // yasagi olanlar": eski liste motor kapisiyla tutarsizdi ("yeni rezervasyon
+    // alamazlar" diyordu ama kapi iki-sartliydi). Yeni modelde yasak tek gercek
+    // kaynak (Kullanici.rezervasyonYasagiBitisi) - seri dolunca otomatik yazilir,
+    // suresi biten yasak kendiliginden duser (satir temizligi gerekmez).
+    const simdi = new Date();
+    const yasaklilar = await prisma.kullanici.findMany({
+      where: { rezervasyonYasagiBitisi: { gt: simdi } },
+      select: { id: true, ad: true, telefon: true, rezervasyonYasagiBitisi: true, guvenilirlikSifirlamaTarihi: true },
+      orderBy: { rezervasyonYasagiBitisi: "asc" },
     });
 
-    const kisitliListe = (
-      await Promise.all(
-        kullanicilar.map(async (k) => {
-          const gelmediSayisi = await prisma.rezervasyon.count({
-            where: {
-              aliciId: k.id,
-              durum: "gelmedi",
-              ...(k.guvenilirlikSifirlamaTarihi ? { createdAt: { gt: k.guvenilirlikSifirlamaTarihi } } : {}),
-            },
-          });
-          return { ...k, gelmediSayisi };
-        }),
-      )
-    )
-      .filter((k) => k.gelmediSayisi >= ayarlar.guvenilirlikEsigi)
-      .sort((a, b) => b.gelmediSayisi - a.gelmediSayisi);
+    // Toplam (tum zamanlar) gelmedi sayisi: yasak baslarken seri sifirlandigi
+    // icin "sifirlamadan beri" sayisi yasaklilarda hep 0 gorunur - admin'in
+    // isine yarayan bilgi kisinin GECMIS toplami (tekrarlayan suclu mu?).
+    const yasakliListe = await Promise.all(
+      yasaklilar.map(async (k) => {
+        const toplamGelmedi = await prisma.rezervasyon.count({
+          where: { aliciId: k.id, durum: "gelmedi" },
+        });
+        return { ...k, toplamGelmedi };
+      }),
+    );
 
     icerik = (
       <>
         <h1 className="text-xl font-bold text-neutral-900">Güvenilirlik</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          {ayarlar.guvenilirlikEsigi}+ &quot;gelmedi&quot; biriktiren kullanıcılar — halihazırda aktif bir
-          rezervasyonu varken yeni rezervasyon alamazlar.{" "}
+          Üst üste {ayarlar.guvenilirlikEsigi} kez teslim almadığı için şu an rezervasyon yasağı
+          {/* {expr} ile "gün" arasindaki duz bosluk Turbopack SSR'da yutuldu
+              (ayni desen bir ust satirda calisiyor - nedeni cozulmedi);
+              sayi+birim zaten ayrilmamasi gereken ikili, nbsp hem garantili
+              hem dogru tipografi. */}
+          olan alıcılar. Yasak süresi ({ayarlar.yasakSuresiGun}&nbsp;gün) dolunca kendiliğinden kalkar;
+          &quot;Yasağı Kaldır&quot; erken affeder.{" "}
           <Link href="/admin/ayarlar" className="text-primary-600 hover:underline">
             Ayarları düzenle
           </Link>
         </p>
         <AdminNav aktif="guvenilirlik" />
 
-        {kisitliListe.length === 0 ? (
+        {yasakliListe.length === 0 ? (
           <div className="mt-4 flex flex-col items-center gap-2 rounded-2xl bg-white p-8 text-center shadow-sm">
             <ShieldAlert className="h-8 w-8 text-neutral-300" strokeWidth={1.5} />
-            <p className="text-neutral-500">Şu an kısıtlanmış kullanıcı yok.</p>
+            <p className="text-neutral-500">Şu an rezervasyon yasağı olan kullanıcı yok.</p>
           </div>
         ) : (
           <div className="mt-4 space-y-3">
-            {kisitliListe.map((k) => (
+            {yasakliListe.map((k) => (
               <div key={k.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm">
                 <div>
                   <Link href={`/admin/kullanicilar/${k.id}`} className="font-semibold text-primary-600 hover:underline">
                     {k.ad}
                   </Link>
                   <p className="mt-0.5 text-xs text-neutral-500">
-                    {k.telefon ?? "—"} · {k.gelmediSayisi} gelmedi
-                    {k.guvenilirlikSifirlamaTarihi && ` · son sıfırlama: ${tarihFormat.format(k.guvenilirlikSifirlamaTarihi)}`}
+                    {k.telefon ?? "—"} · yasak bitişi: {tarihFormat.format(k.rezervasyonYasagiBitisi!)} ·
+                    toplam {k.toplamGelmedi} gelmedi
                   </p>
                 </div>
-                <GuvenilirlikSifirlaButonu kullaniciId={k.id} />
+                <GuvenilirlikSifirlaButonu kullaniciId={k.id} etiket="Yasağı Kaldır" />
               </div>
             ))}
           </div>

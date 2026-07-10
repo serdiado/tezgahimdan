@@ -62,7 +62,7 @@ yedek |  5   | {1,2,3,4,5}
 
 ## Güvenilirlik kısıtlaması → ayrı dosya
 
-Eşik tabanlı ceza-ödül kısıtlaması (kaç `gelmedi` sonrası ne olur, iki-şartlı motor kapısı, admin sıfırlaması, ayarlanabilir eşik) kendi dosyasında: [`guvenilirlik-sistemi.md`](./guvenilirlik-sistemi.md). Aynı ürün kilidini kullanır (kontrol kapasite hesabından önce, kilit altında yapılır) ama kararları/gerekçesi ayrı bir konu.
+Gelmedi yasağı sistemi (üst üste kaç `gelmedi` sonrası kaç gün yasak, yasak başlarken bekleyen rezervasyonların süpürülmesi, Geri Al/admin affı etkileşimi, ayarlanabilir eşik+süre) kendi dosyasında: [`guvenilirlik-sistemi.md`](./guvenilirlik-sistemi.md). 2026-07-10'dan beri kapı ürün kilidinin DIŞINDA, kilit öncesi tek alan okumasıdır (`Kullanici.rezervasyonYasagiBitisi` — eski kilit-içi iki-şartlı kontrol kaldırıldı); yasak süpürmesi ise ürün başına AYNI `FOR UPDATE` kilidini alıp vazgeç kurallarıyla iptal eder.
 
 **Test kanıtı — admin gizli mağazaya ürün ekleme (bilinçli tutarsızlık, bug değil):** Admin bir mağazayı gizledi (`gizliMi=true`), sonra AYNI mağazaya ürün ekledi → **201 başarılı** (`urunEkle()` `gizliMi`'ye hiç bakmıyor). Farklı bir alıcı bu yeni ürünü rezerve etmeyi denedi → **409 magaza-gizli** (motorun kendi ön-kontrolü devrede, `rezervasyonOlustur`'daki `magaza.gizliMi` kontrolü). `psql`: ürün gerçekten oluşmuş (0 rezervasyon). Sonuç: tutarsız ama zararsız — ürün DB'de var olur ama hiçbir zaman rezerve edilemez; admin arayüzünde bunu engelleyen/uyaran bir kontrol yok, ileride eklenebilir.
 

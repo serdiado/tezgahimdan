@@ -6,13 +6,16 @@ import { useRouter } from "next/navigation";
 export function PlatformAyarlariForm({
   guvenilirlikEsigi,
   maxYedek,
+  yasakSuresiGun,
 }: {
   guvenilirlikEsigi: number;
   maxYedek: number;
+  yasakSuresiGun: number;
 }) {
   const router = useRouter();
   const [esik, setEsik] = useState(String(guvenilirlikEsigi));
   const [yedek, setYedek] = useState(String(maxYedek));
+  const [yasakGun, setYasakGun] = useState(String(yasakSuresiGun));
   const [gonderiliyor, setGonderiliyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
   const [basarili, setBasarili] = useState(false);
@@ -28,6 +31,7 @@ export function PlatformAyarlariForm({
       body: JSON.stringify({
         guvenilirlikEsigi: Number.parseInt(esik, 10),
         maxYedek: Number.parseInt(yedek, 10),
+        yasakSuresiGun: Number.parseInt(yasakGun, 10),
       }),
     });
     setGonderiliyor(false);
@@ -60,8 +64,28 @@ export function PlatformAyarlariForm({
           />
         </label>
         <p className="mt-1 text-xs text-neutral-400">
-          Bu sayıda (veya daha fazla) &quot;gelmedi&quot; biriktiren alıcı, aktif bir rezervasyonu
-          varken yeni rezervasyon alamaz.
+          Üst üste bu kadar rezervasyonunu teslim almayan alıcıya otomatik rezervasyon yasağı
+          uygulanır (araya giren bir satın alma seriyi sıfırlar).
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-neutral-700">
+          Yasak Süresi (gün)
+          <input
+            type="number"
+            min={1}
+            max={30}
+            step={1}
+            required
+            value={yasakGun}
+            onChange={(e) => setYasakGun(e.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <p className="mt-1 text-xs text-neutral-400">
+          Seri dolunca alıcının kaç gün yeni rezervasyon yapamayacağı. Yasak başlarken alıcının
+          bekleyen rezervasyonları da iptal edilir; süre bitince sayaç sıfırdan başlar.
         </p>
       </div>
 

@@ -4,7 +4,16 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 
-export function GuvenilirlikSifirlaButonu({ kullaniciId }: { kullaniciId: string }) {
+// etiket: /admin/guvenilirlik sayfasi "Yasağı Kaldır" der (aktif yasagi olan
+// kullaniciya af), kullanici detayi varsayilan "Güvenilirliği Sıfırla" der -
+// ikisi de AYNI API'ye gider (af = seri sifirlama + varsa yasak kaldirma).
+export function GuvenilirlikSifirlaButonu({
+  kullaniciId,
+  etiket = "Güvenilirliği Sıfırla",
+}: {
+  kullaniciId: string;
+  etiket?: string;
+}) {
   const router = useRouter();
   const [onay, setOnay] = useState(false);
   const [bekliyor, setBekliyor] = useState(false);
@@ -59,7 +68,7 @@ export function GuvenilirlikSifirlaButonu({ kullaniciId }: { kullaniciId: string
       className="flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-100"
     >
       <RotateCcw className="h-3.5 w-3.5" strokeWidth={2} />
-      Güvenilirliği Sıfırla
+      {etiket}
     </button>
   );
 }
