@@ -168,6 +168,7 @@ model Kullanici {
   magazaTakipleri         MagazaTakip[]
   degerlendirmeler        Degerlendirme[]
   magazaDegerlendirmeleri MagazaDegerlendirme[]
+  duyurular               Duyuru[]
 }
 
 model Kategori {
@@ -372,6 +373,13 @@ model Bildirim {
   // HER urunId'siz bildirim /sikayetlerim'e gidiyordu, duyuru eklenince bu
   // yanlis hedefe tiklamaya donustu - kullanici testinde bulundu).
   hedefYolu   String?
+  // Duyuru pointer'i (2026-07-10): admin editoryal duyurusu yayinlaninca hedef
+  // kitleye bu alanla Bildirim uretilir - govde Duyuru'da yasar, Bildirim sadece
+  // baslik + pointer. /bildirimlerim href cozumu urunId'den sonra bunu kontrol
+  // eder (-> /duyuru/{id}). Okunma istatistigi (Duyuru admin sayfasi) bu FK
+  // uzerinden sayilir. urunId ile karsilikli DISLAYICI (biri doluysa oteki bos).
+  duyuru      Duyuru?   @relation(fields: [duyuruId], references: [id])
+  duyuruId    String?
   mesaj       String
   okunduMu    Boolean   @default(false)
   // Kullanici kendi bildirimini listeden temizleyince set edilir (2026-07-10).
@@ -382,6 +390,45 @@ model Bildirim {
   createdAt   DateTime  @default(now())
 
   @@index([kullaniciId, okunduMu])
+}
+
+// Editoryal duyuru (2026-07-10): admin tarafindan yazilan, UZUN icerik
+// tasiyabilen "yeni isleyis / modul / egitim" gibi bildirimler. Kisa+varlik-bagli
+// islem bildirimlerinden (Bildirim tablosu) AYRI tutulur: govde burada yasar,
+// yayinlaninca hedef kitleye Bildirim pointer'lari uretilir (Bildirim.duyuruId).
+// Tiklaninca /duyuru/[id] detay sayfasi acilir. Kutsal kural admin'de gecerli
+// degil (CMS derinligi hedefi - bkz. docs/mimari). Detay: docs/mimari/bildirim-sistemi.md.
+enum DuyuruTuru {
+  bilgi
+  egitim
+  uyari
+}
+
+model Duyuru {
+  id         String     @id @default(uuid())
+  baslik     String
+  govde      String     @db.Text
+  gorselUrl  String?
+  tur        DuyuruTuru @default(bilgi)
+  // "hepsi" | "satici" | "alici" (mevcut duyuru-gonder ile ayni; "hepsi" =
+  // satici+alici, admin haric). Yayin aninda rol filtresine cevrilir.
+  hedefKitle String
+  // Yayin: taslak olarak kaydedilip sonra yayinlanabilir. yayinlandiMi true
+  // olunca hedef kitleye Bildirim pointer'lari uretilmis demektir - IDEMPOTENT,
+  // tekrar yayinlanamaz. gonderilenSayisi o an kac kisiye gittigi (istatistik);
+  // okunan sayisi Bildirim.duyuruId + okunduMu ile canli sayilir.
+  yayinlandiMi     Boolean   @default(false)
+  yayinTarihi      DateTime?
+  gonderilenSayisi Int       @default(0)
+  olusturan   Kullanici @relation(fields: [olusturanId], references: [id])
+  olusturanId String
+  // Kalici silme YOK (proje ilkesi) - "yayindan kaldir" soft-delete eder;
+  // detay sayfasi ve admin listesi silindiMi=false filtreler.
+  silindiMi   Boolean   @default(false)
+  createdAt         DateTime @default(now())
+  guncellenmeZamani DateTime @updatedAt
+
+  bildirimler Bildirim[]
 }
 
 // Magaza takibi: UrunFavori'den AYRI tablo - farkli varlik (Magaza, Urun degil),

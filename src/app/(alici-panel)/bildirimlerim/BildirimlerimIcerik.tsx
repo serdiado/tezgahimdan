@@ -13,6 +13,7 @@ type BildirimSatir = {
   urunId: string | null;
   urunBaslik: string | null;
   magazaSlug: string | null;
+  duyuruId: string | null;
   hedefYolu: string | null;
 };
 
@@ -58,11 +59,15 @@ export function BildirimlerimIcerik({ bildirimler }: { bildirimler: BildirimSati
         </button>
       </div>
       {bildirimler.map((b) => {
-        // Hedef sirasi: urun varsa urune, yoksa (ör. sikayet sonucu) verilen
-        // hedefYolu'na. Ikisi de yoksa (ör. toplu duyuru) kart TIKLANAMAZ -
-        // eskiden hedefsiz her bildirim sabit /sikayetlerim'e gidiyordu, bu
-        // duyurular icin yanlisti (kullanici testinde bulundu).
-        const href = b.urunId ? `/magaza/${b.magazaSlug}?urun=${b.urunId}` : b.hedefYolu;
+        // Hedef sirasi: urun varsa urune, duyuru pointer'i varsa duyuru detayina,
+        // yoksa verilen hedefYolu'na (ör. sikayet sonucu). Hicbiri yoksa kart
+        // TIKLANAMAZ. (urunId/duyuruId/hedefYolu gonderen kodda karsilikli
+        // dislayicidir - biri doluysa oteki bos.)
+        const href = b.urunId
+          ? `/magaza/${b.magazaSlug}?urun=${b.urunId}`
+          : b.duyuruId
+            ? `/duyuru/${b.duyuruId}`
+            : b.hedefYolu;
         const icerik = (
           <>
             <p className="text-sm text-neutral-800">{b.mesaj}</p>

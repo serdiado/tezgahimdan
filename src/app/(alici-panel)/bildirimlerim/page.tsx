@@ -36,6 +36,7 @@ export default async function BildirimlerimSayfasi() {
           urunId: b.urunId,
           urunBaslik: b.urun?.baslik ?? null,
           magazaSlug: b.urun?.magaza.slug ?? null,
+          duyuruId: b.duyuruId,
           hedefYolu: b.hedefYolu,
         }))}
       />

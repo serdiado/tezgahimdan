@@ -1,127 +1,268 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-const HEDEF_ETIKETI: Record<string, string> = {
+type DuyuruTur = "bilgi" | "egitim" | "uyari";
+type HedefKitle = "hepsi" | "satici" | "alici";
+
+export type DuyuruFormVeri = {
+  id: string;
+  baslik: string;
+  govde: string;
+  tur: DuyuruTur;
+  hedefKitle: HedefKitle;
+  yayinlandiMi: boolean;
+  gonderilenSayisi: number;
+  okunanSayisi: number;
+};
+
+const HEDEF_ETIKETI: Record<HedefKitle, string> = {
   hepsi: "Herkes (satıcı + alıcı)",
   satici: "Sadece satıcılar",
   alici: "Sadece alıcılar",
 };
 
-export function DuyuruForm() {
-  const [hedefKitle, setHedefKitle] = useState<"hepsi" | "satici" | "alici">("hepsi");
-  const [mesaj, setMesaj] = useState("");
-  const [onay, setOnay] = useState(false);
-  const [gonderiliyor, setGonderiliyor] = useState(false);
-  const [hata, setHata] = useState<string | null>(null);
-  const [sonuc, setSonuc] = useState<number | null>(null);
+const inputClass =
+  "mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
 
-  async function gonder(e: React.FormEvent) {
+export function DuyuruForm({ duyuru }: { duyuru: DuyuruFormVeri | null }) {
+  const router = useRouter();
+  const [baslik, setBaslik] = useState(duyuru?.baslik ?? "");
+  const [govde, setGovde] = useState(duyuru?.govde ?? "");
+  const [tur, setTur] = useState<DuyuruTur>(duyuru?.tur ?? "bilgi");
+  const [hedefKitle, setHedefKitle] = useState<HedefKitle>(duyuru?.hedefKitle ?? "hepsi");
+  const [bekliyor, setBekliyor] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
+  const [basarili, setBasarili] = useState<string | null>(null);
+  const [yayinOnay, setYayinOnay] = useState(false);
+  const [kaldirOnay, setKaldirOnay] = useState(false);
+
+  const yayinlandi = duyuru?.yayinlandiMi ?? false;
+
+  async function kaydet(e: React.FormEvent) {
     e.preventDefault();
     setHata(null);
-    if (!mesaj.trim()) {
-      setHata("mesaj zorunlu");
+    setBasarili(null);
+    if (!baslik.trim() || !govde.trim()) {
+      setHata("başlık ve içerik zorunlu");
       return;
     }
-    if (!onay) {
-      setOnay(true);
-      return;
-    }
-
-    setGonderiliyor(true);
-    const res = await fetch("/api/admin/duyuru-gonder", {
+    setBekliyor(true);
+    const res = await fetch("/api/admin/duyuru-kaydet", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hedefKitle, mesaj: mesaj.trim() }),
+      body: JSON.stringify({ id: duyuru?.id, baslik: baslik.trim(), govde: govde.trim(), tur, hedefKitle }),
     });
-    setGonderiliyor(false);
-    setOnay(false);
+    setBekliyor(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setHata(data.hata ?? "gönderilemedi");
+      setHata(data.hata ?? "kaydedilemedi");
       return;
     }
     const data = await res.json();
-    setSonuc(data.gonderilenSayisi);
-    setMesaj("");
+    if (!duyuru) {
+      // Yeni olusturuldu -> duzenleme sayfasina gec (artik yayinlanabilir).
+      router.push(`/admin/duyuru/${data.id}/duzenle`);
+      return;
+    }
+    setBasarili("Kaydedildi.");
+    router.refresh();
   }
 
-  const inputClass =
-    "mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
+  async function yayinla() {
+    if (!duyuru) return;
+    setHata(null);
+    setBekliyor(true);
+    const res = await fetch("/api/admin/duyuru-yayinla", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: duyuru.id }),
+    });
+    setBekliyor(false);
+    setYayinOnay(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setHata(data.hata ?? "yayınlanamadı");
+      return;
+    }
+    const data = await res.json();
+    setBasarili(`Duyuru ${data.gonderilenSayisi} kullanıcıya gönderildi.`);
+    router.refresh();
+  }
+
+  async function kaldir() {
+    if (!duyuru) return;
+    setHata(null);
+    setBekliyor(true);
+    const res = await fetch("/api/admin/duyuru-kaldir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: duyuru.id }),
+    });
+    setBekliyor(false);
+    setKaldirOnay(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setHata(data.hata ?? "kaldırılamadı");
+      return;
+    }
+    router.push("/admin/duyuru");
+  }
 
   return (
-    <form onSubmit={gonder} className="space-y-5 rounded-2xl bg-white p-5 shadow-sm">
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">
-          Hedef Kitle
-          <select
-            value={hedefKitle}
-            onChange={(e) => {
-              setHedefKitle(e.target.value as "hepsi" | "satici" | "alici");
-              setOnay(false);
-            }}
-            className={inputClass}
-          >
-            <option value="hepsi">Herkes (satıcı + alıcı)</option>
-            <option value="satici">Sadece satıcılar</option>
-            <option value="alici">Sadece alıcılar</option>
-          </select>
-        </label>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-neutral-700">
-          Mesaj
-          <textarea
-            value={mesaj}
-            onChange={(e) => {
-              setMesaj(e.target.value);
-              setOnay(false);
-            }}
-            rows={4}
-            maxLength={500}
-            placeholder="ör. Bu hafta pazar hava durumu nedeniyle iptal edilmiştir."
-            className={inputClass}
-          />
-        </label>
-      </div>
-
-      {hata && <p className="text-sm text-red-600">{hata}</p>}
-      {sonuc !== null && !hata && (
-        <p className="text-sm text-green-700">Duyuru {sonuc} kullanıcıya gönderildi.</p>
+    <div className="space-y-4">
+      {duyuru && (
+        <div className="rounded-2xl bg-white p-4 text-sm shadow-sm">
+          {yayinlandi ? (
+            <p className="text-neutral-700">
+              <span className="font-semibold text-green-700">Yayında</span> · {duyuru.gonderilenSayisi} kişiye
+              gönderildi · {duyuru.okunanSayisi} okundu
+            </p>
+          ) : (
+            <p className="text-neutral-500">
+              <span className="font-semibold text-amber-700">Taslak</span> — henüz kimseye gönderilmedi.
+            </p>
+          )}
+        </div>
       )}
 
-      {onay ? (
-        <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-          <p>
-            <span className="font-semibold">{HEDEF_ETIKETI[hedefKitle]}</span> kitlesine bu mesaj
-            gönderilsin mi? Bu işlem geri alınamaz.
+      <form onSubmit={kaydet} className="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
+        <div>
+          <label className="block text-sm font-medium text-neutral-700">
+            Başlık
+            <input
+              type="text"
+              value={baslik}
+              onChange={(e) => setBaslik(e.target.value)}
+              maxLength={200}
+              placeholder="ör. Yeni teslim alma işleyişi"
+              className={inputClass}
+            />
+          </label>
+          <p className="mt-1 text-xs text-neutral-400">
+            Bildirim listesinde bu başlık görünür; tıklayınca aşağıdaki içerik açılır.
           </p>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="submit"
-              disabled={gonderiliyor}
-              className="rounded-md bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
-            >
-              {gonderiliyor ? "Gönderiliyor…" : "Evet, Gönder"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setOnay(false)}
-              className="rounded-md bg-neutral-200 px-3 py-1.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-300"
-            >
-              Vazgeç
-            </button>
-          </div>
         </div>
-      ) : (
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium text-neutral-700">
+            Tür
+            <select value={tur} onChange={(e) => setTur(e.target.value as DuyuruTur)} className={inputClass}>
+              <option value="bilgi">Bilgi</option>
+              <option value="egitim">Eğitim</option>
+              <option value="uyari">Uyarı</option>
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-neutral-700">
+            Hedef Kitle
+            <select
+              value={hedefKitle}
+              onChange={(e) => setHedefKitle(e.target.value as HedefKitle)}
+              disabled={yayinlandi}
+              className={`${inputClass} disabled:bg-neutral-100 disabled:text-neutral-500`}
+            >
+              <option value="hepsi">{HEDEF_ETIKETI.hepsi}</option>
+              <option value="satici">{HEDEF_ETIKETI.satici}</option>
+              <option value="alici">{HEDEF_ETIKETI.alici}</option>
+            </select>
+            {yayinlandi && <span className="mt-1 block text-xs text-neutral-400">Yayından sonra değiştirilemez.</span>}
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-neutral-700">
+            İçerik
+            <textarea
+              value={govde}
+              onChange={(e) => setGovde(e.target.value)}
+              rows={8}
+              maxLength={5000}
+              placeholder="Duyurunun tam metni. Uzun olabilir; satır boşlukları korunur."
+              className={inputClass}
+            />
+          </label>
+        </div>
+
+        {hata && <p className="text-sm text-red-600">{hata}</p>}
+        {basarili && !hata && <p className="text-sm text-green-700">{basarili}</p>}
+
         <button
           type="submit"
-          className="w-full rounded-md bg-primary-600 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+          disabled={bekliyor}
+          className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
-          Duyuruyu Gönder
+          {bekliyor ? "Kaydediliyor…" : duyuru ? "Değişiklikleri Kaydet" : "Taslak Olarak Kaydet"}
         </button>
+      </form>
+
+      {duyuru && (
+        <div className="flex flex-wrap gap-3 rounded-2xl bg-white p-5 shadow-sm">
+          {!yayinlandi &&
+            (yayinOnay ? (
+              <div className="w-full rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                <p>
+                  <span className="font-semibold">{HEDEF_ETIKETI[hedefKitle]}</span> kitlesine gönderilsin mi? Bu
+                  işlem geri alınamaz.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={yayinla}
+                    disabled={bekliyor}
+                    className="rounded-md bg-primary-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+                  >
+                    {bekliyor ? "Gönderiliyor…" : "Evet, Yayınla"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setYayinOnay(false)}
+                    className="rounded-md bg-neutral-200 px-3 py-1.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-300"
+                  >
+                    Vazgeç
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setYayinOnay(true)}
+                className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
+              >
+                Yayınla
+              </button>
+            ))}
+
+          {kaldirOnay ? (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-neutral-600">Emin misin?</span>
+              <button
+                type="button"
+                onClick={kaldir}
+                disabled={bekliyor}
+                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                Evet, Kaldır
+              </button>
+              <button
+                type="button"
+                onClick={() => setKaldirOnay(false)}
+                className="rounded-md bg-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-300"
+              >
+                Vazgeç
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setKaldirOnay(true)}
+              className="rounded-md border border-red-300 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+            >
+              Yayından Kaldır
+            </button>
+          )}
+        </div>
       )}
-    </form>
+    </div>
   );
 }
