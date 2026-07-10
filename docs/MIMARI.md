@@ -122,6 +122,14 @@ Amaç: **satıcıları mobilde organize etmek + sürekli push bildirimle yönlen
 
 ---
 
+## Kategori keşif ekseni / global kategori menüsü (ERTELENDİ — pilotta uygulanmayacak)
+
+**2026-07-11 kararı.** "Kategorileri vitrinde büyük ikonlu bir ana menü yap, tıklayınca kategori sayfası / ileride resimli mega-menü açsın" fikri pilota alınmadı. Kritik ayrım: **ucuz görsel katman (ikonları yukarı taşımak) pahalı kısma bağımlı** — bugün kategoriye tıklayınca gidilecek global bir hedef YOK (kategori yalnız tek tezgah içinde filtreliyor); hiçbir yere gitmeyen büyük buton, hiç olmamasından kötü. Pilota özgü üç sorun: **boş-raf sinyali** (düz set + tek pazarlı küçük envanter → 0-1 ürünlü ikonlar, hem alıcıya hem belediye sunumlarına cılızlık ilan eder; tezgah-içi çip zaten "sadece dolu kategori" ile bunu çözüyor), **iki keşif ekseni çatışması** (pazar-merkezli tek eksene dik tür-menüsü, low-tech kitlede kafa karışıklığı + teslim-günü bağlam kaybı), **sadelik/marka** (WhatsApp-basitliği + "yeni aksan renk ekleme" kuralı). "Ana menü" çerçevesi de yanlış: site-navigasyonu (`SiteHeader`) ile ürün-taksonomisi gezinmesi ayrı şeyler; gerçek nav boşluğu varsa çözümü tek bir "Pazarlar" linki, kategori değil. Fikir çöpe atılmadı: çoklu-pazar + kategori başına ~15-20 ürün derinliği eşiğinde yeniden açılır; üç ileri-uyum sözleşmesi (rota `/?kategori=slug`, additive `ustKategoriId`, mobil tap-panel) + `pazar.aktifMi` süzme tuzağı bugünden karara bağlandı.
+
+→ Detay: [`docs/mimari/kategori-kesif-ekseni.md`](./mimari/kategori-kesif-ekseni.md)
+
+---
+
 ## WhatsApp iletişim + Tezgah bilgisi/kroki + Mağaza değerlendirmesi
 
 Üç bağımsız özellik, aynı oturumda mağaza sayfası etrafında eklendi. **WhatsApp**:
