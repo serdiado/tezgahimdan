@@ -63,9 +63,21 @@ rozet sorguları `silindiMi=false` filtreler.
 
 ## `Duyuru` modülü
 
-- Model: `baslik`, `govde` (uzun), `gorselUrl?`, `tur` (`DuyuruTuru`:
-  bilgi/eğitim/uyarı), `hedefKitle` ("hepsi"/"satici"/"alici"), yayın durumu
-  (`yayinlandiMi`, `yayinTarihi`, `gonderilenSayisi`), `olusturanId`, `silindiMi`.
+- Model: `baslik`, `govde` (uzun, **Markdown**), `gorselUrl?`, `baglantiUrl?` +
+  `baglantiMetni?` (CTA butonu), `tur` (`DuyuruTuru`: bilgi/eğitim/uyarı),
+  `hedefKitle` ("hepsi"/"satici"/"alici"), yayın durumu (`yayinlandiMi`,
+  `yayinTarihi`, `gonderilenSayisi`), `olusturanId`, `silindiMi`.
+- **Markdown içerik** (`src/components/DuyuruMarkdown.tsx`, react-markdown +
+  remark-gfm): bağlantı, kalın, başlık, liste, gömülü görsel. **XSS-güvenli**:
+  ham HTML render EDİLMEZ (rehype-raw eklenmedi) — `<script>` düz metin kalır,
+  `javascript:` URL'leri varsayılan urlTransform ile temizlenir. Aynı bileşen
+  hem detay sayfasında hem admin formundaki canlı önizlemede kullanılır.
+  `@tailwindcss/typography` yok — her öge Tailwind ile tek tek stillenir.
+- **CTA:** `baglantiUrl` (http/https doğrulanır) + opsiyonel `baglantiMetni`,
+  detay sayfasının altında buton ("Eğitime Git" gibi — eğitim sayfası linki).
+- **Admin form UX:** görsel bölümü Kaydet'in ÜSTÜNDE ve ANLIK yüklenir
+  (Kaydet yalnız yazıyı kaydeder); kaydetmeden çıkışta uyarı
+  (`useDegisiklikUyarisi`, görsel bu takibin dışında).
 - **Yayınlama fan-out** (`src/lib/duyuru.ts` `duyuruYayinla`): hedef kitleye
   `Bildirim` pointer'ları üretir (mesaj=başlık, `duyuruId`=pointer). **İdempotent**:
   koşullu `updateMany (yayinlandiMi=false)` bir kilit görevi görür — iki eş
