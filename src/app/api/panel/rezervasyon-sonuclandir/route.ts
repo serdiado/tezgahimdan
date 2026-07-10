@@ -56,6 +56,18 @@ export async function POST(request: Request) {
           });
           if (yukselenAliciId) haricListesi.push(yukselenAliciId);
         }
+        // Urun tukendiyse (satildi + stok bitti) bekleyen rezervasyonlari motor
+        // iptal etti - her alici KISISEL bildirilir (aksi halde 'siradayim'
+        // saniyor). Ayrica takipci "satildi" bildiriminden HARIC tutulur ki
+        // ayni kisi cift bildirim almasin.
+        for (const iptalAliciId of cikti.tukenmeIptalAliciIdleri) {
+          await bildirimGonderKullaniciya({
+            kullaniciId: iptalAliciId,
+            mesaj: `"${urun.baslik}" tükendi; bu ürün için bekleyen rezervasyonun iptal edildi.`,
+            hedefYolu: "/rezervasyonum",
+          });
+          haricListesi.push(iptalAliciId);
+        }
         const mesaj =
           cikti.sonuc === "satildi"
             ? `Takip ettiğiniz "${urun.baslik}" satıldı.`

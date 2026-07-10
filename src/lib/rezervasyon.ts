@@ -471,7 +471,18 @@ export type SonuclandirSonucu =
   // urunId: favori/bildirim tetiklemesi icin (cagiran API route hangi urunun
   // takipcilerine bildirim gonderecegini bilir - her zaman aktif-tier).
   // aliciId: "gelmedi" dalinda route'un gelmediYasagiKontrolEt cagrisi icin.
-  | { tur: "sonuclandi"; sonuc: "satildi" | "gelmedi"; yukselenKodu: string | null; urunTukendi: boolean; urunId: string; aliciId: string }
+  // tukenmeIptalAliciIdleri: "satildi" ile urun tukendiginde iptal edilen
+  // bekleyen alicilar - route her birine kisisel "rezervasyonun iptal edildi"
+  // bildirimi gonderir (bos dizi = tukenme olmadi).
+  | {
+      tur: "sonuclandi";
+      sonuc: "satildi" | "gelmedi";
+      yukselenKodu: string | null;
+      urunTukendi: boolean;
+      urunId: string;
+      aliciId: string;
+      tukenmeIptalAliciIdleri: string[];
+    }
   | { tur: "yetkisiz" }
   | { tur: "bulunamadi" }
   | { tur: "islenemez"; sebep: string };
@@ -528,6 +539,10 @@ export async function rezervasyonSonuclandir(params: {
 
       let yukselenKodu: string | null = null;
       let urunTukendi = false;
+      // Urun tukendiginde iptal edilen bekleyen alicilarin id'leri - route bunu
+      // kisisel "rezervasyonun iptal edildi" bildirimine cevirir (2026-07-10:
+      // bu alicilar aksi halde 'siradayim' saniyor, bosuna pazara gidebilirdi).
+      let tukenmeIptalAliciIdleri: string[] = [];
 
       if (params.sonuc === "gelmedi") {
         // Birim hala satilik: yedek yukselir, doldu -> sergide.
@@ -558,6 +573,7 @@ export async function rezervasyonSonuclandir(params: {
             where: { urunId: rez.urunId, durum: "bekliyor" },
             select: { id: true, aliciId: true },
           });
+          tukenmeIptalAliciIdleri = kalanlar.map((k) => k.aliciId);
           if (kalanlar.length) {
             await tx.rezervasyon.updateMany({
               where: { urunId: rez.urunId, durum: "bekliyor" },
@@ -586,7 +602,15 @@ export async function rezervasyonSonuclandir(params: {
         }
       }
 
-      return { tur: "sonuclandi", sonuc: params.sonuc, yukselenKodu, urunTukendi, urunId: rez.urunId, aliciId: rez.aliciId };
+      return {
+        tur: "sonuclandi",
+        sonuc: params.sonuc,
+        yukselenKodu,
+        urunTukendi,
+        urunId: rez.urunId,
+        aliciId: rez.aliciId,
+        tukenmeIptalAliciIdleri,
+      };
     },
     { maxWait: 5000, timeout: 15000 },
   );

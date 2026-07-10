@@ -107,6 +107,35 @@ export async function bildirimGonderYukselenKullaniciya(params: {
   return yukselen.aliciId;
 }
 
+// bildirimGonderYukselenKullaniciya'nin SIMETRIGI (2026-07-10): satici bir
+// "gelmedi"yi geri alinca kapasite tasip bir alici AKTIF hak sahipliginden
+// yedege duserse (bkz. rezervasyonGeriAl dusenYedekKodu), o alici sessizce
+// satin alma hakkini kaybetmesin diye kisisel bildirilir. Donen aliciId,
+// caller'in ayni kisiyi genel takipci bildiriminden HARIC tutmasi icin.
+export async function bildirimGonderDusenKullaniciya(params: {
+  dusenKodu: string;
+  urunId: string;
+  urunBaslik: string;
+}): Promise<string | null> {
+  const dusen = await prisma.rezervasyon.findUnique({
+    where: { rezervKodu: params.dusenKodu },
+    select: { aliciId: true },
+  });
+  if (!dusen) {
+    console.error(`bildirimGonderDusenKullaniciya: rezervKodu bulunamadı: ${params.dusenKodu}`);
+    return null;
+  }
+
+  await prisma.bildirim.create({
+    data: {
+      kullaniciId: dusen.aliciId,
+      urunId: params.urunId,
+      mesaj: `"${params.urunBaslik}" için sıran değişti; artık yedek sıradasın, ürünü alamayabilirsin.`,
+    },
+  });
+  return dusen.aliciId;
+}
+
 // bildirimGonderTakipcilere ile AYNI iskelet, farkli kaynak tablo (MagazaTakip
 // vs UrunFavori) - genel parametrik bir fonksiyon yerine kucuk, acik bir ikiz
 // (projenin sadelik ilkesiyle tutarli). Bildirim.urunId zorunlu oldugu icin

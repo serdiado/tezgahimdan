@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getSaticiSession } from "@/lib/yetki";
 import { prisma } from "@/lib/prisma";
 import { rezervasyonGeriAl } from "@/lib/rezervasyon";
-import { bildirimGonderKullaniciya, bildirimGonderTakipcilere } from "@/lib/bildirim";
+import {
+  bildirimGonderDusenKullaniciya,
+  bildirimGonderKullaniciya,
+  bildirimGonderTakipcilere,
+} from "@/lib/bildirim";
 
 const RED_MESAJI: Record<string, string> = {
   urun_satildi: "Ürün tükendiği için güvenle geri alınamaz. Kaydınız admin'e iletildi.",
@@ -31,10 +35,23 @@ export async function POST(request: Request) {
       // Her zaman aktif-tier (sadece satildi/gelmedi geri alinabilir) - kosulsuz bildirim.
       const urun = await prisma.urun.findUnique({ where: { id: cikti.urunId }, select: { baslik: true } });
       if (urun) {
+        // Geri alma kapasiteyi tasirdiysa bir alici AKTIF hak sahipliginden
+        // yedege dustu (dusenYedekKodu) - yukselmenin simetrigi olarak KISISEL
+        // bildirilir (aksi halde satin alma hakkini sessizce kaybederdi) ve
+        // takipci bildiriminden HARIC tutulur (cift bildirim onleme).
+        const haricListesi = [session.user.id];
+        if (cikti.dusenYedekKodu) {
+          const dusenAliciId = await bildirimGonderDusenKullaniciya({
+            dusenKodu: cikti.dusenYedekKodu,
+            urunId: cikti.urunId,
+            urunBaslik: urun.baslik,
+          });
+          if (dusenAliciId) haricListesi.push(dusenAliciId);
+        }
         await bildirimGonderTakipcilere({
           urunId: cikti.urunId,
           mesaj: `Takip ettiğiniz "${urun.baslik}" için bir işlem geri alındı.`,
-          haricKullaniciIdler: [session.user.id],
+          haricKullaniciIdler: haricListesi,
         });
       }
       // Geri alinan "gelmedi", alicinin aktif gelmedi yasagini da kaldirdiysa
