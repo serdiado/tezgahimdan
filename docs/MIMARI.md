@@ -98,6 +98,14 @@ tutacak şekilde genişletildi.
 
 ---
 
+## Bildirim sistemi
+
+İki tür: **işlem bildirimi** (otomatik, kısa, varlığa bağlı; `Bildirim` tablosu) ve **duyuru** (admin'in yazdığı uzun editoryal içerik; ayrı `Duyuru` tablosu, `Bildirim` sadece pointer). İkisi de `/bildirimlerim` + zil rozetinde görünür (tüm rollerde). Tıklama hedefi: `urunId → ürün`, `duyuruId → /duyuru/[id]`, yoksa `hedefYolu`, hiçbiri yoksa tıklanamaz (üçü karşılıklı dışlayıcı). Motor bildirim GÖNDERMEZ — hep route katmanında. Alıcı bildirimini soft-delete'le temizleyebilir. Duyuru modülü: admin CRUD + yayınla (idempotent fan-out) + `/duyuru/[id]` detay + görsel (pazar-gorsel deseni, `IZINLI_ALT_DIZINLER`'e "duyuru" eklendi). 2026-07-10 denetiminde 7 sessiz-durum boşluğu kapatıldı (ürün tükenince iptal, aktiften düşme, admin/pazar simetri); bazı "eksikler" ise bilinçli karar çıktı (tek gelmedi/satıldı bildirilmez, şikayet pull-yüzeyli). E-posta/SMS Faz 2.
+
+→ Detay: [`docs/mimari/bildirim-sistemi.md`](./mimari/bildirim-sistemi.md)
+
+---
+
 ## WhatsApp iletişim + Tezgah bilgisi/kroki + Mağaza değerlendirmesi
 
 Üç bağımsız özellik, aynı oturumda mağaza sayfası etrafında eklendi. **WhatsApp**:
