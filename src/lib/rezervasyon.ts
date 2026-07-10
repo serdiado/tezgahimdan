@@ -829,12 +829,19 @@ export type GelmediYasagiSonucu =
   | { uygulandi: false }
   | { uygulandi: true; bitis: Date; iptaller: YasakIptalKaydi[] };
 
-// Yasak baslarken alicinin eli TAMAMEN bosaltilir (kullanici karari
-// 2026-07-10: "once elindekini alsin sonra ceza baslasin" YOK - ceza aninda
-// bekleyen her sey iptal olur, alt siradaki/yedekteki yukselir). Istisna:
-// GECMIS haftanin isaretlenmemis kayitlarina DOKUNULMAZ - onlar satici-ihmali
-// mekanizmasinin konusu (2026-07-09 karari: hukmu satici verir, biz iptal
-// edersek "aslinda satilmisti" gercegi kaybolur). Her iptal kendi urununun
+// Yasak baslarken alicinin eli bosaltilir (kullanici karari 2026-07-10:
+// "once elindekini alsin sonra ceza baslasin" YOK - ceza aninda bekleyenler
+// iptal olur, alt siradaki/yedekteki yukselir). Istisna: BASLAMIS bir pazara
+// ait kayitlara DOKUNULMAZ (2026-07-10 motor incelemesi sonrasi kullanici
+// onayiyla daraltildi - eskiden sadece islem-sonu gecmis kayitlar muaftı):
+//  - O GUN devam eden pazarin rezervasyonu: alici urunu fiilen almis ama
+//    satici henuz "Sattim" dememis olabilir - iptal edersek satis kaydi
+//    sonsuza kadar kaybolur, yukselen yedek de tukenmis urune cagrilirdi.
+//    Aksam satici normal yoldan sonuclandirir.
+//  - GECMIS haftanin isaretlenmemis kaydi: satici-ihmali mekanizmasinin
+//    konusu (2026-07-09 karari: hukmu satici verir).
+// Yani sadece PAZARI HENUZ BASLAMAMIS (gelecek haftanin) rezervasyonlari
+// supurulur - yasagin ana hedefi de zaten bunlar. Her iptal kendi urununun
 // FOR UPDATE kilidi altinda, vazgec akisiyla ayni kuyruk kurallariyla yapilir.
 async function yasakSupurmesi(aliciId: string, now: Date): Promise<YasakIptalKaydi[]> {
   const iptaller: YasakIptalKaydi[] = [];
@@ -855,7 +862,7 @@ async function yasakSupurmesi(aliciId: string, now: Date): Promise<YasakIptalKay
       },
     });
     const hedefler = bekleyenler.filter(
-      (r) => now < pazarIslemSonAni(r.urun.magaza.pazar, r.pazarHaftasi),
+      (r) => now < pazarBaslangicAni(r.urun.magaza.pazar, r.pazarHaftasi),
     );
     if (hedefler.length === 0) break;
 

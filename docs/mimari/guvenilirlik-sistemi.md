@@ -106,11 +106,19 @@ Yasak başladığı anda alıcının `bekliyor` rezervasyonları iptal edilir:
   birebir aynı kuyruk kurallarıyla yapılır: aktif iptalse yedek#1 yükselir ve
   sıra numarasını devralır, yedek iptalse arkası kayar, `doldu → sergide`
   dönüşü unutulmaz. Audit: `rezervasyon_yasak_iptali:{tip}:{siraNo}`.
-- **İstisna — geçmiş haftanın işaretlenmemiş kayıtları:** `now <
-  pazarIslemSonAni` olmayan (pazarı çoktan bitmiş) kayıtlara DOKUNULMAZ.
-  Onlar satıcı-ihmali mekanizmasının konusu (2026-07-09: hükmü satıcı verir);
-  biz iptal edersek "aslında satılmıştı" gerçeği kaybolur ve satıcının panel
-  kilidi sahte biçimde açılırdı.
+- **İstisna — BAŞLAMIŞ pazara ait kayıtlar (2026-07-10 motor incelemesi
+  sonrası kullanıcı onayıyla daraltıldı):** süpürme yalnızca `now <
+  pazarBaslangicAni` olan (pazarı henüz başlamamış, yani gelecek haftanın)
+  rezervasyonlarını iptal eder. Başlamış pazara ait iki kategori DOKUNULMAZ:
+  - **O gün devam eden pazarın rezervasyonu:** alıcı ürünü fiilen almış ama
+    satıcı henüz "Sattım" dememiş olabilir — iptal edersek satış kaydı
+    kaybolur (iptal kayıt sonradan işaretlenemez) ve yükselen yedek tükenmiş
+    ürüne çağrılırdı. Akşam satıcı normal yoldan sonuçlandırır. Yasağın
+    kendisi yine ANINDA başlar — ertelenen ceza değil, sadece o günkü
+    kayıtların iptali yapılmaz.
+  - **Geçmiş haftanın işaretlenmemiş kaydı:** satıcı-ihmali mekanizmasının
+    konusu (2026-07-09: hükmü satıcı verir); iptal edersek "aslında
+    satılmıştı" gerçeği kaybolur ve satıcının panel kilidi sahte açılırdı.
 - **İki tur çalışır:** ilk tur sırasında yarış penceresinden sızan kayıt
   ikinci turda yakalanır; yasak commit'li olduğu için üçüncü tura gerek yok.
 - Ayrı ürün kilitleri sonuçlandırma transaction'ının DIŞINDA tek tek alınır —
