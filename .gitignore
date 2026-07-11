@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Claude Code yerel oturum/ayar dosyalari (paylasilan repoya girmez)
 /.claude
+
+# satis/pazarlama ozel calismalari (repoya girmez)
+/docs/satis
