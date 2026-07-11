@@ -48,7 +48,7 @@ export default async function UrunDuzenlePage({ params }: { params: Promise<{ id
   // MEVCUT kategorisi kaldirilmissa listede gorunmez - satici baska bir kategori
   // secmek zorunda kalir (kaldirilmis kategoriyle devam edilmesi tutarsiz olurdu).
   const [kategoriler, aktifSayisi, satildiSayisi] = await Promise.all([
-    prisma.kategori.findMany({ where: { silindiMi: false }, orderBy: { ad: "asc" } }),
+    prisma.kategori.findMany({ where: { silindiMi: false }, orderBy: [{ sira: "asc" }, { ad: "asc" }] }),
     prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "bekliyor", tip: "aktif" } }),
     prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "satildi" } }),
   ]);

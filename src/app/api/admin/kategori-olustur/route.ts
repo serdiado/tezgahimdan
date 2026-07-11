@@ -27,7 +27,11 @@ export async function POST(request: Request) {
   }
 
   const kategori = await prisma.$transaction(async (tx) => {
-    const yeni = await tx.kategori.create({ data: { ad } });
+    // Yeni kategori dizilimin SONUNA eklenir: mevcut en buyuk sira + 1. Bilincli
+    // siralama (Kategori.sira) korunur; yeni oge "Diger" gibi son ogeden de sonra
+    // gelir - manuel reorder UI'si Faz 2 (bkz. schema.prisma Kategori.sira notu).
+    const enBuyuk = await tx.kategori.aggregate({ _max: { sira: true } });
+    const yeni = await tx.kategori.create({ data: { ad, sira: (enBuyuk._max.sira ?? 0) + 1 } });
     await tx.durumGecmisi.create({
       data: {
         kullaniciId: session.user.id,

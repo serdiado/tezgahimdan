@@ -20,11 +20,12 @@ export function MagazaIcerik({
   // Chip satiri icin, bu magazadaki urunlerde gercekten var olan kategorileri
   // (id'ye gore tekillestirilmis) cikariyoruz - olmayan/bos kategori chip'i yok.
   const kategoriler = useMemo(() => {
-    const gorulen = new Map<string, { id: string; ad: string }>();
+    const gorulen = new Map<string, { id: string; ad: string; sira: number }>();
     for (const urun of urunler) {
       if (!gorulen.has(urun.kategori.id)) gorulen.set(urun.kategori.id, urun.kategori);
     }
-    return Array.from(gorulen.values());
+    // Bilincli kategori sirasina gore (bkz. Kategori.sira); esitlikte ad'a gore.
+    return Array.from(gorulen.values()).sort((a, b) => a.sira - b.sira || a.ad.localeCompare(b.ad, "tr"));
   }, [urunler]);
 
   const gorunenUrunler = secilenKategoriId

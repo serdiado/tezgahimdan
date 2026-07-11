@@ -34,7 +34,7 @@ export default async function AdminMagazaUrunEklePage({
 
     const kategoriler = await prisma.kategori.findMany({
       where: { silindiMi: false },
-      orderBy: { ad: "asc" },
+      orderBy: [{ sira: "asc" }, { ad: "asc" }],
     });
 
     icerik = (

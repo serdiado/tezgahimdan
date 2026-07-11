@@ -58,7 +58,7 @@ export default async function UrunEklePage({
       // urunlerde secilemez - AP-4'ten sonra ortaya cikan tutarlilik geregi.
       const kategoriler = await prisma.kategori.findMany({
         where: { silindiMi: false },
-        orderBy: { ad: "asc" },
+        orderBy: [{ sira: "asc" }, { ad: "asc" }],
       });
       icerik = (
         <>

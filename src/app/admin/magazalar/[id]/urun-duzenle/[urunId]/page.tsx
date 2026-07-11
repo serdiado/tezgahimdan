@@ -46,7 +46,7 @@ export default async function AdminUrunDuzenlePage({
     }
 
     const [kategoriler, aktifSayisi, satildiSayisi] = await Promise.all([
-      prisma.kategori.findMany({ where: { silindiMi: false }, orderBy: { ad: "asc" } }),
+      prisma.kategori.findMany({ where: { silindiMi: false }, orderBy: [{ sira: "asc" }, { ad: "asc" }] }),
       prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "bekliyor", tip: "aktif" } }),
       prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "satildi" } }),
     ]);

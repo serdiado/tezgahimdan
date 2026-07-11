@@ -174,6 +174,12 @@ model Kullanici {
 model Kategori {
   id        String   @id @default(uuid())
   ad        String
+  // Vitrin/panel/admin'de kategorilerin GORUNUM sirasi. Alfabetik DEGIL,
+  // bilincli sira (2026-07-11 karari): Mutfaktan=1 ... Diger=7. Kucuk sayi
+  // once gosterilir; esitlikte ad'a gore (tie-break). Yeni eklenen kategori
+  // sona gider (kategori-olustur route'u mevcut max+1 atar). Manuel yeniden
+  // siralama (reorder) UI'si Faz 2.
+  sira      Int      @default(0)
   // Kalici silme yok (PLAN.md "hicbir kayit kalici silinmez"): kullanimda
   // degilse (hicbir Urun.kategoriId bu id'yi isaret etmiyorsa) admin soft-delete
   // eder, "Geri Getir" ile geri doner. Kullanimdaysa kaldirma engellenir.

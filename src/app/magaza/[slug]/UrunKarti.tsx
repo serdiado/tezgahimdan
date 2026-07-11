@@ -42,7 +42,7 @@ export type UrunKartiVeri = {
   fiyat: number;
   durum: string;
   fotograflar: string[];
-  kategori: { id: string; ad: string };
+  kategori: { id: string; ad: string; sira: number };
   // Begeni sayisi HERKESE ACIK (girissiz ziyaretciye de gosterilir). Takip
   // (bildirim aboneligi) hem kartta hem UrunDetayModal'da gosterilir.
   begeniSayisi: number;

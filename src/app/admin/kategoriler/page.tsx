@@ -34,7 +34,7 @@ export default async function AdminKategorilerPage({
     const kategoriler = await prisma.kategori.findMany({
       where: { silindiMi: kaldirilanlarGosteriliyor },
       include: { _count: { select: { urunler: true } } },
-      orderBy: { ad: "asc" },
+      orderBy: [{ sira: "asc" }, { ad: "asc" }],
     });
 
     icerik = (

@@ -204,7 +204,7 @@ export default async function AnaSayfa({
       fiyat: Number(urun.fiyat),
       durum: urun.durum,
       fotograflar: urun.fotograflar,
-      kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
+      kategori: { id: urun.kategori.id, ad: urun.kategori.ad, sira: urun.kategori.sira },
       magaza: {
         ad: urun.magaza.ad,
         slug: urun.magaza.slug,

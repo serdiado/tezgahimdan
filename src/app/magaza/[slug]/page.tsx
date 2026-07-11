@@ -191,7 +191,7 @@ export default async function MagazaSayfasi({
             fiyat: Number(urun.fiyat),
             durum: urun.durum,
             fotograflar: urun.fotograflar,
-            kategori: { id: urun.kategori.id, ad: urun.kategori.ad },
+            kategori: { id: urun.kategori.id, ad: urun.kategori.ad, sira: urun.kategori.sira },
             begeniSayisi: begeniSayilari.get(urun.id) ?? 0,
             benimBegenimVar: benimFavorilerim.get(urun.id)?.begeniMi ?? false,
             benimTakibimVar: benimFavorilerim.get(urun.id)?.takipMi ?? false,
