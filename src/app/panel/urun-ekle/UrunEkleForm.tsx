@@ -24,9 +24,14 @@ type Basari = { baslik: string; fiyat: number; urunLink: string; kapakFotoUrl: s
 export function UrunEkleForm({
   kategoriler,
   magazaSlug,
+  ilkUrunMu = false,
 }: {
   kategoriler: { id: string; ad: string }[];
   magazaSlug: string;
+  // Tezgahin ILK urunu mu (2026-07-13)? Basari ekrani "Tezgahin yayinda!"
+  // kutlamasina donusur + tezgah sayfasi linki one cikar. Ayni oturumda
+  // ikinci urune gecilince (yeniUrun) sifirlanir - prop degil state uzerinden.
+  ilkUrunMu?: boolean;
 }) {
   const [fotolar, setFotolar] = useState<FotoOge[]>([]);
   const [fotoIsleniyor, setFotoIsleniyor] = useState(false);
@@ -38,6 +43,7 @@ export function UrunEkleForm({
   const [hata, setHata] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
   const [basari, setBasari] = useState<Basari | null>(null);
+  const [ilkUrun, setIlkUrun] = useState(ilkUrunMu);
   const [formAnahtar, setFormAnahtar] = useState(0); // FotografSecici'yi sifirlamak icin
 
   // Taslagi mount'ta oku - SSR/hydration uyumsuzlugu olmasin diye render'da degil
@@ -110,6 +116,7 @@ export function UrunEkleForm({
 
   function yeniUrun() {
     setBasari(null);
+    setIlkUrun(false);
     setBaslik("");
     setAciklama("");
     setFiyat("");
@@ -125,8 +132,16 @@ export function UrunEkleForm({
       <div className="rounded-2xl bg-white p-5 shadow-sm">
         <div className="flex items-center gap-2 text-green-700">
           <CheckCircle2 className="h-6 w-6" strokeWidth={2} />
-          <h2 className="text-lg font-bold">Ürün eklendi!</h2>
+          <h2 className="text-lg font-bold">{ilkUrun ? "Tezgahın yayında!" : "Ürün eklendi!"}</h2>
         </div>
+        {ilkUrun && (
+          <p className="mt-2 text-sm text-neutral-600">
+            İlk ürününü ekledin — tezgahın artık vitrinde, alıcılar rezervasyon yapabilir.{" "}
+            <Link href={`/magaza/${magazaSlug}`} className="font-semibold text-primary-600 hover:underline">
+              Tezgahını gör →
+            </Link>
+          </p>
+        )}
         <div className="mt-3 flex items-center gap-3">
           {basari.kapakFotoUrl && (
             <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
@@ -226,6 +241,7 @@ export function UrunEkleForm({
             value={aciklama}
             onChange={(e) => setAciklama(e.target.value)}
             rows={3}
+            placeholder="ör. Şekeri az, ev kaynatması. 500 gramlık cam kavanozda."
             className={inputClass}
           />
         </label>

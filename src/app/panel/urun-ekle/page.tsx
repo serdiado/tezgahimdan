@@ -56,10 +56,16 @@ export default async function UrunEklePage({
     } else {
       // Kaldirilmis (admin tarafindan silindiMi=true yapilmis) kategoriler yeni
       // urunlerde secilemez - AP-4'ten sonra ortaya cikan tutarlilik geregi.
-      const kategoriler = await prisma.kategori.findMany({
-        where: { silindiMi: false },
-        orderBy: [{ sira: "asc" }, { ad: "asc" }],
-      });
+      // Ilk-urun kutlamasi (2026-07-13): tezgahin HIC urunu yoksa basari
+      // ekrani "Tezgahin yayinda!" der ve tezgah sayfasina goturur - satici
+      // emeginin karsiligini aninda gorsun (onboarding motivasyonu).
+      const [kategoriler, urunSayisi] = await Promise.all([
+        prisma.kategori.findMany({
+          where: { silindiMi: false },
+          orderBy: [{ sira: "asc" }, { ad: "asc" }],
+        }),
+        prisma.urun.count({ where: { magazaId: magaza.id, silindiMi: false } }),
+      ]);
       icerik = (
         <>
           <h1 className="text-xl font-bold text-neutral-900">Ürün Ekle — {magaza.ad}</h1>
@@ -67,6 +73,7 @@ export default async function UrunEklePage({
             <UrunEkleForm
               kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))}
               magazaSlug={magaza.slug}
+              ilkUrunMu={urunSayisi === 0}
             />
           </div>
         </>
