@@ -1,13 +1,15 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { hesapSilmeTalebiBekliyorMu } from "@/lib/hesap-silme";
+import { HesapSilmeTalebiButonu } from "@/components/HesapSilmeTalebiButonu";
 import { AyarlarForm } from "./AyarlarForm";
 import { SifreDegistirForm } from "./SifreDegistirForm";
 
 // v1 kapsami: ad/telefon/sifre degistirme (migration/email altyapisi
-// gerektirmez). "Sifremi unuttum" ve "hesabimi sil" bilincli olarak Faz 2'ye
-// birakildi (bkz. docs/mimari - email gonderme altyapisi yok, Kullanici'de
-// silindiMi alani yok).
+// gerektirmez). "Sifremi unuttum" hala Faz 2 (email altyapisi yok). "Hesabimi
+// sil" 2026-07-13'te admin-basvurulu TALEP olarak eklendi (bkz. lib/hesap-silme.ts)
+// - self-servis silme degil, gercek silme email/migration ihtiyacini korur.
 export default async function AyarlarSayfasi({
   searchParams,
 }: {
@@ -19,10 +21,13 @@ export default async function AyarlarSayfasi({
     redirect("/giris?next=/ayarlar");
   }
 
-  const kullanici = await prisma.kullanici.findUnique({
-    where: { id: session.user.id },
-    select: { ad: true, telefon: true, email: true, sifreHash: true },
-  });
+  const [kullanici, talepBekliyorMu] = await Promise.all([
+    prisma.kullanici.findUnique({
+      where: { id: session.user.id },
+      select: { ad: true, telefon: true, email: true, sifreHash: true },
+    }),
+    hesapSilmeTalebiBekliyorMu(session.user.id),
+  ]);
   if (!kullanici) {
     redirect("/giris?next=/ayarlar");
   }
@@ -46,6 +51,17 @@ export default async function AyarlarSayfasi({
             Bu hesap Google ile açılmış, şifre değiştirilemez.
           </p>
         )}
+      </div>
+
+      <div className="mt-8 border-t border-neutral-200 pt-6">
+        <h2 className="font-semibold text-neutral-900">Hesabımı Sil</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Hesabını ve kişisel verilerini kalıcı olarak kaldırmak istersen, talebini
+          yöneticimize iletebilirsin.
+        </p>
+        <div className="mt-3">
+          <HesapSilmeTalebiButonu talepBekliyorMu={talepBekliyorMu} />
+        </div>
       </div>
     </>
   );

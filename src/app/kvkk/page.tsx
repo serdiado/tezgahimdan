@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { siteIcerikHaritasiGetir } from "@/lib/site-icerik";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -39,17 +40,26 @@ export default async function KvkkSayfasi() {
         )}
 
         {/* Hesap silme hakki: CMS metninden BAGIMSIZ, her zaman gorunur -
-            islevsel bir hak, hukuki metnin hazir olmasini beklemez
-            (2026-07-13 karari: self-servis degil, admin-basvurulu). */}
+            islevsel bir hak, hukuki metnin hazir olmasini beklemez. 2026-07-13
+            karari: self-servis silme degil, uygulama-ici TALEP (Ayarlar/Tezgah
+            Ayarlari'ndaki "Hesabımı Sil" butonu -> admin'e bildirim -> admin
+            isleme alir, bkz. lib/hesap-silme.ts). Onceki surumde bu metin
+            "SSS sayfasindaki iletisim kanali"na atif yapiyordu - o kanal hic
+            var olmadigi icin (SSS CMS icerigi bos) gercek, tiklanan bir yola
+            degistirildi. */}
         <h2 className="mt-8 text-lg font-bold text-neutral-900">Hesabımı Sildirmek İstiyorum</h2>
         <p className="mt-2 text-neutral-700">
-          Hesabını ve kişisel verilerini sildirmek istersen bize başvurman yeterli: kayıtlı
-          olduğun pazardaki görevliye iletebilir ya da Sıkça Sorulan Sorular sayfasındaki
-          iletişim kanalından bize yazabilirsin. Başvurun üzerine hesabın yönetici tarafından
-          kapatılır; adın, telefon numaran ve e-posta adresin sistemden{" "}
-          <span className="font-semibold">anonimleştirilerek</span> kaldırılır ve hesabınla
-          bir daha giriş yapılamaz. Geçmiş rezervasyon ve değerlendirme kayıtları, platform
-          bütünlüğü için kişisel bilgi içermeden (anonim olarak) saklanır.
+          Hesabını ve kişisel verilerini sildirmek istersen, giriş yaptıktan sonra{" "}
+          <span className="font-semibold">Ayarlar</span> sayfandaki (bir tezgahın varsa{" "}
+          <span className="font-semibold">Tezgah Ayarları</span> sayfandaki) &quot;Hesabımı Sil&quot;
+          butonuyla talebini yöneticimize iletebilirsin —{" "}
+          <Link href="/ayarlar" className="font-semibold text-primary-600 hover:underline">
+            buradan ulaşabilirsin
+          </Link>
+          . Talebin üzerine hesabın yönetici tarafından kapatılır; adın, telefon numaran ve
+          e-posta adresin sistemden <span className="font-semibold">anonimleştirilerek</span>{" "}
+          kaldırılır ve hesabınla bir daha giriş yapılamaz. Geçmiş rezervasyon ve değerlendirme
+          kayıtları, platform bütünlüğü için kişisel bilgi içermeden (anonim olarak) saklanır.
         </p>
       </main>
       <SiteFooter />

@@ -8,6 +8,7 @@ import { KullaniciYasaklaButonu } from "./KullaniciYasaklaButonu";
 import { KullaniciRolButonu } from "./KullaniciRolButonu";
 import { KullaniciSilButonu } from "./KullaniciSilButonu";
 import { GuvenilirlikSifirlaButonu } from "../../guvenilirlik/GuvenilirlikSifirlaButonu";
+import { hesapSilmeTalebiBekliyorMu } from "@/lib/hesap-silme";
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", year: "numeric" });
 
@@ -66,6 +67,10 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
     });
     const yasakAktif =
       kullanici.rezervasyonYasagiBitisi != null && kullanici.rezervasyonYasagiBitisi > new Date();
+    // Kullanicinin kendi Ayarlar/Tezgah Ayarlari sayfasindan gonderdigi hesap
+    // silme TALEBI (2026-07-13) - bildirim uzerinden gelmeyip listeden
+    // tikladiginda da admin bu talebi gorsun diye burada da sorgulanir.
+    const silmeTalebiVar = !kullanici.silindiMi && (await hesapSilmeTalebiBekliyorMu(kullanici.id));
 
     icerik = (
       <>
@@ -79,11 +84,24 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
               Hesap Silindi
             </span>
           )}
+          {silmeTalebiVar && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+              Silme Talebi Var
+            </span>
+          )}
         </div>
         <AdminNav aktif="kullanicilar" />
         <Link href="/admin/kullanicilar" className="mt-3 inline-block text-sm text-primary-600 hover:underline">
           ← Kullanıcılara dön
         </Link>
+
+        {silmeTalebiVar && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            Bu kullanıcı hesabını silmek için talepte bulundu. Aşağıdaki{" "}
+            <span className="font-semibold">Hesabı Sil</span> butonuyla işleme alabilirsin
+            (aktif tezgahı varsa önce o kaldırılmalı).
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-2">
           <KullaniciYasaklaButonu kullaniciId={kullanici.id} yasakliMi={kullanici.yasakliMi} />

@@ -138,6 +138,28 @@ export async function bildirimGonderDusenKullaniciya(params: {
   return dusen.aliciId;
 }
 
+// Tum admin'lere genel bildirim (2026-07-13): hesap silme TALEBI gibi, hedefi
+// belirli bir admin degil "kim gorurse gorsun" olan olaylar icin.
+// bildirimGonderPazarSaticilarina ile AYNI iskelet, farkli kitle secimi.
+export async function bildirimGonderAdminlere(params: {
+  mesaj: string;
+  hedefYolu?: string;
+}): Promise<void> {
+  const adminler = await prisma.kullanici.findMany({
+    where: { rol: "admin", silindiMi: false },
+    select: { id: true },
+  });
+  if (adminler.length === 0) return;
+
+  await prisma.bildirim.createMany({
+    data: adminler.map((a) => ({
+      kullaniciId: a.id,
+      mesaj: params.mesaj,
+      hedefYolu: params.hedefYolu,
+    })),
+  });
+}
+
 // bildirimGonderTakipcilere ile AYNI iskelet, farkli kaynak tablo (MagazaTakip
 // vs UrunFavori) - genel parametrik bir fonksiyon yerine kucuk, acik bir ikiz
 // (projenin sadelik ilkesiyle tutarli). Bildirim.urunId zorunlu oldugu icin

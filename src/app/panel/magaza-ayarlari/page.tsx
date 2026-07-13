@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
+import { hesapSilmeTalebiBekliyorMu } from "@/lib/hesap-silme";
 import { SiteHeader } from "@/components/SiteHeader";
+import { HesapSilmeTalebiButonu } from "@/components/HesapSilmeTalebiButonu";
 import { MagazaAyarlariForm } from "./MagazaAyarlariForm";
 import { TezgahDuraklatKarti } from "./TezgahDuraklatKarti";
 
@@ -41,6 +43,11 @@ export default async function MagazaAyarlariPage({
         </>
       );
     } else {
+      // Kurulum modunda gosterilmeyecegi icin (asagida) sadece o durumda
+      // gerekmiyor - ama sorguyu erken baslatmak render'i geciktirmez
+      // (Promise, kullanilmasa da await edilmemis kalirsa gereksiz; bu yuzden
+      // kosullu await asagida, JSX icinde degil).
+      const talepBekliyorMu = kurulumModu ? false : await hesapSilmeTalebiBekliyorMu(session.user.id);
       icerik = (
         <>
           {kurulumModu && (
@@ -76,6 +83,22 @@ export default async function MagazaAyarlariPage({
           {!kurulumModu && (
             <div className="mt-8 border-t border-neutral-200 pt-6">
               <TezgahDuraklatKarti duraklatildiMi={magaza.duraklatildiMi} />
+            </div>
+          )}
+
+          {/* Kisisel hesap islemi - tezgah degil, bu yuzden ayrica etiketli
+              ve kurulum modunda gosterilmez (yeni tezgah sahibine hesap silme
+              secenegi sunmak yaniltici olur). */}
+          {!kurulumModu && (
+            <div className="mt-8 border-t border-neutral-200 pt-6">
+              <h2 className="font-semibold text-neutral-900">Hesabımı Sil</h2>
+              <p className="mt-1 text-sm text-neutral-500">
+                Bu, tezgahını değil kişisel hesabını ilgilendirir. Hesabını kalıcı olarak
+                kaldırmak istersen talebini yöneticimize iletebilirsin.
+              </p>
+              <div className="mt-3">
+                <HesapSilmeTalebiButonu talepBekliyorMu={talepBekliyorMu} />
+              </div>
             </div>
           )}
         </>
