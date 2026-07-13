@@ -8,8 +8,10 @@ import { slugTuret } from "@/lib/slug";
 export type MagazaAcPazarVeri = { id: string; ad: string; il: string; ilce: string };
 
 // Kisa sihirbaz (2 adim): (1) mağaza adı + otomatik bağlantı + pazar secimi,
-// (2) WhatsApp (opsiyonel). Tek aktif pazar varsa secim gereksiz oldugundan
-// bilgi olarak gosterilir; birden fazlaysa gercek bir secim listesi cikar (AP-SP4).
+// (2) WhatsApp (ZORUNLU - 2026-07-11 karari: hedef kitlenin tamaminda var,
+// platformun ana iletisim vaadi bu; tezgah WhatsApp'siz acilmaz). Tek aktif
+// pazar varsa secim gereksiz oldugundan bilgi olarak gosterilir; birden
+// fazlaysa gercek bir secim listesi cikar (AP-SP4).
 export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
   const router = useRouter();
   const [adim, setAdim] = useState<1 | 2>(1);
@@ -38,6 +40,10 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
 
   async function magazayiAc() {
     setHata(null);
+    if (!whatsapp.trim()) {
+      setHata("WhatsApp numarası zorunlu — alıcılar sana buradan ulaşacak");
+      return;
+    }
     setGonderiliyor(true);
     const res = await fetch("/api/panel/magaza-ac", {
       method: "POST",
@@ -45,20 +51,26 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
       body: JSON.stringify({
         ad: ad.trim(),
         slug,
-        whatsappNo: whatsapp.trim() || undefined,
+        whatsappNo: whatsapp.trim(),
         pazarId,
       }),
     });
     setGonderiliyor(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setHata(data.hata ?? "tezgah açılamadı");
-      // Slug/ad kaynakli hataysa 1. adima don ki duzeltebilsin.
-      if (res.status === 409 || res.status === 400) setAdim(1);
+      const mesaj = typeof data.hata === "string" ? data.hata : "tezgah açılamadı";
+      setHata(mesaj);
+      // Slug/ad kaynakli hataysa 1. adima don ki duzeltebilsin - ama WhatsApp
+      // hatasi 2. adimin alanidir, adim degistirme (kullanici alani gormeli).
+      if ((res.status === 409 || res.status === 400) && !mesaj.toLowerCase().includes("whatsapp")) {
+        setAdim(1);
+      }
       return;
     }
-    // Rol artik satici (DB'den okunuyor) - ilk urun ekleme ekranina gecelim.
-    router.push("/panel/urun-ekle");
+    // Rol artik satici (DB'den okunuyor). 2026-07-11 akis karari: once Tezgah
+    // Ayarlari'na (kurulum modu) - tanitim/tezgah yeri istege bagli doldurulur,
+    // oradan "ilk urununu ekle"ye gecilir. Dogrudan urun-ekle'ye ATLANMAZ.
+    router.push("/panel/magaza-ayarlari?kurulum=1");
     router.refresh();
   }
 
@@ -162,18 +174,18 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-neutral-700">
-              WhatsApp No <span className="font-normal text-neutral-400">(opsiyonel)</span>
+              WhatsApp No
               <input
                 type="text"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 placeholder="05XX XXX XX XX"
+                required
                 className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
               />
             </label>
             <p className="mt-1 text-xs text-neutral-400">
-              Alıcılar sana buradan ulaşır. Şimdi atlayabilir, sonra Tezgah Ayarları&apos;ndan
-              ekleyebilirsin.
+              Alıcılar sana buradan ulaşır — tezgahın için zorunludur.
             </p>
           </div>
 

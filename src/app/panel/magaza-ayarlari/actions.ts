@@ -32,25 +32,28 @@ export async function magazaGuncelle(formData: FormData) {
   const whatsappHam = typeof whatsappRaw === "string" ? whatsappRaw.trim() : "";
   const tezgahBilgisiRaw = formData.get("tezgahBilgisi");
   const tezgahBilgisiHam = typeof tezgahBilgisiRaw === "string" ? tezgahBilgisiRaw.trim() : "";
+  // Kurulum modu (tezgah acilisindan hemen sonra): hata donuslerinde mod
+  // kaybolmasin, basarili kayitta ise ilk-urun-ekleme adimina gecilsin.
+  const kurulumModu = formData.get("kurulum") === "1";
+  const hataUrl = (mesaj: string) =>
+    `/panel/magaza-ayarlari?${kurulumModu ? "kurulum=1&" : ""}hata=${encodeURIComponent(mesaj)}`;
 
   if (!ad) {
-    redirect(`/panel/magaza-ayarlari?hata=${encodeURIComponent("magaza adi zorunlu")}`);
+    redirect(hataUrl("tezgah adı zorunlu"));
   }
 
-  let whatsappNo: string | null = null;
-  if (whatsappHam) {
-    whatsappNo = telefonNormallestir(whatsappHam);
-    if (!whatsappNo) {
-      redirect(
-        `/panel/magaza-ayarlari?hata=${encodeURIComponent("gecersiz whatsapp numarasi (or. 05XX XXX XX XX bicimini deneyin)")}`,
-      );
-    }
+  // WhatsApp ZORUNLU (2026-07-11 karari, magaza-ac ile ayni kural): platformun
+  // ana iletisim vaadi bu - tezgah WhatsApp'siz kalamaz.
+  if (!whatsappHam) {
+    redirect(hataUrl("WhatsApp numarası zorunlu — alıcılar sana buradan ulaşacak"));
+  }
+  const whatsappNo = telefonNormallestir(whatsappHam);
+  if (!whatsappNo) {
+    redirect(hataUrl("geçersiz WhatsApp numarası (ör. 05XX XXX XX XX biçimini deneyin)"));
   }
 
   if (tezgahBilgisiHam.length > TEZGAH_BILGISI_MAX) {
-    redirect(
-      `/panel/magaza-ayarlari?hata=${encodeURIComponent(`tezgah bilgisi en fazla ${TEZGAH_BILGISI_MAX} karakter olabilir`)}`,
-    );
+    redirect(hataUrl(`tezgah bilgisi en fazla ${TEZGAH_BILGISI_MAX} karakter olabilir`));
   }
   const tezgahBilgisi = tezgahBilgisiHam || null;
 
@@ -67,9 +70,7 @@ export async function magazaGuncelle(formData: FormData) {
       continue;
     }
     if (!gecerliUrlMi(deger)) {
-      redirect(
-        `/panel/magaza-ayarlari?hata=${encodeURIComponent(`${platform.etiket} bağlantısı geçerli bir link (http/https) olmalı`)}`,
-      );
+      redirect(hataUrl(`${platform.etiket} bağlantısı geçerli bir link (http/https) olmalı`));
     }
     sosyalMedyaVerisi[platform.anahtar] = deger;
   }
@@ -79,5 +80,7 @@ export async function magazaGuncelle(formData: FormData) {
     data: { ad, aciklama, whatsappNo, tezgahBilgisi, ...sosyalMedyaVerisi },
   });
 
-  redirect("/panel/magaza-ayarlari?basarili=1");
+  // Kurulumda kayit = tanitim tamam -> sirada ilk urun. Normal kullanimda
+  // ayni sayfada kalinir.
+  redirect(kurulumModu ? "/panel/urun-ekle" : "/panel/magaza-ayarlari?basarili=1");
 }

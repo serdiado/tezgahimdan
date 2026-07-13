@@ -26,15 +26,20 @@ export async function POST(request: Request) {
   // Slug bos gelirse ad'dan turet (deneyimsiz satici slug yazmasin).
   const slug = slugHam || slugTuret(ad);
 
-  let whatsappNo: string | null = null;
-  if (whatsappHam) {
-    whatsappNo = telefonNormallestir(whatsappHam);
-    if (!whatsappNo) {
-      return NextResponse.json(
-        { hata: "geçersiz WhatsApp numarası (ör. 05XX XXX XX XX biçimini deneyin)" },
-        { status: 400 },
-      );
-    }
+  // WhatsApp ZORUNLU (2026-07-11 karari): platformun ana iletisim vaadi bu,
+  // hedef kitlenin tamaminda var - tezgah WhatsApp'siz acilmaz.
+  if (!whatsappHam) {
+    return NextResponse.json(
+      { hata: "WhatsApp numarası zorunlu — alıcılar sana buradan ulaşacak" },
+      { status: 400 },
+    );
+  }
+  const whatsappNo = telefonNormallestir(whatsappHam);
+  if (!whatsappNo) {
+    return NextResponse.json(
+      { hata: "geçersiz WhatsApp numarası (ör. 05XX XXX XX XX biçimini deneyin)" },
+      { status: 400 },
+    );
   }
 
   const sonuc = await magazaAc({ userId: session.user.id, ad, slug, whatsappNo, pazarId });

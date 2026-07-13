@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, X } from "lucide-react";
 import { KrokiFotografSecici } from "@/components/KrokiFotografSecici";
 import { useDegisiklikUyarisi } from "@/lib/degisiklik-uyarisi";
 import { TEZGAH_BILGISI_MAX } from "@/lib/magaza-sabitleri";
@@ -16,9 +17,14 @@ import { magazaGuncelle } from "./actions";
 // (dirty sifirlamak icin ayrica bir seye gerek yok). Kroki fotografi bu
 // dirty takibinin DISINDA - kendi upload'ini kendi anında yapar, Kaydet'i
 // beklemez (bkz. KrokiFotografSecici.tsx).
+// kurulumModu (2026-07-11): tezgah acilista sihirbazdan buraya gelinir. Kaydet
+// "Kaydet ve Devam Et" olur (kayit sonrasi urun-ekle'ye gider), hicbir sey
+// doldurmayanlar icin "Simdilik gec" linki vardir. Alanlar opsiyonel kalir.
 export function MagazaAyarlariForm({
   magaza,
+  kurulumModu = false,
 }: {
+  kurulumModu?: boolean;
   magaza: {
     ad: string;
     slug: string;
@@ -92,15 +98,19 @@ export function MagazaAyarlariForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-neutral-700">
-            WhatsApp No (opsiyonel)
+            WhatsApp No
             <input
               name="whatsappNo"
               type="text"
+              required
               placeholder="05XX XXX XX XX"
               defaultValue={magaza.whatsappNo ?? ""}
               className="mt-1 block w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
             />
           </label>
+          <p className="mt-1 text-xs text-neutral-400">
+            Alıcılar sana buradan ulaşır — tezgahın için zorunludur.
+          </p>
         </div>
         <div>
           <label className="block text-sm font-medium text-neutral-700">
@@ -167,15 +177,28 @@ export function MagazaAyarlariForm({
         <KrokiFotografSecici baslangicUrl={magaza.krokiFotoUrl} />
       </div>
 
+      {kurulumModu && <input type="hidden" name="kurulum" value="1" />}
+
       <button
         type="submit"
         disabled={!dirty}
         className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Kaydet
+        {kurulumModu ? "Kaydet ve Devam Et" : "Kaydet"}
       </button>
       {dirty && (
         <p className="text-xs text-neutral-500">Kaydedilmemiş değişiklikleriniz var.</p>
+      )}
+      {kurulumModu && !dirty && (
+        <p className="text-sm">
+          <Link
+            href="/panel/urun-ekle"
+            className="inline-flex items-center gap-1 font-medium text-primary-600 hover:underline"
+          >
+            Şimdilik geç — ilk ürününü ekle
+            <ArrowRight className="h-4 w-4" strokeWidth={2} />
+          </Link>
+        </p>
       )}
     </form>
   );
