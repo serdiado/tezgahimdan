@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSaticiSession } from "@/lib/yetki";
 import { magazaAc } from "@/lib/magaza";
+import { telefonNormallestir } from "@/lib/telefon";
 
 export type MagazaOlusturPazarVeri = { id: string; ad: string; il: string; ilce: string };
 
@@ -25,12 +26,28 @@ async function magazaOlustur(formData: FormData) {
       : "";
   const pazarId =
     typeof formData.get("pazarId") === "string" ? (formData.get("pazarId") as string).trim() : "";
+  const whatsappHam =
+    typeof formData.get("whatsappNo") === "string"
+      ? (formData.get("whatsappNo") as string).trim()
+      : "";
 
   if (!ad || !slug || !pazarId) {
     redirect(`/panel/urun-ekle?hata=${encodeURIComponent("ad, slug ve pazar zorunlu")}`);
   }
 
-  const sonuc = await magazaAc({ userId: session.user.id, ad, slug, pazarId });
+  // WhatsApp ZORUNLU (2026-07-11 karari) - ana sihirbaz (magaza-ac) ile ayni
+  // kural; bu ikincil yeniden-olusturma yolu kuralin disina sizmamali.
+  if (!whatsappHam) {
+    redirect(`/panel/urun-ekle?hata=${encodeURIComponent("WhatsApp numarası zorunlu")}`);
+  }
+  const whatsappNo = telefonNormallestir(whatsappHam);
+  if (!whatsappNo) {
+    redirect(
+      `/panel/urun-ekle?hata=${encodeURIComponent("geçersiz WhatsApp numarası (ör. 05XX XXX XX XX)")}`,
+    );
+  }
+
+  const sonuc = await magazaAc({ userId: session.user.id, ad, slug, whatsappNo, pazarId });
   // redirect() throw eder (never doner) - her dal akisi burada bitirir.
   switch (sonuc.tur) {
     case "acildi":
@@ -52,7 +69,15 @@ async function magazaOlustur(formData: FormData) {
   }
 }
 
-export function MagazaOlusturForm({ pazarlar }: { pazarlar: MagazaOlusturPazarVeri[] }) {
+export function MagazaOlusturForm({
+  pazarlar,
+  profilTelefonu = null,
+}: {
+  pazarlar: MagazaOlusturPazarVeri[];
+  // Ana sihirbazla (MagazaAcForm) ayni on-dolum davranisi: profil telefonu
+  // varsa WhatsApp alanina getirilir, degistirilebilir.
+  profilTelefonu?: string | null;
+}) {
   return (
     <form action={magazaOlustur}>
       <div>
@@ -65,6 +90,18 @@ export function MagazaOlusturForm({ pazarlar }: { pazarlar: MagazaOlusturPazarVe
         <label>
           Slug (link için, örn: ayse-nin-tezgahi)
           <input name="slug" type="text" required pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+        </label>
+      </div>
+      <div>
+        <label>
+          WhatsApp No
+          <input
+            name="whatsappNo"
+            type="text"
+            required
+            placeholder="05XX XXX XX XX"
+            defaultValue={profilTelefonu ?? ""}
+          />
         </label>
       </div>
       {pazarlar.length <= 1 ? (

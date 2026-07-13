@@ -31,10 +31,17 @@ export default async function UrunEklePage({
     if (!magaza) {
       // Admin panelinden eklenen tum aktif pazarlar - magaza-ac/page.tsx ile
       // ayni desen, gercek pazar secimi icin (varsayilan-pazar fallback'i yok).
-      const pazarlar = await prisma.pazar.findMany({
-        where: { aktifMi: true },
-        orderBy: { createdAt: "asc" },
-      });
+      // Profil telefonu WhatsApp alanina on-dolum (ana sihirbazla ayni davranis).
+      const [pazarlar, kullanici] = await Promise.all([
+        prisma.pazar.findMany({
+          where: { aktifMi: true },
+          orderBy: { createdAt: "asc" },
+        }),
+        prisma.kullanici.findUnique({
+          where: { id: session.user.id },
+          select: { telefon: true },
+        }),
+      ]);
       icerik = (
         <>
           <h1 className="text-xl font-bold text-neutral-900">Önce Tezgahını Oluştur</h1>
@@ -48,6 +55,7 @@ export default async function UrunEklePage({
             ) : (
               <MagazaOlusturForm
                 pazarlar={pazarlar.map((p) => ({ id: p.id, ad: p.ad, il: p.il, ilce: p.ilce }))}
+                profilTelefonu={kullanici?.telefon ?? null}
               />
             )}
           </div>

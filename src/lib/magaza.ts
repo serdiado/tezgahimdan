@@ -68,8 +68,9 @@ export async function magazaAc(params: {
   const pazar = await prisma.pazar.findFirst({ where: { id: params.pazarId, aktifMi: true } });
   if (!pazar) return { tur: "gecersiz-pazar" };
 
+  let sonuc: MagazaAcSonucu;
   try {
-    return await prisma.$transaction(async (tx): Promise<MagazaAcSonucu> => {
+    sonuc = await prisma.$transaction(async (tx): Promise<MagazaAcSonucu> => {
       const magaza = await tx.magaza.create({
         data: {
           sahipId: params.userId,
@@ -110,5 +111,36 @@ export async function magazaAc(params: {
       return { tur: "zaten-magaza-var" };
     }
     throw err;
+  }
+
+  // Profil telefonu senkronu (2026-07-13 kullanici istegi): tezgah acarken
+  // girilen WhatsApp, kullanicinin PROFIL telefonu BOSSA oraya da yazilir
+  // (satici ilk rezervasyonunda bir daha telefon girmek zorunda kalmasin).
+  // BILINCLI sinirlar: (1) dolu profil telefonu ASLA ezilmez - o alan alici
+  // KIMLIGI (unique), tezgah WhatsApp'i ise ayri bir hat olabilir; (2) numara
+  // baska bir hesapta kayitliysa sessizce atlanir; (3) best-effort - hata
+  // tezgah acilisini ASLA geri almaz/etkilemez (tx DISINDA kosulmasinin nedeni).
+  if (sonuc.tur === "acildi" && params.whatsappNo) {
+    await profilTelefonunuBossaDoldur(params.userId, params.whatsappNo);
+  }
+  return sonuc;
+}
+
+async function profilTelefonunuBossaDoldur(userId: string, telefon: string): Promise<void> {
+  try {
+    const baskasindaKayitli = await prisma.kullanici.findFirst({
+      where: { telefon, NOT: { id: userId } },
+      select: { id: true },
+    });
+    if (baskasindaKayitli) return;
+    // where telefon:null -> dolu profili DB seviyesinde de asla ezmez. Pre-check
+    // ile update arasindaki mikro yarista P2002 gelebilir - catch yutar (senkron
+    // ikincil is, tezgah acilisi coktan basarili).
+    await prisma.kullanici.updateMany({
+      where: { id: userId, telefon: null },
+      data: { telefon },
+    });
+  } catch (err) {
+    console.error("profilTelefonunuBossaDoldur: senkron atlandı", err);
   }
 }

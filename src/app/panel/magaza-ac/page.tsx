@@ -20,11 +20,19 @@ export default async function MagazaAcPage() {
 
   // Admin panelinden eklenen tum aktif pazarlar - Ana Sayfa'daki ayni sorgu
   // (src/app/page.tsx) ile ayni desen, artik statik varsayilan-pazar.json'a
-  // degil gercek Pazar tablosuna bakiyoruz.
-  const pazarlar = await prisma.pazar.findMany({
-    where: { aktifMi: true },
-    orderBy: { createdAt: "asc" },
-  });
+  // degil gercek Pazar tablosuna bakiyoruz. Kullanicinin profil telefonu varsa
+  // sihirbazin WhatsApp alanina on-dolum olarak gecilir (2026-07-13 istegi:
+  // "profilde telefon varsa tezgahta da gorunsun") - degistirilebilir.
+  const [pazarlar, kullanici] = await Promise.all([
+    prisma.pazar.findMany({
+      where: { aktifMi: true },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.kullanici.findUnique({
+      where: { id: session.user.id },
+      select: { telefon: true },
+    }),
+  ]);
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -42,6 +50,7 @@ export default async function MagazaAcPage() {
         ) : (
           <MagazaAcForm
             pazarlar={pazarlar.map((pazar) => ({ id: pazar.id, ad: pazar.ad, il: pazar.il, ilce: pazar.ilce }))}
+            profilTelefonu={kullanici?.telefon ?? null}
           />
         )}
       </main>

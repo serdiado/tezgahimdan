@@ -12,14 +12,24 @@ export type MagazaAcPazarVeri = { id: string; ad: string; il: string; ilce: stri
 // platformun ana iletisim vaadi bu; tezgah WhatsApp'siz acilmaz). Tek aktif
 // pazar varsa secim gereksiz oldugundan bilgi olarak gosterilir; birden
 // fazlaysa gercek bir secim listesi cikar (AP-SP4).
-export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
+export function MagazaAcForm({
+  pazarlar,
+  profilTelefonu = null,
+}: {
+  pazarlar: MagazaAcPazarVeri[];
+  // Kullanicinin profil telefonu (varsa) WhatsApp alanina ON-DOLUM olur -
+  // degistirilebilir (tezgah icin ayri bir hat kullanilabilir). Ters yon
+  // (WhatsApp -> bos profil telefonu) lib/magaza.ts'te (bkz.
+  // profilTelefonunuBossaDoldur).
+  profilTelefonu?: string | null;
+}) {
   const router = useRouter();
   const [adim, setAdim] = useState<1 | 2>(1);
   const [ad, setAd] = useState("");
   const [slugManuel, setSlugManuel] = useState<string | null>(null);
   const [slugDuzenle, setSlugDuzenle] = useState(false);
   const [pazarId, setPazarId] = useState(pazarlar[0]?.id ?? "");
-  const [whatsapp, setWhatsapp] = useState("");
+  const [whatsapp, setWhatsapp] = useState(profilTelefonu ?? "");
   const [hata, setHata] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
 
@@ -185,7 +195,9 @@ export function MagazaAcForm({ pazarlar }: { pazarlar: MagazaAcPazarVeri[] }) {
               />
             </label>
             <p className="mt-1 text-xs text-neutral-400">
-              Alıcılar sana buradan ulaşır — tezgahın için zorunludur.
+              {profilTelefonu
+                ? "Profilindeki telefonu getirdik — tezgahın için farklı bir numara kullanacaksan değiştirebilirsin."
+                : "Alıcılar sana buradan ulaşır — tezgahın için zorunludur."}
             </p>
           </div>
 
