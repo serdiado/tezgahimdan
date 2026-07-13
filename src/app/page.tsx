@@ -14,7 +14,6 @@ import { AnasayfaHero } from "./AnasayfaHero";
 import { HaftalikRitim } from "./HaftalikRitim";
 import { YeniEklenenler } from "./YeniEklenenler";
 import { MagazaVitrini } from "./MagazaVitrini";
-import { MagazaAcCTA } from "./MagazaAcCTA";
 import { VitrinArama } from "./VitrinArama";
 
 const VARSAYILAN_URUN_LIMIT = 12;
@@ -66,10 +65,8 @@ export default async function AnaSayfa({
 }) {
   const { q } = await searchParams;
   const arama = q?.trim() || "";
-  const { session, rol } = await oturumRolOku();
+  const { session } = await oturumRolOku();
   const girisli = !!session?.user;
-  const satici = rol === "satici";
-  const admin = rol === "admin";
 
   let kullaniciTelefonVar = false;
   if (session?.user?.id) {
@@ -383,8 +380,6 @@ export default async function AnaSayfa({
         </div>
 
         {digerModuller.map((m) => modulRenderEt(m.tur))}
-
-        {!satici && !admin && <MagazaAcCTA girisli={girisli} />}
       </main>
       <SiteFooter />
     </div>

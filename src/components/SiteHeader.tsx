@@ -83,14 +83,7 @@ export async function SiteHeader() {
                 <Link href="/panel" className="text-neutral-700 hover:text-primary-600">
                   Panelim
                 </Link>
-              ) : (
-                <Link
-                  href="/panel/magaza-ac"
-                  className="rounded-md bg-primary-600 px-3 py-1.5 font-semibold text-white hover:bg-primary-700"
-                >
-                  Tezgah Aç
-                </Link>
-              )}
+              ) : null}
               <form
                 action={async () => {
                   "use server";
