@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 const inputClass =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-neutral-900 outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500";
@@ -27,6 +28,18 @@ function KayitOlForm() {
   const guvenliNext =
     nextHam && nextHam.startsWith("/") && !nextHam.startsWith("//") ? nextHam : null;
   const girisHref = guvenliNext ? `/giris?next=${encodeURIComponent(guvenliNext)}` : "/giris";
+  // Giris sayfasindaki (next varsa oraya, yoksa rol-bazli dagitim icin ara
+  // rotaya) hedef mantigiyla BIREBIR ayni - otomatik giris sonrasi ayni yere gider.
+  const hedef = guvenliNext ?? "/giris-sonrasi";
+
+  // Controlled alanlar (2026-07-14 friction duzeltmesi): kayit hatasinda
+  // (kisa sifre, e-posta zaten kayitli) React'in form-action-sonrasi otomatik
+  // reset'i DEVRE DISI kalsin diye - deger state'ten geldigi surece React bir
+  // sonraki render'da DOM'u state'e gore geri yazar, kullanici ad/e-posta
+  // gibi DOGRU yazdigi alanlari yeniden yazmak zorunda kalmaz.
+  const [ad, setAd] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [hata, setHata] = useState<string | null>(null);
   const [gonderiliyor, setGonderiliyor] = useState(false);
 
@@ -42,12 +55,35 @@ function KayitOlForm() {
         password: formData.get("password"),
       }),
     });
-    setGonderiliyor(false);
     if (!res.ok) {
+      setGonderiliyor(false);
       const data = await res.json().catch(() => ({}));
-      setHata(data.hata ?? "kayit basarisiz");
+      setHata(data.hata ?? "Kayıt başarısız");
       return;
     }
+
+    // Otomatik giris (2026-07-14 friction duzeltmesi): kayit oldugu email+sifre
+    // elimizde zaten var - kullaniciyi ayrica /giris'e gonderip AYNI bilgiyi
+    // ikinci kez yazdirmak yerine burada oturumu hemen aciyoruz. SessionProvider
+    // GEREKMEZ (next-auth/react signIn Provider'sIz calisir, sadece useSession
+    // Provider ister). redirect:false ile sonucu kendimiz yonetiyoruz ki
+    // basarisiz olursa (nadir - TOCTOU) dostca /giris'e dusebilelim.
+    const girisSonucu = await signIn("credentials", {
+      email: formData.get("email"),
+      password: formData.get("password"),
+      redirect: false,
+    });
+    setGonderiliyor(false);
+
+    if (girisSonucu?.ok) {
+      router.push(hedef);
+      router.refresh();
+      return;
+    }
+    // Beklenmeyen durum: kayit basarili ama otomatik giris tutmadi - kullaniciyi
+    // en azindan tekrar 3 alani doldurmak zorunda birakmayalim, email onceden
+    // dolu gelsin diye giris sayfasina bu sekilde yonlendirmek yerine sadece
+    // /giris'e dusuyoruz (email query param'da tasinmiyor, gizlilik geregi).
     router.push(girisHref);
   }
 
@@ -60,11 +96,27 @@ function KayitOlForm() {
         <form action={submit} className="mt-6 flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
             Ad
-            <input name="ad" type="text" required autoComplete="name" className={inputClass} />
+            <input
+              name="ad"
+              type="text"
+              required
+              autoComplete="name"
+              value={ad}
+              onChange={(e) => setAd(e.target.value)}
+              className={inputClass}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
             E-posta
-            <input name="email" type="email" required autoComplete="email" className={inputClass} />
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
+            />
           </label>
           <label className="flex flex-col gap-1 text-sm font-medium text-neutral-700">
             Şifre
@@ -74,8 +126,11 @@ function KayitOlForm() {
               required
               minLength={8}
               autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
+            <span className="text-xs font-normal text-neutral-400">En az 8 karakter olmalı.</span>
           </label>
           <button
             type="submit"

@@ -97,7 +97,8 @@ export function MagazaOlusturForm({
           WhatsApp No
           <input
             name="whatsappNo"
-            type="text"
+            type="tel"
+            autoComplete="tel"
             required
             placeholder="05XX XXX XX XX"
             defaultValue={profilTelefonu ?? ""}

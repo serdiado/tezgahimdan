@@ -186,7 +186,8 @@ export function MagazaAcForm({
             <label className="block text-sm font-medium text-neutral-700">
               WhatsApp No
               <input
-                type="text"
+                type="tel"
+                autoComplete="tel"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
                 placeholder="05XX XXX XX XX"

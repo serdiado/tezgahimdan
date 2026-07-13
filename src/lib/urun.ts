@@ -42,7 +42,7 @@ export async function urunEkle(params: {
   }
 
   if (params.dosyalar.length < 1 || params.dosyalar.length > MAX_FOTOGRAF) {
-    return { tur: "gecersiz-fotograf", mesaj: `en az 1, en fazla ${MAX_FOTOGRAF} fotograf yuklenmeli` };
+    return { tur: "gecersiz-fotograf", mesaj: `En az 1, en fazla ${MAX_FOTOGRAF} fotoğraf yüklenmeli` };
   }
 
   // Once tum dosyalari bellekte oku (bir kez), hem MIME/boyut kontrolu hem de
@@ -52,14 +52,14 @@ export async function urunEkle(params: {
   const okunanDosyalar: { buffer: Buffer; uzanti: string }[] = [];
   for (const dosya of params.dosyalar) {
     if (!IZINLI_TIPLER[dosya.type]) {
-      return { tur: "gecersiz-fotograf", mesaj: `desteklenmeyen dosya turu: ${dosya.type || "bilinmiyor"}` };
+      return { tur: "gecersiz-fotograf", mesaj: `Desteklenmeyen dosya türü: ${dosya.type || "bilinmiyor"}` };
     }
     if (dosya.size > MAX_BOYUT_BYTE) {
-      return { tur: "gecersiz-fotograf", mesaj: "her fotograf en fazla 5MB olabilir" };
+      return { tur: "gecersiz-fotograf", mesaj: "Her fotoğraf en fazla 5MB olabilir" };
     }
     const buffer = Buffer.from(await dosya.arrayBuffer());
     if (!gercekDosyaTuruDogrula(buffer, dosya.type)) {
-      return { tur: "gecersiz-fotograf", mesaj: "dosya icerigi beyan edilen turle eslesmiyor" };
+      return { tur: "gecersiz-fotograf", mesaj: "Dosya içeriği beyan edilen türle eşleşmiyor" };
     }
     okunanDosyalar.push({ buffer, uzanti: IZINLI_TIPLER[dosya.type] });
   }
@@ -176,7 +176,7 @@ export async function urunGuncelle(params: {
   }
 
   if (siralama.length < 1 || siralama.length > MAX_FOTOGRAF) {
-    return { tur: "gecersiz-fotograf", mesaj: `en az 1, en fazla ${MAX_FOTOGRAF} fotograf olmali` };
+    return { tur: "gecersiz-fotograf", mesaj: `En az 1, en fazla ${MAX_FOTOGRAF} fotoğraf olmalı` };
   }
 
   // silindiMi kontrolu: admin bu kategoriyi tam bu istekle ayni anda kaldirmis
@@ -190,14 +190,14 @@ export async function urunGuncelle(params: {
   const okunanDosyalar: { buffer: Buffer; uzanti: string }[] = [];
   for (const dosya of params.yeniDosyalar) {
     if (!IZINLI_TIPLER[dosya.type]) {
-      return { tur: "gecersiz-fotograf", mesaj: `desteklenmeyen dosya turu: ${dosya.type || "bilinmiyor"}` };
+      return { tur: "gecersiz-fotograf", mesaj: `Desteklenmeyen dosya türü: ${dosya.type || "bilinmiyor"}` };
     }
     if (dosya.size > MAX_BOYUT_BYTE) {
-      return { tur: "gecersiz-fotograf", mesaj: "her fotograf en fazla 5MB olabilir" };
+      return { tur: "gecersiz-fotograf", mesaj: "Her fotoğraf en fazla 5MB olabilir" };
     }
     const buffer = Buffer.from(await dosya.arrayBuffer());
     if (!gercekDosyaTuruDogrula(buffer, dosya.type)) {
-      return { tur: "gecersiz-fotograf", mesaj: "dosya icerigi beyan edilen turle eslesmiyor" };
+      return { tur: "gecersiz-fotograf", mesaj: "Dosya içeriği beyan edilen türle eşleşmiyor" };
     }
     okunanDosyalar.push({ buffer, uzanti: IZINLI_TIPLER[dosya.type] });
   }

@@ -69,11 +69,11 @@ export function UrunEkleForm({
     e.preventDefault();
     setHata(null);
     if (fotolar.length < 1) {
-      setHata("en az 1 fotoğraf ekleyin");
+      setHata("En az 1 fotoğraf ekleyin");
       return;
     }
     if (!kategoriId) {
-      setHata("kategori seçin");
+      setHata("Kategori seçin");
       return;
     }
 
@@ -93,14 +93,14 @@ export function UrunEkleForm({
       res = await fetch("/api/panel/urun-ekle", { method: "POST", body: fd });
     } catch {
       setGonderiliyor(false);
-      setHata("bağlantı hatası, tekrar deneyin");
+      setHata("Bağlantı hatası, tekrar deneyin");
       return;
     }
     setGonderiliyor(false);
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setHata(data.hata ?? "ürün eklenemedi");
+      setHata(data.hata ?? "Ürün eklenemedi");
       return;
     }
     const data = await res.json();

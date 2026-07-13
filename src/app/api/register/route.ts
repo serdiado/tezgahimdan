@@ -9,10 +9,10 @@ export async function POST(request: Request) {
   const password = typeof body.password === "string" ? body.password : "";
 
   if (!ad || !email || !password) {
-    return NextResponse.json({ hata: "ad, email ve password zorunlu" }, { status: 400 });
+    return NextResponse.json({ hata: "Ad, e-posta ve şifre zorunlu" }, { status: 400 });
   }
   if (password.length < 8) {
-    return NextResponse.json({ hata: "sifre en az 8 karakter olmali" }, { status: 400 });
+    return NextResponse.json({ hata: "Şifre en az 8 karakter olmalı" }, { status: 400 });
   }
 
   // Zaten var olan (Google'dan gelmis dahil) bir kayda sessizce sifre eklemiyoruz -
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   // dayatabilir. Var olan e-posta = net "zaten kayitli" hatasi.
   const mevcut = await prisma.kullanici.findUnique({ where: { email } });
   if (mevcut) {
-    return NextResponse.json({ hata: "bu e-posta zaten kayitli" }, { status: 409 });
+    return NextResponse.json({ hata: "Bu e-posta zaten kayıtlı" }, { status: 409 });
   }
 
   const sifreHash = await bcrypt.hash(password, 10);

@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   // turetilir, yoksa bir satici baskasinin magazasina urun ekleyebilirdi.
   const magaza = await getOwnMagaza(session.user.id);
   if (!magaza) {
-    return NextResponse.json({ hata: "once tezgah olusturulmali" }, { status: 409 });
+    return NextResponse.json({ hata: "Önce tezgah oluşturulmalı" }, { status: 409 });
   }
 
   const formData = await request.formData();
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const dosyalar = formData.getAll("fotograflar").filter((f): f is File => f instanceof File && f.size > 0);
 
   if (typeof kategoriId !== "string" || !kategoriId) {
-    return NextResponse.json({ hata: "kategori zorunlu" }, { status: 400 });
+    return NextResponse.json({ hata: "Kategori zorunlu" }, { status: 400 });
   }
   const fiyatStr = typeof fiyatRaw === "string" ? fiyatRaw.trim() : "";
   const stokAdedi = typeof stokRaw === "string" && stokRaw ? Number.parseInt(stokRaw, 10) : 1;
@@ -55,11 +55,11 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ id: sonuc.urun.id, fotograflar: sonuc.urun.fotograflar }, { status: 201 });
     case "gecersiz-baslik":
-      return NextResponse.json({ hata: "baslik zorunlu (en fazla 200 karakter)" }, { status: 400 });
+      return NextResponse.json({ hata: "Başlık zorunlu (en fazla 200 karakter)" }, { status: 400 });
     case "gecersiz-fiyat":
-      return NextResponse.json({ hata: "gecerli bir fiyat girilmeli" }, { status: 400 });
+      return NextResponse.json({ hata: "Geçerli bir fiyat girilmeli" }, { status: 400 });
     case "gecersiz-stok":
-      return NextResponse.json({ hata: "stok adedi en az 1 olmali" }, { status: 400 });
+      return NextResponse.json({ hata: "Stok adedi en az 1 olmalı" }, { status: 400 });
     case "gecersiz-fotograf":
       return NextResponse.json({ hata: sonuc.mesaj }, { status: 400 });
     case "gecersiz-kategori":
