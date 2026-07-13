@@ -33,7 +33,7 @@ export async function SiteFooter() {
         </div>
 
         <nav className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
-          <Link href="/#magazalar" className="text-white hover:text-primary-100">
+          <Link href="/magazalar" className="text-white hover:text-primary-100">
             Tezgahlar
           </Link>
           <Link href="/panel/magaza-ac" className="text-white hover:text-primary-100">

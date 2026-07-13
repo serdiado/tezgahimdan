@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { oturumRolOku } from "@/lib/yetki";
@@ -80,10 +81,42 @@ export default async function AnaSayfa({
   // Faz 4 (CMS): sayfa duzeni admin tarafindan yonetilir - moduller.find ile
   // her turun sira/aktifMi/ayarlarina erisilir, asagida hem sorgu limitlerini
   // (ogeSayisi) hem render sirasini/gorunurlugunu belirlemek icin kullanilir.
-  const [moduller, hero, pazarlar, magazalar] = await Promise.all([
+  const [moduller, hero, pazarlar] = await Promise.all([
     sayfaModulleriGetir("anasayfa"),
     siteIcerikHaritasiGetir(HERO_ANAHTARLARI),
     prisma.pazar.findMany({ where: { aktifMi: true }, orderBy: { createdAt: "asc" } }),
+  ]);
+
+  const modulHaritasi = new Map(moduller.map((m) => [m.tur, m]));
+  const yeniUrunlerModul = modulHaritasi.get("yeni_urunler");
+  const enCokBegenilenModul = modulHaritasi.get("en_cok_begenilen");
+  const magazaListesiModul = modulHaritasi.get("magaza_listesi");
+  const yeniUrunAyarlari = (yeniUrunlerModul?.ayarlar ?? {}) as ModulAyarlari;
+  const enCokBegenilenAyarlari = (enCokBegenilenModul?.ayarlar ?? {}) as ModulAyarlari;
+  const magazaListesiAyarlari = (magazaListesiModul?.ayarlar ?? {}) as ModulAyarlari;
+
+  const [yeniUrunler, enCokBegenilenIdler, magazalar] = await Promise.all([
+    // Magazalar-arasi "Bu Hafta Eklenenler" seridi - MagazaVitrini'deki ayni
+    // gizliMi/silindiMi kurali burada da gecerli, yoksa gizlenmis/kaldirilmis
+    // bir magazanin urunu ana sayfada sizar.
+    prisma.urun.findMany({
+      where: vitrinGorunurlukFiltresi(arama),
+      include: {
+        kategori: true,
+        magaza: { select: { id: true, ad: true, slug: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: yeniUrunAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT,
+    }),
+    // Sadece begeni-sirali ID listesi - gorunurluk filtresi UYGULANMAZ (bkz.
+    // src/lib/favori.ts), asagida ayri bir sorguyla uygulanir.
+    enCokBegenilenUrunIdleriGetir(enCokBegenilenAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT),
+    // 2026-07-14: ana sayfada artik TUM magazalar degil, sinirli bir "en yeni
+    // tezgahlar" onizlemesi (slider) - tam liste /magazalar sayfasinda (bkz.
+    // "Tum Tezgahlari Gor" linki asagida). magazaListesiAyarlari, moduller
+    // cozulmeden bu Promise.all'a giremeyecegi icin sorgu BILEREK burada
+    // (yeniUrunler/enCokBegenilenIdler ile AYNI asamada) - yeniUrunAyarlari
+    // ile ayni desen.
     prisma.magaza.findMany({
       // Ileri-referans notu (docs/mimari/satici-onboarding.md): herkese acik her
       // magaza listesi silindiMi=false AND gizliMi=false filtrelemeli, yoksa admin'in
@@ -113,33 +146,11 @@ export default async function AnaSayfa({
         _count: { select: { urunler: { where: { silindiMi: false } } } },
       },
       orderBy: { createdAt: "desc" },
+      // Arama aktifken limit UYGULANMAZ: kullanici belirli bir bolge ariyorsa
+      // (ör. "Izmir") zaten dar bir kume donuyor, kesip "X sonuc" yazisini
+      // yanlis/eksik gostermek yanlis olur - tum eslesenler slider'da kaydirilir.
+      take: arama ? undefined : (magazaListesiAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT),
     }),
-  ]);
-
-  const modulHaritasi = new Map(moduller.map((m) => [m.tur, m]));
-  const yeniUrunlerModul = modulHaritasi.get("yeni_urunler");
-  const enCokBegenilenModul = modulHaritasi.get("en_cok_begenilen");
-  const magazaListesiModul = modulHaritasi.get("magaza_listesi");
-  const yeniUrunAyarlari = (yeniUrunlerModul?.ayarlar ?? {}) as ModulAyarlari;
-  const enCokBegenilenAyarlari = (enCokBegenilenModul?.ayarlar ?? {}) as ModulAyarlari;
-  const magazaListesiAyarlari = (magazaListesiModul?.ayarlar ?? {}) as ModulAyarlari;
-
-  const [yeniUrunler, enCokBegenilenIdler] = await Promise.all([
-    // Magazalar-arasi "Bu Hafta Eklenenler" seridi - MagazaVitrini'deki ayni
-    // gizliMi/silindiMi kurali burada da gecerli, yoksa gizlenmis/kaldirilmis
-    // bir magazanin urunu ana sayfada sizar.
-    prisma.urun.findMany({
-      where: vitrinGorunurlukFiltresi(arama),
-      include: {
-        kategori: true,
-        magaza: { select: { id: true, ad: true, slug: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: yeniUrunAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT,
-    }),
-    // Sadece begeni-sirali ID listesi - gorunurluk filtresi UYGULANMAZ (bkz.
-    // src/lib/favori.ts), asagida ayri bir sorguyla uygulanir.
-    enCokBegenilenUrunIdleriGetir(enCokBegenilenAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT),
   ]);
 
   // Iki asamali: once begeni-sirali ID'ler, sonra o ID'lerle gorunurluk
@@ -333,20 +344,34 @@ export default async function AnaSayfa({
                   &quot;{arama}&quot; bölgesinde henüz tezgah yok. Farklı bir il/ilçe deneyin.
                 </p>
               ) : (
-                <MagazaVitrini
-                  kolonSayisi={magazaListesiAyarlari.kolonSayisi ?? 3}
-                  magazalar={magazalar.map((magaza) => ({
-                    id: magaza.id,
-                    ad: magaza.ad,
-                    slug: magaza.slug,
-                    aciklama: magaza.aciklama,
-                    pazarAd: magaza.pazar.ad,
-                    pazarSlug: magaza.pazar.slug,
-                    urunSayisi: magaza._count.urunler,
-                    degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
-                    degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
-                  }))}
-                />
+                <>
+                  <MagazaVitrini
+                    sunumTipi="slider"
+                    magazalar={magazalar.map((magaza) => ({
+                      id: magaza.id,
+                      ad: magaza.ad,
+                      slug: magaza.slug,
+                      aciklama: magaza.aciklama,
+                      pazarAd: magaza.pazar.ad,
+                      pazarSlug: magaza.pazar.slug,
+                      urunSayisi: magaza._count.urunler,
+                      degerlendirmeOrtalamasi: magazaDegerlendirmeOzeti.get(magaza.id)?.ortalama ?? null,
+                      degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
+                    }))}
+                  />
+                  {/* Arama aktifken zaten TUM eslesenler gosteriliyor (take
+                      yok) - "Tumunu Gor" o durumda anlamsiz, sadece varsayilan
+                      (sinirli) onizlemede gorunur. */}
+                  {!arama && (
+                    <Link
+                      href="/magazalar"
+                      className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:underline"
+                    >
+                      Tüm Tezgahları Gör
+                      <ArrowRight className="h-4 w-4" strokeWidth={2} />
+                    </Link>
+                  )}
+                </>
               )}
             </div>
           </div>
