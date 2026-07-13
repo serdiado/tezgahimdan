@@ -101,6 +101,7 @@ export default async function PazarSayfasi({
         pazarId: pazar.id,
         silindiMi: false,
         gizliMi: false,
+        duraklatildiMi: false,
         ...(arama
           ? {
               OR: [
@@ -117,7 +118,7 @@ export default async function PazarSayfasi({
       where: {
         silindiMi: false,
         durum: { in: ["sergide", "doldu"] },
-        magaza: { pazarId: pazar.id, silindiMi: false, gizliMi: false },
+        magaza: { pazarId: pazar.id, silindiMi: false, gizliMi: false, duraklatildiMi: false },
         ...(arama
           ? {
               OR: [

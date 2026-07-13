@@ -149,6 +149,14 @@ model Kullanici {
   // tarih = yasak yok demektir (ayrica temizlik gerektirmez); satici "gelmedi"
   // geri alirsa veya admin af verirse null'lanir.
   rezervasyonYasagiBitisi DateTime?
+  // Hesap silme (2026-07-11, KVKK): self-servis DEGIL - kullanici admin'e
+  // basvurur, admin siler ("hicbir kayit kalici silinmez" kurali geregi soft).
+  // Silinince: giris engellenir (auth authorize kontrolu), ad anonimlestirilir,
+  // telefon/email NULL'lanir (ayni numarayla yeniden kayit acilir; unique
+  // carpismasi kalmaz). Rezervasyon/degerlendirme gecmisi tablolarda kalir ama
+  // ad "Silinmis Uye" olarak gorunur. Aktif (silindiMi=false) magazasi olan
+  // kullanici silinemez - once tezgah kaldirilmali (admin magaza akisi).
+  silindiMi Boolean       @default(false)
   createdAt DateTime      @default(now())
 
   // E-posta/Google girisi icin: ikisi de opsiyonel (telefon+SMS ile gelen kullanicida
@@ -224,6 +232,15 @@ model Magaza {
   // yuzunden gizlenen satici ikinci magaza acabilirdi). Self-servis onboarding'in
   // "fren pedali": herkes aninda satici olur, admin gerekirse tek bayrakla gizler.
   gizliMi    Boolean   @default(false)
+  // SELF-SERVIS tatil modu (2026-07-11): satici "bu hafta pazara gelemiyorum"
+  // dediginde kendisi acar/kapatir. gizliMi'den BILINCLI olarak ayri - gizliMi
+  // admin moderasyonu (fren pedali), bu ise saticinin kendi karari; ikisi
+  // karismasin (admin gizlemesini satici "devam ettir" ile acamamali). Etkisi
+  // gizliMi ile ayni mekanik: listelerde gorunmez, yeni rezervasyon kapanir;
+  // fark: /magaza/[slug] dogrudan ziyarette 404 yerine "ara verdi" sayfasi
+  // (WhatsApp'a ulasilabilir kalir). Duraklatma aninda bekleyen rezervasyonlar
+  // cezasiz iptal edilir + alicilara bildirim gider (magaza-duraklat route'u).
+  duraklatildiMi Boolean @default(false)
   createdAt  DateTime  @default(now())
 
   urunler                 Urun[]

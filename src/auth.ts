@@ -26,7 +26,10 @@ export const {
 
         const kullanici = await prisma.kullanici.findUnique({ where: { email } });
         // sifreHash yoksa bu hesap sadece Google ile acilmis; sifreyle giris yapamaz.
-        if (!kullanici || !kullanici.sifreHash) return null;
+        // silindiMi: admin-basvurulu hesap silme (2026-07-13) - silinen hesap
+        // giris yapamaz (anonimlestirme email'i zaten bosaltir; bu kontrol
+        // emniyet kemeri).
+        if (!kullanici || kullanici.silindiMi || !kullanici.sifreHash) return null;
 
         const dogruMu = await bcrypt.compare(password, kullanici.sifreHash);
         if (!dogruMu) return null;
@@ -60,6 +63,8 @@ export const {
       const mevcut = await prisma.kullanici.findUnique({ where: { email } });
 
       if (mevcut) {
+        // Silinmis hesaba Google ile de girilemez (bkz. authorize'daki not).
+        if (mevcut.silindiMi) return false;
         if (!mevcut.emailVerified) return false;
         user.id = mevcut.id;
         user.rol = mevcut.rol;

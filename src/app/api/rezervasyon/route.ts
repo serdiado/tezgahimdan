@@ -120,6 +120,11 @@ export async function POST(request: Request) {
         { hata: "Bu tezgah şu anda aktif değil, rezervasyon alınamıyor." },
         { status: 409 },
       );
+    case "magaza-duraklatilmis":
+      return NextResponse.json(
+        { hata: "Bu tezgah şu an ara verdi, rezervasyon alınamıyor." },
+        { status: 409 },
+      );
     case "satista-degil":
       return NextResponse.json({ hata: "ürün satışta değil" }, { status: 409 });
     case "urun-yok":

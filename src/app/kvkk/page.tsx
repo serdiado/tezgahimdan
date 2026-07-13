@@ -37,6 +37,20 @@ export default async function KvkkSayfasi() {
             tam aydınlatma metni yayınlandığında bu sayfa güncellenecektir.
           </p>
         )}
+
+        {/* Hesap silme hakki: CMS metninden BAGIMSIZ, her zaman gorunur -
+            islevsel bir hak, hukuki metnin hazir olmasini beklemez
+            (2026-07-13 karari: self-servis degil, admin-basvurulu). */}
+        <h2 className="mt-8 text-lg font-bold text-neutral-900">Hesabımı Sildirmek İstiyorum</h2>
+        <p className="mt-2 text-neutral-700">
+          Hesabını ve kişisel verilerini sildirmek istersen bize başvurman yeterli: kayıtlı
+          olduğun pazardaki görevliye iletebilir ya da Sıkça Sorulan Sorular sayfasındaki
+          iletişim kanalından bize yazabilirsin. Başvurun üzerine hesabın yönetici tarafından
+          kapatılır; adın, telefon numaran ve e-posta adresin sistemden{" "}
+          <span className="font-semibold">anonimleştirilerek</span> kaldırılır ve hesabınla
+          bir daha giriş yapılamaz. Geçmiş rezervasyon ve değerlendirme kayıtları, platform
+          bütünlüğü için kişisel bilgi içermeden (anonim olarak) saklanır.
+        </p>
       </main>
       <SiteFooter />
     </div>

@@ -164,6 +164,14 @@ bilinçli ertelendi).
 
 ---
 
+## Tezgah yaşam döngüsü (duraklatma ✓ / kalıcı kapatma planı / hesap silme ✓)
+
+**2026-07-13 kararları.** **Duraklatma (UYGULANDI):** `Magaza.duraklatildiMi` — `gizliMi`'den bilinçli ayrı (o admin freni, bu satıcının tatil modu). Listelerden düşer ama `/magaza/[slug]` 404 olmaz ("ara verdi" + hero/WhatsApp görünür — iptal bildirimi alıcıyı oraya yönlendirir); yeni rezervasyon kapanır; takip listesinden düşmez. Bekleyenler **cezasız iptal + bildirim** (`magazaDuraklatmaSupurmesi` = `yasakSupurmesi`'nin mağaza-kapsamlı ikizi; önce bayrak sonra süpürme; başlamış pazara dokunmaz → **duraklatma işaretleme sorumluluğundan kaçış değildir**, panel kilidi sürer). **Kalıcı kapatma (PLANLANDI, kodlanmadı):** kural kilitli — son pazar yapılıp işlemler bitince sergiye kapanır (silme değil gizleme); tasarım turu uygulama gününe. **Hesap silme (UYGULANDI):** self-servis değil, KVKK sayfasından başvuru → admin siler: `Kullanici.silindiMi` + anonimleştirme (ad="Silinmiş Üye", telefon/email NULL → yeniden kayıt açılır), giriş iki auth yolunda da engelli; kendi hesabı/admin/aktif-tezgahlı silinemez.
+
+→ Detay: [`docs/mimari/tezgah-yasam-dongusu.md`](./mimari/tezgah-yasam-dongusu.md)
+
+---
+
 ## Pazar yaşam döngüsü (il/ilçe serbest metin + `aktifMi` kapanma)
 
 Eski tek `bolge` (serbest metin) alanı kaldırıldı; yerine `il`+`ilce` (zorunlu),

@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { AdminNav } from "../../AdminNav";
 import { KullaniciYasaklaButonu } from "./KullaniciYasaklaButonu";
 import { KullaniciRolButonu } from "./KullaniciRolButonu";
+import { KullaniciSilButonu } from "./KullaniciSilButonu";
 import { GuvenilirlikSifirlaButonu } from "../../guvenilirlik/GuvenilirlikSifirlaButonu";
 
 const tarihFormat = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", year: "numeric" });
@@ -73,6 +74,11 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
           {kullanici.yasakliMi && (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">Yasaklı</span>
           )}
+          {kullanici.silindiMi && (
+            <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600">
+              Hesap Silindi
+            </span>
+          )}
         </div>
         <AdminNav aktif="kullanicilar" />
         <Link href="/admin/kullanicilar" className="mt-3 inline-block text-sm text-primary-600 hover:underline">
@@ -83,6 +89,12 @@ export default async function AdminKullaniciDetayPage({ params }: { params: Prom
           <KullaniciYasaklaButonu kullaniciId={kullanici.id} yasakliMi={kullanici.yasakliMi} />
           {kullanici.id !== session.user.id && (
             <KullaniciRolButonu kullaniciId={kullanici.id} rol={kullanici.rol} />
+          )}
+          {/* Silinmis hesapta buton gizli; kendi hesabi/admin/aktif-tezgah
+              korumalari API'da (kullanici-sil route) - buton yine de kendi
+              hesabinda gosterilmez (rol butonuyla ayni kural). */}
+          {!kullanici.silindiMi && kullanici.id !== session.user.id && kullanici.rol !== "admin" && (
+            <KullaniciSilButonu kullaniciId={kullanici.id} />
           )}
         </div>
 

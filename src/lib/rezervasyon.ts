@@ -75,6 +75,7 @@ export type RezervasyonSonucu =
   | { tur: "dolu" }
   | { tur: "urun-yok" }
   | { tur: "magaza-gizli" }
+  | { tur: "magaza-duraklatilmis" }
   | { tur: "satista-degil" }
   | { tur: "gelmedi-yasagi"; bitis: Date }
   | { tur: "yasakli" };
@@ -132,7 +133,11 @@ export async function rezervasyonOlustur(params: {
   // rezervasyon aninda degismez).
   const urunOn = await prisma.urun.findUnique({
     where: { id: params.urunId },
-    select: { id: true, silindiMi: true, magaza: { select: { gizliMi: true, pazar: true } } },
+    select: {
+      id: true,
+      silindiMi: true,
+      magaza: { select: { gizliMi: true, duraklatildiMi: true, pazar: true } },
+    },
   });
   if (!urunOn || urunOn.silindiMi) return { tur: "urun-yok" };
   // Admin bir magazayi vitrinsen gizlediyse (moderasyon) yeni rezervasyon
@@ -140,6 +145,11 @@ export async function rezervasyonOlustur(params: {
   // normal sonuclanir; sadece yeni giris kapanir. (gizliMi degisimi admin kaynakli
   // ve nadir; kilit oncesi on-kontrol yeterli - satildiMi/silindiMi ile ayni desen.)
   if (urunOn.magaza.gizliMi) return { tur: "magaza-gizli" };
+  // Satici tezgahini duraklatmissa (self-servis tatil modu, 2026-07-11) yeni
+  // rezervasyon ALINMAZ - gizliMi ile ayni on-kontrol deseni. Duraklatma aninda
+  // bekleyenler zaten supurulur (magazaDuraklatmaSupurmesi); buraya yaris
+  // penceresinden sizan tekil kayit supurmenin 2. turunda yakalanir.
+  if (urunOn.magaza.duraklatildiMi) return { tur: "magaza-duraklatilmis" };
   const pazarHaftasi = sonrakiSifirlamaTarihi(urunOn.magaza.pazar);
 
   // rezervKodu carpismasi (32^6 ihtimalde) tum transaction'i iptal ettirir;
@@ -943,6 +953,103 @@ async function yasakSupurmesi(aliciId: string, now: Date): Promise<YasakIptalKay
           magazaSahipId: hedef.urun.magaza.sahipId,
           tip: sonuc.tip,
           yukselenKodu: sonuc.yukselenKodu,
+        });
+      }
+    }
+  }
+  return iptaller;
+}
+
+export type DuraklatmaIptalKaydi = {
+  aliciId: string;
+  urunId: string;
+  urunBaslik: string;
+  tip: "aktif" | "yedek";
+};
+
+// Tezgah duraklatma supurmesi (2026-07-11): yasakSupurmesi'nin MAGAZA-kapsamli
+// ikizi - satici "bu hafta pazara gelemiyorum" deyince magazasinin bekleyen
+// rezervasyonlari CEZASIZ iptal edilir (alici sucu yok; gelmedi sayaci ve
+// yasak mekanizmasi HIC devreye girmez). Ayni istisna kurali gecerli:
+// BASLAMIS pazarin (o gun devam eden / gecmis haftanin isaretlenmemis)
+// kayitlarina DOKUNULMAZ - onlarin hukmu saticida kalir (zorunlu islem ekrani
+// duraklatmayla KAPANMAZ; duraklatma, isaretleme sorumlulugundan kacis yolu
+// degildir). Yukselen bildirimi BILINCLI yok: ayni magazada zincirleme terfi
+// eden yedek de ayni supurmede iptal edilecegi icin "sira sana geldi" demek
+// yaniltici olurdu. Cagiran route ONCE duraklatildiMi=true yazmali (kapi
+// kapansin), supurme sonra kosmali - yaris penceresindeki tekil kayit icin
+// 2 turlu tarama yasakSupurmesi ile ayni.
+export async function magazaDuraklatmaSupurmesi(
+  magazaId: string,
+  now: Date = new Date(),
+): Promise<DuraklatmaIptalKaydi[]> {
+  const iptaller: DuraklatmaIptalKaydi[] = [];
+  for (let tur = 0; tur < 2; tur++) {
+    const bekleyenler = await prisma.rezervasyon.findMany({
+      where: { durum: "bekliyor", urun: { magazaId } },
+      select: {
+        id: true,
+        urunId: true,
+        pazarHaftasi: true,
+        urun: { select: { baslik: true, magaza: { select: { pazar: true } } } },
+      },
+    });
+    const hedefler = bekleyenler.filter(
+      (r) => now < pazarBaslangicAni(r.urun.magaza.pazar, r.pazarHaftasi),
+    );
+    if (hedefler.length === 0) break;
+
+    for (const hedef of hedefler) {
+      const sonuc = await prisma.$transaction(
+        async (tx) => {
+          const kilitli = await tx.$queryRaw<
+            { id: string; durum: string }[]
+          >`SELECT "id", "durum" FROM "Urun" WHERE "id" = ${hedef.urunId} FOR UPDATE`;
+          const urun = kilitli[0];
+          // Kilit altinda taze oku - es zamanli vazgec/sonuclandir ya da bu
+          // dongunun onceki adimindaki zincirleme terfi kaydi degistirmis olabilir.
+          const rez = await tx.rezervasyon.findUnique({ where: { id: hedef.id } });
+          if (!urun || !rez || rez.durum !== "bekliyor") return null;
+
+          await tx.rezervasyon.update({ where: { id: rez.id }, data: { durum: "iptal" } });
+          await tx.durumGecmisi.create({
+            data: {
+              kullaniciId: rez.aliciId,
+              varlikTuru: "Rezervasyon",
+              varlikId: rez.id,
+              olay: `rezervasyon_duraklatma_iptali:${rez.tip}:${rez.siraNo}`,
+            },
+          });
+
+          if (rez.tip === "aktif") {
+            await aktifSlotBosalt(tx, rez.urunId, rez);
+          } else {
+            await yedekSlotBosalt(tx, rez.urunId, rez);
+          }
+
+          // Kritik bagimlilik (docs/mimari/rezervasyon-motoru.md): iptal tam
+          // bir slot bosaltir; urun 'doldu' idiyse artik degildir.
+          if (urun.durum === "doldu") {
+            await tx.urun.update({ where: { id: rez.urunId }, data: { durum: "sergide" } });
+            await tx.durumGecmisi.create({
+              data: {
+                kullaniciId: rez.aliciId,
+                varlikTuru: "Urun",
+                varlikId: rez.urunId,
+                olay: "urun_tekrar_sergide",
+              },
+            });
+          }
+          return { aliciId: rez.aliciId, tip: rez.tip };
+        },
+        { maxWait: 5000, timeout: 15000 },
+      );
+      if (sonuc) {
+        iptaller.push({
+          aliciId: sonuc.aliciId,
+          urunId: hedef.urunId,
+          urunBaslik: hedef.urun.baslik,
+          tip: sonuc.tip,
         });
       }
     }

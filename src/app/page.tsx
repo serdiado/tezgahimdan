@@ -41,6 +41,7 @@ function vitrinGorunurlukFiltresi(arama: string): Prisma.UrunWhereInput {
     magaza: {
       silindiMi: false,
       gizliMi: false,
+      duraklatildiMi: false,
       ...(arama
         ? {
             pazar: {
@@ -96,6 +97,7 @@ export default async function AnaSayfa({
       where: {
         silindiMi: false,
         gizliMi: false,
+        duraklatildiMi: false,
         pazar: {
           aktifMi: true,
           ...(arama

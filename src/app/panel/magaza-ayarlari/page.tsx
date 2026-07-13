@@ -3,6 +3,7 @@ import { getSaticiSession } from "@/lib/yetki";
 import { getOwnMagaza } from "@/lib/magaza";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MagazaAyarlariForm } from "./MagazaAyarlariForm";
+import { TezgahDuraklatKarti } from "./TezgahDuraklatKarti";
 
 export default async function MagazaAyarlariPage({
   searchParams,
@@ -70,6 +71,13 @@ export default async function MagazaAyarlariPage({
               tiktokUrl: magaza.tiktokUrl,
             }}
           />
+          {/* Duraklatma karti kurulum modunda GOSTERILMEZ - yeni acilan tezgahin
+              ilk isi duraklamak degil; normal ayarlar ziyaretinde en altta. */}
+          {!kurulumModu && (
+            <div className="mt-8 border-t border-neutral-200 pt-6">
+              <TezgahDuraklatKarti duraklatildiMi={magaza.duraklatildiMi} />
+            </div>
+          )}
         </>
       );
     }

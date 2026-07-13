@@ -81,6 +81,47 @@ export default async function MagazaSayfasi({
     notFound();
   }
 
+  // SELF-SERVIS duraklatma (2026-07-11): duraklatilan tezgah tum listelerden
+  // duser ama dogrudan linkte 404 OLMAZ - duraklatma iptal bildirimi alicilari
+  // tam buraya yonlendirir ("WhatsApp'tan sorabilirsin"), WhatsApp dugmesi
+  // hero'da. Urunler/yorumlar/rezervasyon gizli; sadece hero + aciklama notu.
+  if (magaza.duraklatildiMi) {
+    const [magazaDegerlendirmeSonucu, heroModulleri] = await Promise.all([
+      magazaDegerlendirmeOzeti(magaza.id),
+      sayfaModulleriGetir("magaza_hero"),
+    ]);
+    return (
+      <div className="min-h-screen bg-neutral-50">
+        <SiteHeader />
+        <main className="mx-auto max-w-5xl px-4 py-6">
+          <MagazaHero
+            magaza={{
+              ad: magaza.ad,
+              aciklama: magaza.aciklama,
+              whatsappNo: magaza.whatsappNo,
+              tezgahBilgisi: magaza.tezgahBilgisi,
+              krokiFotoUrl: magaza.krokiFotoUrl,
+              instagramUrl: magaza.instagramUrl,
+              facebookUrl: magaza.facebookUrl,
+              tiktokUrl: magaza.tiktokUrl,
+              pazar: {
+                ad: magaza.pazar.ad,
+                slug: magaza.pazar.slug,
+                sifirlamaGunu: magaza.pazar.sifirlamaGunu,
+              },
+            }}
+            degerlendirme={magazaDegerlendirmeSonucu}
+            bilesenSirasi={heroModulleri.map((m) => ({ tur: m.tur, aktifMi: m.aktifMi }))}
+          />
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            Bu tezgah şu an ara verdi — ürünleri geçici olarak kaldırıldı. Merak ettiklerini
+            yukarıdaki WhatsApp hattından tezgah sahibine sorabilirsin.
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   // KP-1: vitrin girissiz herkese acik (kesif serbest); yalniz "Rezerve Et" giris
   // ister. Kartlara giris durumu + kullanicinin kayitli telefonu olup olmadigi
   // gecilir (telefon yoksa ilk rezervasyonda bir kerelik istenecek).
