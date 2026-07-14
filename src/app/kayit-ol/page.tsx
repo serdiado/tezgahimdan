@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 const inputClass =
@@ -20,7 +20,6 @@ export default function KayitOlPage() {
 }
 
 function KayitOlForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   // Redirect-back (KP-1): girissiz "Rezerve Et"ten gelen next'i giris sonrasina
   // tasi. Acik yonlendirme korumasi: yalniz uygulama-ici mutlak yol.
@@ -76,15 +75,20 @@ function KayitOlForm() {
     setGonderiliyor(false);
 
     if (girisSonucu?.ok) {
-      router.push(hedef);
-      router.refresh();
+      // TAM SAYFA yuklemesi (soft router.push DEGIL): giris ONCESI cikis
+      // yapilmisken onceden yuklenmis "login'e yonlendir" sayfa kopyalarini
+      // tarayicinin router onbelleginden tamamen dusurur. Aksi halde giris
+      // yapmis kullanici, "Tezgah Aç" gibi giris-gerektiren bir sayfaya
+      // gidince bayat kopyayla yeniden login ekranina atilabiliyordu
+      // (2026-07-14 teshis - sadece bazi cihazlarda, zamanlama/onbellek yarisi).
+      window.location.assign(hedef);
       return;
     }
     // Beklenmeyen durum: kayit basarili ama otomatik giris tutmadi - kullaniciyi
     // en azindan tekrar 3 alani doldurmak zorunda birakmayalim, email onceden
     // dolu gelsin diye giris sayfasina bu sekilde yonlendirmek yerine sadece
     // /giris'e dusuyoruz (email query param'da tasinmiyor, gizlilik geregi).
-    router.push(girisHref);
+    window.location.assign(girisHref);
   }
 
   return (

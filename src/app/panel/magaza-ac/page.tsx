@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOwnMagaza } from "@/lib/magaza";
@@ -10,6 +11,14 @@ import { MagazaAcForm } from "./MagazaAcForm";
 export default async function MagazaAcPage() {
   const session = await auth();
   if (!session?.user?.id) {
+    // GECICI TESHIS (2026-07-14, sorun dogrulaninca KALDIRILACAK): giris yapmis
+    // kullanicinin "Tezgah Aç"ta login ekranina atilmasi vakasini kesinlestirmek
+    // icin. Bu satir LOG'a DUSERSE istek sunucuya ULASMISTIR (sorun cerez/oturum
+    // tarafinda); kullanici dongudeyken HIC dusmezse istek sunucuya hic gelmemis
+    // (tarayici router onbellegi / bayat kopya). Yalniz cerez ADLARI yazilir
+    // (deger DEGIL - gizlilik).
+    const cerezAdlari = (await cookies()).getAll().map((c) => c.name).join(",") || "(yok)";
+    console.log(`[MAGAZA-AC-DEBUG] oturum yok -> /giris | cerezler: ${cerezAdlari}`);
     redirect("/giris?next=%2Fpanel%2Fmagaza-ac");
   }
 

@@ -36,7 +36,12 @@ export async function SiteFooter() {
           <Link href="/magazalar" className="text-white hover:text-primary-100">
             Tezgahlar
           </Link>
-          <Link href="/panel/magaza-ac" className="text-white hover:text-primary-100">
+          {/* prefetch={false}: bu sayfa giris-gerektiren. Cikis yapilmisken
+              onceden yuklenirse (prefetch), tarayici "login'e yonlendir"
+              kopyasini router onbellegine alir; kullanici sonradan giris yapsa
+              bile bu bayat kopya onu yeniden login ekranina atabiliyor
+              (2026-07-14 teshis). Prefetch kapali -> her tiklama taze getirir. */}
+          <Link href="/panel/magaza-ac" prefetch={false} className="text-white hover:text-primary-100">
             Tezgah Aç
           </Link>
           <Link href="/hakkimizda" className="text-white hover:text-primary-100">
