@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getOwnMagaza } from "@/lib/magaza";
@@ -18,7 +18,12 @@ export default async function MagazaAcPage() {
     // (tarayici router onbellegi / bayat kopya). Yalniz cerez ADLARI yazilir
     // (deger DEGIL - gizlilik).
     const cerezAdlari = (await cookies()).getAll().map((c) => c.name).join(",") || "(yok)";
-    console.log(`[MAGAZA-AC-DEBUG] oturum yok -> /giris | cerezler: ${cerezAdlari}`);
+    // UA da loglanir: "cerezler: (yok)" satirlarinin gercekten sikayetci
+    // telefona mi yoksa bota/giris-yapmamis siradan ziyaretciye mi ait oldugunu
+    // ayirt etmek icin - ayrica tarayici/Android surumu, eski tarayicinin
+    // __Secure-/__Host- onekli cerezleri reddetmesi ihtimalini test ettirir.
+    const ua = (await headers()).get("user-agent") ?? "(yok)";
+    console.log(`[MAGAZA-AC-DEBUG] oturum yok -> /giris | cerezler: ${cerezAdlari} | UA: ${ua}`);
     redirect("/giris?next=%2Fpanel%2Fmagaza-ac");
   }
 
