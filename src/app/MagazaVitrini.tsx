@@ -1,11 +1,14 @@
 import { MagazaKarti, type MagazaKartiVeri } from "@/components/MagazaKarti";
+import { MagazaKaydirici } from "./MagazaKaydirici";
 
 // sunumTipi (2026-07-14): YeniEklenenler.tsx'teki grid/slider ikiliginin
 // magaza karsiligi. "slider" TAM 2 (mobil) / 3 (sm+) kart genisliginde -
 // YeniEklenenler'in "peek" (kismi sonraki kart gorunur) tarzindan FARKLI,
 // kullanici acikca "yan yana 2/3 tezgah gosteren" istedigi icin kesin sayida
-// kart hesaplanir (calc ile, gap dahil). JS/state gerekmez - native overflow-x
-// + scroll-snap yeterli, bilesen server component kalabilir.
+// kart hesaplanir (calc ile, gap dahil). Gercek carousel davranisi (ok +
+// otomatik ilerleme + surukleme) etkilesim/zamanlayici gerektirdigi icin
+// MagazaKaydirici'ye ("use client") devredilir - bu bilesen server component
+// kalir, sadece grid modu kendi icinde render eder.
 export function MagazaVitrini({
   magazalar,
   kolonSayisi = 3,
@@ -24,18 +27,7 @@ export function MagazaVitrini({
   }
 
   if (sunumTipi === "slider") {
-    return (
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:gap-4">
-        {magazalar.map((magaza) => (
-          <div
-            key={magaza.id}
-            className="w-[calc((100%-12px)/2)] shrink-0 snap-start sm:w-[calc((100%-32px)/3)]"
-          >
-            <MagazaKarti magaza={magaza} />
-          </div>
-        ))}
-      </div>
-    );
+    return <MagazaKaydirici magazalar={magazalar} />;
   }
 
   return (
