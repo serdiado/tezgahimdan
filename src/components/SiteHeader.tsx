@@ -96,9 +96,23 @@ export async function SiteHeader() {
               </form>
             </>
           ) : (
-            <Link href="/giris" className="text-neutral-700 hover:text-primary-600">
-              Giriş
-            </Link>
+            // Giris yapmamis: hem "Giris" hem "Kayit Ol" gorunur. Onceden yalniz
+            // "Giris" vardi; yeni kaydolacak (bilhassa teknolojiyle az hasir nesir)
+            // kullanici once Giris'e basip alttaki kucuk "Kayit ol" linkini
+            // aramak zorunda kaliyordu (2026-07-14 istegi). "Kayit Ol" oncelikli
+            // eylem oldugu icin dolgulu (mevcut primary buton stili), "Giris"
+            // ikincil metin linki.
+            <>
+              <Link href="/giris" className="text-neutral-700 hover:text-primary-600">
+                Giriş
+              </Link>
+              <Link
+                href="/kayit-ol"
+                className="rounded-md bg-primary-500 px-3 py-1.5 font-semibold text-white transition-colors hover:bg-primary-600"
+              >
+                Kayıt Ol
+              </Link>
+            </>
           )}
         </nav>
       </div>
