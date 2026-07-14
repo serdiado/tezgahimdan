@@ -9,6 +9,12 @@ export const metadata: Metadata = {
   title: "Tüm Tezgahlar · Tezgahımdan",
 };
 
+// force-dynamic sart: bu sayfa dogrudan prisma.magaza.findMany cagirir, dinamik
+// segment/searchParams gibi bir "dynamic API" kullanmadigi icin Next.js build
+// aninda statik uretmeye calisir - Docker build asamasinda DATABASE_URL yok,
+// bu da build'i patlatir (kvkk/hakkimizda/sss sayfalarindaki ayni sebep).
+export const dynamic = "force-dynamic";
+
 // 2026-07-14: ana sayfadaki "Tezgahlar" onizlemesinin (slider, sinirli sayida
 // en-yeni tezgah) "Tum Tezgahlari Gor" hedefi. Burada SINIR YOK - bilincli:
 // bu sayfanin TEK isi tam listeyi gostermek. Ana sayfayla AYNI gorunurluk
