@@ -50,3 +50,11 @@ next-env.d.ts
 
 # satis/pazarlama ozel calismalari (repoya girmez)
 /docs/satis
+
+# demo seed fotograflari: binary'ler repoya girmez, metin kayitlari (liste + atif)
+# kalir - gorseller indir-commons.js + secimleri-kopyala.js ile yeniden uretilebilir.
+/scripts/demo-veri/fotograflar/*
+!/scripts/demo-veri/fotograflar/LISTE.md
+!/scripts/demo-veri/fotograflar/varsayilan/
+/scripts/demo-veri/fotograflar/varsayilan/*
+!/scripts/demo-veri/fotograflar/varsayilan/ATIF.json

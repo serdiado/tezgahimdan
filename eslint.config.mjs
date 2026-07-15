@@ -16,6 +16,9 @@ const eslintConfig = defineConfig([
     "src/generated/**",
     // Standalone CommonJS seed script (node ile calisir, Next.js ESM derlemesinin disinda).
     "prisma/seed.js",
+    // Ayni gerekce: demo verisi script'leri de node ile elle calistirilan
+    // standalone CommonJS - uygulama paketine hic girmez.
+    "scripts/demo-veri/**",
   ]),
 ]);
 
