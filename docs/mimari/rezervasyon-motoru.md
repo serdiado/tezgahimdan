@@ -115,7 +115,7 @@ Bu, pilottaki ürünlerin çoğunu (reçel/sabun/zeytinyağı — her hafta yeni
 
 **Değişmez (INVARIANT):** her üründe `aktif_sayisi ≤ stokAdedi`. (Eski hali `aktif ≤ stokAdedi − satildiSayisi` idi; satış artık stoğu düşürdüğü için sadeleşti.) Fazla-satışın matematiksel imkânsızlığıdır, psql ile doğrulandı.
 
-**Bilinen kısıt:** `rezervasyonGeriAl`, ürün `satildi` durumundayken geri almayı reddeder (`urun_satildi`). Yeni modelde geri alma aslında bir birim iade edeceği için bu koruma fazla temkinli — satıcı son birimin satışını yanlışlıkla işaretlerse önce stok girip sonra geri alması gerekir. Davranış eski modelden **değişmedi**, kapsam büyümesin diye dokunulmadı.
+**Tükenmiş üründe geri alma (aynı gün düzeltildi):** `urun_satildi` reddi artık **yalnızca satıldı-olmayan** kayıtlar için geçerli (bkz. "İki red durumu"). Bir satışı geri almak birimi zaten iade ettiği için tükenmiş üründe bile güvenlidir. Eski (fazla geniş) koşul ölçüldüğünde şu çıktı: satıcı son birimi yanlışlıkla "Satıldı" işaretlerse geri alamıyor; çaresi "stok gir → sonra geri al" oluyor, o da stoğu **1 yerine 2** yapıyordu — elde 1 mal varken sistem 2 diyor, yani INVARIANT satıcının kendi eliyle deliniyordu.
 
 **Test kanıtı (7 ürün + 2 satıcı):**
 - Satıldı-tüketir (stok=1): aktif satıldı → ürün `satildi`, 5 yedek `iptal` (tükendi). ✓
@@ -129,6 +129,8 @@ Bu, pilottaki ürünlerin çoğunu (reçel/sabun/zeytinyağı — her hafta yeni
 - Satış stoğu düşürür: stok 1 → satıcı "Satıldı" → stok **0**, ürün `satildi`, `urun_satildi` loglandı. ✓
 - **Asıl hata kapandı:** tükenmiş ürüne (stok 0, `satildi`) panelden stok 6 girildi → ürün **`sergide`**, vitrinde "6 Adet · Rezerve Et", `urun_durum_stok_guncellemesi:satildi->sergide` loglandı. Geçmiş satış kaydı ve yorumlar korundu. ✓
 - Satıldı geri al birimi iade eder: stok 6 → **7**, `satildi` 1 → 0, alıcı eski sırasına (aktif #1) döndü. ✓
+- **Tükenmiş üründe satışı geri al (red daraltıldıktan sonra):** stok 0 + `satildi` iken Geri Al → **200**, stok **1** (2 değil), ürün `sergide`, alıcı aktif #1'e döndü, `urun_tekrar_sergide` loglandı. Elde 1 mal → sistem 1 diyor. ✓
+- **Koruma yerinde (karşı test):** stok 0 + `satildi` iken bir **gelmedi** kaydını geri al → **409 `urun_satildi`**, stok değişmedi (0), ürün `satildi` kaldı. ✓
 - **8-paralel yarış (stok=1):** tam **1 aktif + 5 yedek + 2 red** ("kapasite dolu"), kapasite tam 6, ürün `doldu`. Kuyruk boşluksuz, çift (tip, sıraNo) yok, negatif stok yok, INVARIANT `aktif ≤ stok` 37/37 üründe korundu. ✓ (Kilit stratejisi değişmedi: satış artık `stokAdedi`'ni yazıyor ama aynı `FOR UPDATE` işlemi içinde — okuma/yazma serileşmesi aynı.)
 
 ## Geri Alma (`rezervasyonGeriAl`) — satıcı yanlış işaretlemeyi geri alır
@@ -139,8 +141,10 @@ Bir `satildi`/`gelmedi` kaydını tekrar `bekliyor` yapıp kişiyi **eski sıra 
 
 **Uygulama:** (1) aktif kuyrukta `eskiSira` ve sonrası için yer aç (`siraNo +1`), (2) kaydı `bekliyor` + `aktif` + `eskiSira` yap, (3) aktif taşarsa (yalnızca gelmedi geri almada olur; satıldıda `kalanBirim` de +1 arttığı için taşmaz) en yüksek aktif yedek kuyruğunun **başına** iner (eski önceliğini korur), (4) ürün durumu kapasiteye göre `doldu`/`sergide` güncellenir.
 
+> Adım (4)'ün ikinci dalının koşulu `urun.durum === "doldu"` **değil** `!== "sergide"` olmalı — aksi halde bir satışın geri alınması (stok 0 → 1) ürünü `satildi`da bırakır: birim iade edilmiş ama ürün hâlâ satışa kapalı görünür. Buraya gelindiğinde `yeniKalanBirim ≥ 1` garanti (tükenmiş üründen yalnızca satış geri alması geçebiliyor, o da stoğu +1 yapıyor).
+
 **İki red durumu** (kullanıcı kararı; süre sınırı yok — pazar-haftası kuralı haftalık sıfırlama adımına ertelendi):
-- **`urun_satildi`** — ürün tükenmişse (`durum='satildi'`) hiçbir geri alma yapılmaz. Geri gelen kişiye verecek satılık birim yoktur.
+- **`urun_satildi`** — ürün tükenmiş (`durum='satildi'`) **VE** geri alınan kayıt bir satış değilse. Yani stok 0'ken bir **gelmedi**'yi geri almak reddedilir: kişi aktife dönerdi ama verilecek birim yok. Bir **satışı** geri almak ise tükenmiş üründe bile geçerlidir — o işlem birimi iade eder (stok +1), ürün `sergide`'ye döner. (2026-07-15'te daraltıldı; öncesinde koşul sadece `durum='satildi'` idi ve satışı da reddediyordu, bkz. "Tükenmiş üründe geri alma".)
 - **`kapasite_dolu`** — geri alma bekleyeni +1 yapar; `yeniKalanBirim + 5`'i (satıldı geri almada `kalanBirim` da +1 artar) aşıyorsa reddedilir.
 
 Her red `DurumGecmisi`'ne **`geri_alma_reddedildi:{rezervId}:{sebep}`** olarak yazılır (admin paneli henüz yok; kayıt "güvenle geri alınamadı, admin'e iletildi" izini bırakır). Başarı: `rezervasyon_geri_alindi:{eskiDurum}:{eskiSira}`, düşen yedek varsa `rezervasyon_aktiften_yedege`.

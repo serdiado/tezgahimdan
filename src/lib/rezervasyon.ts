@@ -713,13 +713,24 @@ export async function rezervasyonGeriAl(params: {
         });
       };
 
-      // Red (urun_satildi): urun tukendiyse geri alma yok.
-      if (!urun || urun.durum === "satildi") {
+      const geriAlinanSatildi = rez.durum === "satildi";
+
+      // Red (urun_satildi): tukenmis uruncle geri alma - AMA sadece verilecek
+      // birim yoksa. Bir SATISI geri almak birimi zaten iade eder (asagida
+      // stok +1), dolayisiyla tukenmis urunde bile guvenlidir; asil korunan
+      // durum "stok 0'ken bir GELMEDI kaydini geri almak" - orada kisiyi aktife
+      // koyardik ama verecek mal yok.
+      //
+      // Eskiden kosul sadece `urun.durum === "satildi"` idi ve satisi da
+      // reddediyordu. Sonucu (2026-07-15 olculdu): satici son birimi yanlislikla
+      // "Satildi" isaretlerse geri alamiyor; caresi stok girip SONRA geri almak
+      // oluyordu, o da stogu 1 yerine 2 yapiyordu - yani elde 1 mal varken
+      // sistem 2 diyor, fazla-satis. INVARIANT'i saticinin kendi eliyle deliyordu.
+      if (!urun || (urun.durum === "satildi" && !geriAlinanSatildi)) {
         await redKaydi("urun_satildi");
         return { tur: "reddedildi", sebep: "urun_satildi" };
       }
 
-      const geriAlinanSatildi = rez.durum === "satildi";
       // satildi geri alinirsa satista tuketilen birim IADE edilir -> stok +1
       // (satis aninda stok 1 dusuruluyor, bkz. sonuclandir). Gelmedi geri almada
       // birim hic tuketilmemisti, stok degismez.
@@ -811,6 +822,12 @@ export async function rezervasyonGeriAl(params: {
       }
 
       // 4) Urun durumu: geri alma sonrasi kapasiteye gore doldu/sergide.
+      // NOT: ikinci dalin kosulu `urun.durum === "doldu"` DEGIL `!== "sergide"` -
+      // aksi halde bir SATISIN geri alinmasi (stok 0 -> 1) urunu `satildi`da
+      // birakirdi: birim iade edilmis ama urun hala satisa kapali gorunur.
+      // Buraya gelebildiysek yeniKalanBirim >= 1'dir (tukenmis urunde yalnizca
+      // satis geri almasi gecebiliyor, o da stogu +1 yapiyor), yani `satildi`
+      // artik dogru durum degil.
       const yeniBekleyen = mevcutBekleyen + 1;
       const kapasite = yeniKalanBirim + ayarlar.maxYedek;
       if (yeniBekleyen >= kapasite && urun.durum !== "doldu") {
@@ -818,7 +835,7 @@ export async function rezervasyonGeriAl(params: {
         await tx.durumGecmisi.create({
           data: { kullaniciId: rez.aliciId, varlikTuru: "Urun", varlikId: urun.id, olay: "urun_doldu" },
         });
-      } else if (yeniBekleyen < kapasite && urun.durum === "doldu") {
+      } else if (yeniBekleyen < kapasite && urun.durum !== "sergide") {
         await tx.urun.update({ where: { id: urun.id }, data: { durum: "sergide" } });
         await tx.durumGecmisi.create({
           data: {
