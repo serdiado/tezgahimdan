@@ -15,6 +15,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { DahaFazlaButonu } from "@/components/DahaFazlaButonu";
 import { AnasayfaHero } from "./AnasayfaHero";
 import { HaftalikRitim } from "./HaftalikRitim";
+import { PazarBaglamSatiri } from "./PazarBaglamSatiri";
 import { YeniEklenenler } from "./YeniEklenenler";
 import { MagazaVitrini } from "./MagazaVitrini";
 import { VitrinArama } from "./VitrinArama";
@@ -30,12 +31,22 @@ const HERO_ANAHTARLARI = [
   "anasayfa_hero_gorsel",
 ];
 
-// Gorunurluk filtresi "Bu Hafta Eklenenler" VE "En Cok Begenilenler"
-// sorgularinin ikisinde de BIREBIR ayni (silindiMi/durum/magaza.silindiMi/
-// magaza.gizliMi) kullanilir - tek yerde tutulur. "arama" (VitrinArama /
-// HaftalikRitim'in ?q= parametresi) verilmisse magazanin pazarina gore de
-// filtreler - anasayfadaki ürün-mağaza filtrelemesi TUTARLI kalsin diye
-// magazalar sorgusuyla (page.tsx asagida) AYNI OR kosulunu kullanir.
+// Gorunurluk filtresi "Yeni Urunler" VE "En Cok Begenilenler" sorgularinin
+// ikisinde de (ayrica kategori cipleri sorgusunda) BIREBIR ayni kullanilir -
+// tek yerde tutulur. "arama" (VitrinArama / HaftalikRitim'in ?q= parametresi)
+// verilmisse magazanin pazarina gore de filtreler - anasayfadaki urun-magaza
+// filtrelemesi TUTARLI kalsin diye magazalar sorgusuyla AYNI OR kosulunu kullanir.
+//
+// pazar.aktifMi KOSULSUZ (2026-07-15 hata duzeltmesi): eskiden pazar kosulu
+// SADECE arama varken giriyordu, yani aramasiz ana sayfada pasif pazarin
+// urunleri SIZIYORDU. Canli olculdu: admin pazari kapatinca tezgah kartlari
+// kayboluyor (magazalar sorgusu aktifMi filtreliyor) ama 24 urun karti ana
+// sayfada kaliyor ve REZERVE EDILEBILIYORDU - alici bosuna pazara giderdi,
+// yani platformun onlemek icin var oldugu sey. Sema yorumu da bunun
+// filtrelendigini soyluyordu (Pazar.aktifMi: "bagli magazalar vitrinde/
+// anasayfada GORUNMEZ"), yani niyet ile kod ayrilmisti.
+// DIKKAT: aktifMi ile arama OR'u AYNI `pazar` nesnesinde birlesmeli - iki ayri
+// spread biri otekini ezerdi.
 function vitrinGorunurlukFiltresi(arama: string, kategoriId?: string | null): Prisma.UrunWhereInput {
   return {
     silindiMi: false,
@@ -45,17 +56,18 @@ function vitrinGorunurlukFiltresi(arama: string, kategoriId?: string | null): Pr
       silindiMi: false,
       gizliMi: false,
       duraklatildiMi: false,
-      ...(arama
-        ? {
-            pazar: {
+      pazar: {
+        aktifMi: true,
+        ...(arama
+          ? {
               OR: [
                 { il: { contains: arama, mode: "insensitive" } },
                 { ilce: { contains: arama, mode: "insensitive" } },
                 { semt: { contains: arama, mode: "insensitive" } },
               ],
-            },
-          }
-        : {}),
+            }
+          : {}),
+      },
     },
   };
 }
@@ -108,7 +120,7 @@ export default async function AnaSayfa({
   const magazaSayfaBoyu = magazaListesiAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT;
 
   const [yeniUrunlerHam, enCokBegenilenIdler, magazalar, yeniUrunToplam, kategoriCipleri] = await Promise.all([
-    // Magazalar-arasi "Bu Hafta Eklenenler" seridi - MagazaVitrini'deki ayni
+    // Magazalar-arasi "Yeni Ürünler" seridi - MagazaVitrini'deki ayni
     // gizliMi/silindiMi kurali burada da gecerli, yoksa gizlenmis/kaldirilmis
     // bir magazanin urunu ana sayfada sizar.
     prisma.urun.findMany({
@@ -207,7 +219,7 @@ export default async function AnaSayfa({
   const tumUrunIdler = Array.from(
     new Set([...yeniUrunler.map((u) => u.id), ...enCokBegenilenler.map((u) => u.id)]),
   );
-  // "Mağazalar" bölümündeki magazalar + "Bu Hafta Eklenenler"/"En Çok
+  // "Mağazalar" bölümündeki magazalar + "Yeni Ürünler"/"En Çok
   // Beğenilenler" ürünlerinin mağazaları TAM ÖRTÜŞMEYEBİLİR (ör. pazarı pasif
   // olmuş bir mağazanın ürünü teorik olarak burada görünebilir) - puan
   // haritasının HER İKİ kaynaktan gelen mağaza id'lerini de kapsaması gerekir.
@@ -256,7 +268,7 @@ export default async function AnaSayfa({
   const anasayfaKategoriHref = (kategoriId: string | null) => anasayfaHref({ kategori: kategoriId, sayfa: 1 });
   const anasayfaSayfaHref = (yeniSayfa: number) => anasayfaHref({ sayfa: yeniSayfa });
 
-  // Hem "Bu Hafta Eklenenler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
+  // Hem "Yeni Ürünler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
   // seklini kurar - kod tekrari yerine tek yardimci.
   function urunKartiVeriYap(urun: (typeof yeniUrunler)[number]) {
     return {
@@ -306,6 +318,14 @@ export default async function AnaSayfa({
   const haftalikRitimAktifMi = moduller.some((m) => m.tur === "haftalik_ritim" && m.aktifMi);
   const digerModuller = moduller.filter((m) => m.aktifMi && m.tur !== "haftalik_ritim");
 
+  // Baglam satiri: SADECE tek aktif pazar varken. Iki pazar olunca "asagidaki
+  // her sey bu pazardan" cumlesi YALAN olur - satir kendiliginden kaybolur
+  // (bkz. PazarBaglamSatiri.tsx). Sira admin'den degistirilebildigi icin satir
+  // sabit bir konuma degil, ILK KAPSAMLI MODULUN hemen ustune basilir:
+  // haftalik_ritim caprazdir ve urun GOSTERMEZ, o yuzden kapsam disi.
+  const tekPazar = pazarlar.length === 1 ? pazarlar[0] : null;
+  const ilkKapsamliModul = digerModuller[0]?.tur ?? null;
+
   // Modul render fonksiyonlari - moduller.map() ile sira admin ayarina gore
   // gecilir, aktifMi false olanlar hic render edilmez.
   function modulRenderEt(tur: (typeof moduller)[number]["tur"]) {
@@ -331,7 +351,16 @@ export default async function AnaSayfa({
           (arama || secilenKategoriId || yeniUrunler.length > 0) && (
             <div key={tur} className="mt-8">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-lg font-bold text-neutral-900">Bu Hafta Eklenenler</h2>
+                {/*
+                  "Yeni Ürünler" (2026-07-15) - eskiden "Yeni Ürünler"di ama
+                  sorgu HAFTA FILTRELEMIYOR (sadece orderBy createdAt desc + take),
+                  yani isim yalan soyluyordu. Gercekten hafta filtrelemek REDDEDILDI:
+                  37 urunluk envanterde bolum cogu hafta bosalirdi. Ayrica bu bolum
+                  "Daha Fazla Goster" ile TUM urunlere ulasan tek yer - alt kume adi
+                  tasimasi kullaniciyi "asil urunler nerede?" diye arattiriyordu.
+                  Modul turu (yeni_urunler) zaten "hafta" demiyor, migration yok.
+                */}
+                <h2 className="text-lg font-bold text-neutral-900">Yeni Ürünler</h2>
                 {arama && (
                   <p className="text-sm text-neutral-500">
                     &quot;{arama}&quot; için {yeniUrunToplam} sonuç ·{" "}
@@ -361,6 +390,25 @@ export default async function AnaSayfa({
                     {yeniUrunDahaVarMi && (
                       <DahaFazlaButonu href={anasayfaSayfaHref(sayfaNo + 1)} />
                     )}
+                    {/*
+                      Urunlere bir EV veriyor. Kullanicinin "urunler yok"
+                      gozleminin ikinci yarisi buydu: Tezgahlar'in /magazalar'i
+                      var, urunlerin gidilecek yeri yoktu. YENI SAYFA ACILMADI -
+                      /pazar/[slug] zaten tam olarak o is: o pazarin tum
+                      urunleri + kategori cipleri + sayfalama + pazar-ici arama.
+                      Baglam satiriyla AYNI kosul: tek pazar yoksa "bu pazar"
+                      ifadesi anlamsiz (coklu pazarda link "Pazarlar"a doner).
+                    */}
+                    {tekPazar && (
+                      <p className="mt-4 text-center text-sm">
+                        <Link
+                          href={`/pazar/${tekPazar.slug}`}
+                          className="font-medium text-primary-600 hover:underline"
+                        >
+                          Bu Pazardaki Tüm Ürünler →
+                        </Link>
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -374,7 +422,7 @@ export default async function AnaSayfa({
         // ONCE cekiyor, o yuzden sayfalamasi yanlis sayi gosterirdi.
         // Kategori cipleri de burada gosterilmiyor: filtre sunucuda ve tek
         // parametreye (?kategori) bagli, iki ayri bolumde ayri secim olamaz -
-        // sayfalanan tek liste "Bu Hafta Eklenenler".
+        // sayfalanan tek liste "Yeni Ürünler".
         return (
           enCokBegenilenler.length > 0 && (
             <div key={tur} className="mt-8">
@@ -474,7 +522,22 @@ export default async function AnaSayfa({
           />
         </div>
 
-        {digerModuller.map((m) => modulRenderEt(m.tur))}
+        {digerModuller.map((m) => (
+          <div key={m.tur}>
+            {tekPazar && m.tur === ilkKapsamliModul && (
+              <PazarBaglamSatiri
+                pazar={{
+                  ad: tekPazar.ad,
+                  slug: tekPazar.slug,
+                  il: tekPazar.il,
+                  ilce: tekPazar.ilce,
+                  baslangicGunu: tekPazar.baslangicGunu,
+                }}
+              />
+            )}
+            {modulRenderEt(m.tur)}
+          </div>
+        ))}
       </main>
       <SiteFooter />
     </div>

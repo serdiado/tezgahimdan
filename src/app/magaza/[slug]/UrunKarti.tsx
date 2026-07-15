@@ -95,7 +95,7 @@ export function UrunKarti({
   urun: UrunKartiVeri;
   girisli: boolean;
   kullaniciTelefonVar: boolean;
-  // Sadece magazalar-arasi listelerde (ana sayfa "Bu Hafta Eklenenler") gecilir -
+  // Sadece magazalar-arasi listelerde (ana sayfa "Yeni Ürünler") gecilir -
   // bir magazanin kendi sayfasinda (MagazaIcerik) baglam zaten belli, gerek yok.
   // degerlendirmeOrtalamasi/Sayisi: MAGAZA-seviyesi puan (urun puani DEGIL) -
   // magaza adinin yanindaki tek-yildiz gosterge icin.

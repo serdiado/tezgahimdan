@@ -56,7 +56,7 @@ export function VitrinArama({
       router.push("/");
       return;
     }
-    // Anchor YOK: hem urunler ("Bu Hafta Eklenenler") hem magazalar ayni
+    // Anchor YOK: hem urunler ("Yeni Ürünler") hem magazalar ayni
     // sorguyla filtrelendigi icin sonuc zaten arama kutusunun hemen
     // altinda gorunur, uzak bir bolume kaydirmaya gerek yok.
     router.push(`/?q=${encodeURIComponent(temiz)}`);

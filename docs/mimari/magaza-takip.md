@@ -69,7 +69,7 @@ Sıralama Prisma'nın resmi desteklediği `groupBy` + `orderBy:{_count:{alan:
 — tahmin değil, `src/generated/prisma/index.d.ts`'teki tip tanımlarıyla
 doğrulandı. Bu fonksiyon GÖRÜNÜRLÜK FİLTRESİ (silindiMi/durum/magaza.gizliMi)
 uygulamaz, sadece beğeni-sıralı ID listesi döner — `page.tsx` bu ID'lerle AYRI
-bir `Urun.findMany` yapıp "Bu Hafta Eklenenler"deki AYNI görünürlük filtresini
+bir `Urun.findMany` yapıp "Yeni Ürünler"deki AYNI görünürlük filtresini
 uygular. `findMany({id:{in:...}})` sıra garantisi vermediği için dönen
 satırlar `Map`'e konup orijinal beğeni-sırasına göre JS'de geri dizilir.
 

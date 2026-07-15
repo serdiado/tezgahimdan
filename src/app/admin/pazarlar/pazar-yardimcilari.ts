@@ -1,16 +1,8 @@
 // Pazar yönetim ekranlarının (liste + form) paylaştığı saf yardımcılar.
-// Gün etiketleri MagazaHero.tsx'teki GUN_ETIKETI ile aynı harita - o dosya
-// dışa aktarmadığı için burada yerelde tutuluyor (DURUM_STIL sözlüklerinin
-// kod tabanında zaten birden fazla yerde yerelce tutulmasıyla aynı desen).
-export const GUN_ETIKETI: Record<string, string> = {
-  Pazartesi: "Pazartesi",
-  Sali: "Salı",
-  Carsamba: "Çarşamba",
-  Persembe: "Perşembe",
-  Cuma: "Cuma",
-  Cumartesi: "Cumartesi",
-  PazarGunu: "Pazar",
-};
+// GUN_ETIKETI artık ortak evinde (src/lib/gun-etiketi.ts) - eskiden burada ve
+// MagazaHero.tsx'te ayrı ayrı kopyalanıyordu. Mevcut çağıranlar kırılmasın diye
+// buradan yeniden dışa aktarılıyor.
+export { GUN_ETIKETI } from "@/lib/gun-etiketi";
 
 export const HAFTA_GUNLERI: { deger: string; etiket: string }[] = [
   { deger: "Pazartesi", etiket: "Pazartesi" },

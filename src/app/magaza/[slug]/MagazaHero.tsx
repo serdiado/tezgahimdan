@@ -4,17 +4,8 @@ import type { SayfaModulTuru } from "@/generated/prisma";
 import { WhatsappIkon } from "@/components/PaylasButonlari";
 import { YildizGosterge } from "@/components/YildizGosterge";
 import { SOSYAL_PLATFORMLAR } from "@/lib/sosyal-medya";
+import { GUN_ETIKETI } from "@/lib/gun-etiketi";
 import { KrokiGorseli } from "./KrokiGorseli";
-
-const GUN_ETIKETI: Record<string, string> = {
-  Pazartesi: "Pazartesi",
-  Sali: "Salı",
-  Carsamba: "Çarşamba",
-  Persembe: "Perşembe",
-  Cuma: "Cuma",
-  Cumartesi: "Cumartesi",
-  PazarGunu: "Pazar",
-};
 
 export type MagazaHeroBileseni = {
   // SayfaModulTuru (Prisma) - sayfaModulleriGetir("magaza_hero") sadece 3

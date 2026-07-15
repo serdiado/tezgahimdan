@@ -9,7 +9,7 @@ import { SayfaModuluKarti, type SayfaModuluVeri } from "./SayfaModuluKarti";
 
 const MODUL_BASLIGI: Record<string, string> = {
   haftalik_ritim: "Haftalık Pazar Ritmi",
-  yeni_urunler: "Bu Hafta Eklenenler",
+  yeni_urunler: "Yeni Ürünler",
   en_cok_begenilen: "En Çok Beğenilenler",
   magaza_listesi: "Tezgahlar",
 };

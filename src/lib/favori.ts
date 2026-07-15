@@ -69,7 +69,7 @@ export async function begeniSayilariHaritasi(urunIdler: string[]): Promise<Map<s
 // dondurur - Prisma'nin groupBy+orderBy:{_count} destegi (resmi, tahmin degil).
 // GORUNURLUK FILTRESI (silindiMi/durum/magaza.gizliMi) UYGULAMAZ - sadece
 // begeni sayisina gore ID sirasi doner, cagiran taraf (page.tsx) kendi
-// gorunurluk filtresini eklemeli (ayni "Bu Hafta Eklenenler" sorgusundaki gibi).
+// gorunurluk filtresini eklemeli (ayni "Yeni Ürünler" sorgusundaki gibi).
 export async function enCokBegenilenUrunIdleriGetir(limit: number): Promise<string[]> {
   const gruplar = await prisma.urunFavori.groupBy({
     by: ["urunId"],

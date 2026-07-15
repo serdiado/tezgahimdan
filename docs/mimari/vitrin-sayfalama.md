@@ -1,6 +1,6 @@
 # Vitrin sayfalama — "Daha Fazla Göster"
 
-2026-07-15 kararı. Vitrindeki dört ürün/tezgah listesi de artık sayfalı: **ana sayfa** ("Bu Hafta Eklenenler"), **/magazalar**, **/magaza/[slug]**, **/pazar/[slug]**.
+2026-07-15 kararı. Vitrindeki dört ürün/tezgah listesi de artık sayfalı: **ana sayfa** ("Yeni Ürünler"), **/magazalar**, **/magaza/[slug]**, **/pazar/[slug]**.
 
 ## Sorun neydi
 
@@ -45,7 +45,7 @@ Hedef kitle teknolojiyle arası iyi olmayan yerel alıcılar (CLAUDE.md).
 
 | Yüzey | Ayar kaynağı |
 |---|---|
-| Ana sayfa "Bu Hafta Eklenenler" | `anasayfa / yeni_urunler.ogeSayisi` |
+| Ana sayfa "Yeni Ürünler" | `anasayfa / yeni_urunler.ogeSayisi` |
 | `/pazar/[slug]` ürünleri | **aynı** `yeni_urunler.ogeSayisi` — burası da mağazalar-arası bir ürün ızgarası; ayrı ayar admin'e karşılıksız bir kontrol daha koymak olurdu |
 | `/magazalar` | **`anasayfa / magaza_listesi.ogeSayisi`** — iki sayfa zaten AYNI bileşeni (`MagazaVitrini`) render ediyor: ana sayfada "önizleme uzunluğu", `/magazalar`'da "sayfa boyu" |
 | `/magaza/[slug]` ürünleri | **yeni** `magaza_hero / magaza_urun_listesi.ogeSayisi` |

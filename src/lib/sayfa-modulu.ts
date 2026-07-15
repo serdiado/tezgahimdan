@@ -19,14 +19,18 @@ type ModulTuru =
   | "magaza_urun_listesi";
 
 const VARSAYILAN_MODULLER: Record<SayfaAdi, { tur: ModulTuru; sira: number; ayarlar: SayfaModulAyarlari }[]> = {
+  // Sira, platformun kesif zincirini izler (2026-07-15): hangi gun kuruluyor ->
+  // KIM satiyor -> ne var. Tezgahlar eskiden EN ALTTAYDI (4.), yani zincirin
+  // ikinci halkasi 24 urun kartinin altinda, mobilde ~6. ekranda kaliyordu.
+  // Admin bu sirayi panelden degistirebilir; burasi yalnizca ilk kurulum.
   anasayfa: [
     { tur: "haftalik_ritim", sira: 1, ayarlar: {} },
-    { tur: "yeni_urunler", sira: 2, ayarlar: { kolonSayisi: 3, sunumTipi: "grid", ogeSayisi: 12 } },
-    { tur: "en_cok_begenilen", sira: 3, ayarlar: { kolonSayisi: 3, sunumTipi: "grid", ogeSayisi: 12 } },
     // ogeSayisi burada IKI ise yarar (2026-07-15): ana sayfadaki tezgah
     // onizlemesinin uzunlugu VE /magazalar sayfasinin sayfa boyu. Iki sayfa
     // zaten AYNI bileseni (MagazaVitrini) render ediyor, ayar da ortak.
-    { tur: "magaza_listesi", sira: 4, ayarlar: { kolonSayisi: 3, ogeSayisi: 12 } },
+    { tur: "magaza_listesi", sira: 2, ayarlar: { kolonSayisi: 3, ogeSayisi: 12 } },
+    { tur: "yeni_urunler", sira: 3, ayarlar: { kolonSayisi: 3, sunumTipi: "grid", ogeSayisi: 12 } },
+    { tur: "en_cok_begenilen", sira: 4, ayarlar: { kolonSayisi: 3, sunumTipi: "grid", ogeSayisi: 12 } },
   ],
   // Mevcut MagazaHero.tsx dizilimiyle birebir ayni sira (WhatsApp -> kroki),
   // puan rozeti (YildizGosterge) Hero'nun DISINDA (page.tsx'te takip
