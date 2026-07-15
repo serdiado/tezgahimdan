@@ -15,7 +15,7 @@
 const { PrismaClient } = require("../../src/generated/prisma");
 const bcrypt = require("bcrypt");
 const { randomUUID } = require("node:crypto");
-const { readdir, mkdir, copyFile, unlink } = require("node:fs/promises");
+const { readdir, mkdir, copyFile, unlink, readFile, stat } = require("node:fs/promises");
 const { existsSync } = require("node:fs");
 const path = require("node:path");
 const { TEZGAHLAR, ALICILAR } = require("./katalog");
@@ -98,19 +98,55 @@ function rezervKoduUret() {
 // ---------------------------------------------------------------------------
 // Fotograf cozumleme: once kullanicinin koydugu dosya, yoksa gozle dogrulanmis
 // varsayilan. Ikisi de yoksa null (cagiran taraf rapor eder).
+//
+// Tur tespiti UZANTIYA DEGIL dosyanin baytlarina bakar - uygulamanin kendi
+// savunmasiyla ayni ilke (bkz. src/lib/dosya.ts gercekDosyaTuruDogrula).
+// Gerekce: kullanicidan ".jpe" uzantili gercek bir JPEG geldi; uzanti listesine
+// guvenen eski surum onu sessizce ATLIYOR, urun fotografsiz kaliyordu. Hedef
+// dosya adini zaten biz uretiyoruz (uuid.<uzanti>), o yuzden kaynagin uzantisi
+// hic onemli degil - icerigi onemli.
 // ---------------------------------------------------------------------------
-const IZINLI_UZANTILAR = ["jpg", "jpeg", "png", "webp", "gif"];
+const MAX_BOYUT_BYTE = 5 * 1024 * 1024; // urun-sabitleri.ts ile AYNI sinir
 
-async function dizinHaritasi(dizin) {
+function gercekTur(buf) {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpg";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "png";
+  if (buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WEBP") return "webp";
+  const g = buf.toString("ascii", 0, 6);
+  if (g === "GIF87a" || g === "GIF89a") return "gif";
+  return null;
+}
+
+// Reddedilen dosyalari sebebiyle birlikte biriktirir - sessiz atlama YOK.
+const fotografUyarilari = [];
+
+async function dizinHaritasi(dizin, etiket) {
   const harita = new Map();
   if (!existsSync(dizin)) return harita;
   for (const dosya of await readdir(dizin)) {
+    const tamYol = path.join(dizin, dosya);
+    if ((await stat(tamYol)).isDirectory()) continue;
+    if (dosya === "LISTE.md" || dosya === "ATIF.json") continue;
+
     const nokta = dosya.lastIndexOf(".");
-    if (nokta < 0) continue;
-    const taban = dosya.slice(0, nokta);
-    const uzanti = dosya.slice(nokta + 1).toLowerCase();
-    if (!IZINLI_UZANTILAR.includes(uzanti)) continue;
-    harita.set(taban, { yol: path.join(dizin, dosya), uzanti: uzanti === "jpeg" ? "jpg" : uzanti });
+    const taban = nokta < 0 ? dosya : dosya.slice(0, nokta);
+
+    const buf = await readFile(tamYol);
+    const uzanti = gercekTur(buf);
+    if (!uzanti) {
+      fotografUyarilari.push(`${etiket}/${dosya}: taninmayan gorsel turu (jpg/png/webp/gif degil) - ATLANDI`);
+      continue;
+    }
+    // Uygulamanin 5MB sinirini seed de uygulamali: aksi halde demo, gercek bir
+    // saticinin ASLA yukleyemeyecegi bir veri uretir (ve VPS'te bosuna yer/CPU yer).
+    if (buf.length > MAX_BOYUT_BYTE) {
+      fotografUyarilari.push(
+        `${etiket}/${dosya}: ${(buf.length / 1048576).toFixed(1)}MB - uygulamanin 5MB sinirinin USTUNDE, ATLANDI`,
+      );
+      continue;
+    }
+    harita.set(taban, { yol: tamYol, uzanti });
   }
   return harita;
 }
@@ -243,10 +279,15 @@ async function main() {
   }
 
   // --- Fotograflar
-  kullaniciFotolari = await dizinHaritasi(FOTO_DIZIN);
-  varsayilanFotolari = await dizinHaritasi(FOTO_VARSAYILAN);
+  kullaniciFotolari = await dizinHaritasi(FOTO_DIZIN, "fotograflar");
+  varsayilanFotolari = await dizinHaritasi(FOTO_VARSAYILAN, "varsayilan");
   await mkdir(URUN_UPLOAD, { recursive: true });
   await mkdir(KROKI_UPLOAD, { recursive: true });
+
+  if (fotografUyarilari.length) {
+    console.log("\nFOTOGRAF UYARILARI:");
+    for (const u of fotografUyarilari) console.log(`  ! ${u}`);
+  }
 
   const eksikFotolar = [];
   for (const t of TEZGAHLAR) {
