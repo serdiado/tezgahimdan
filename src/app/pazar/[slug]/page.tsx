@@ -3,12 +3,16 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, MapPin } from "lucide-react";
 import { auth } from "@/auth";
+import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { sayfaModulleriGetir } from "@/lib/sayfa-modulu";
+import { sayfaKes, sayfaNoCoz } from "@/lib/vitrin-sayfalama";
 import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi, pasifUrunIdSeti } from "@/lib/rezervasyon";
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { magazaDegerlendirmeOzetiHaritasi } from "@/lib/magaza-degerlendirme";
 import { SiteHeader } from "@/components/SiteHeader";
+import { DahaFazlaButonu } from "@/components/DahaFazlaButonu";
 import { MagazaVitrini } from "@/app/MagazaVitrini";
 import { YeniEklenenler } from "@/app/YeniEklenenler";
 import { PazarIciArama } from "./PazarIciArama";
@@ -62,6 +66,30 @@ export async function generateMetadata({
   };
 }
 
+// Urun sorgusu ile kategori-cip sorgusu AYNI gorunurluk/arama kurallarini
+// paylasmali - tek yerde tutulur (ana sayfadaki vitrinGorunurlukFiltresi ile
+// ayni gerekce). kategoriId cip sorgusunda BILEREK gecilmez.
+function pazarUrunFiltresi(
+  pazarId: string,
+  arama: string,
+  kategoriId: string | null,
+): Prisma.UrunWhereInput {
+  return {
+    silindiMi: false,
+    durum: { in: ["sergide", "doldu"] },
+    ...(kategoriId ? { kategoriId } : {}),
+    magaza: { pazarId, silindiMi: false, gizliMi: false, duraklatildiMi: false },
+    ...(arama
+      ? {
+          OR: [
+            { baslik: { contains: arama, mode: "insensitive" } },
+            { aciklama: { contains: arama, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+  };
+}
+
 export default async function PazarSayfasi({
   params,
   searchParams,
@@ -70,11 +98,14 @@ export default async function PazarSayfasi({
   // ?q=: pazar-ICI arama (PazarIciArama) - urun baslik/aciklamasi ile tezgah
   // ad/aciklamasinda arar. Anasayfadaki ?q= (bolge aramasi) ile KARISTIRMA -
   // burada kapsam zaten tek pazar, aranan sey urun/tezgah.
-  searchParams: Promise<{ q?: string }>;
+  // ?sayfa= / ?kategori=: vitrin sayfalamasi (bkz. docs/mimari/vitrin-sayfalama.md)
+  searchParams: Promise<{ q?: string; sayfa?: string; kategori?: string }>;
 }) {
   const { slug } = await params;
-  const { q } = await searchParams;
+  const { q, sayfa, kategori } = await searchParams;
   const arama = q?.trim() || "";
+  const sayfaNo = sayfaNoCoz(sayfa);
+  const secilenKategoriId = kategori?.trim() || null;
   const pazar = await pazarGetir(slug);
   if (!pazar) notFound();
 
@@ -93,9 +124,21 @@ export default async function PazarSayfasi({
 
   // Tezgahlar + urunler AYNI pazara scope'lu; gorunurluk filtreleri ana
   // sayfadakiyle birebir ayni (silindiMi/gizliMi - gizlenen magaza ve urunu
-  // burada da sizmasin). Sayfalama YOK - tek pazarin tezgah/urun sayisinin
-  // kucuk kalacagi varsayimi (magaza sayfasindaki ayni kapsam karari).
-  const [magazalar, urunler] = await Promise.all([
+  // burada da sizmasin).
+  //
+  // 2026-07-15: urun listesi artik SAYFALI ("Daha Fazla Goster"). Eskiden
+  // "tek pazarin urun sayisi kucuk kalir" varsayimiyla limitsizdi - tam da
+  // olcekte kirilan varsayim bu. Sayfa boyu ana sayfayla AYNI ayardan
+  // (yeni_urunler.ogeSayisi) okunur: burasi da magazalar-arasi bir urun
+  // izgarasi, ayri bir ayar yaratmak admin'e karsiliksiz bir kontrol daha
+  // koymak olurdu. TEZGAH listesi (magazalar) sayfalanmadi - o bir pazarin
+  // tezgah sayisi kadar, dogal olarak kucuk.
+  const yeniUrunlerModul = (await sayfaModulleriGetir("anasayfa")).find((m) => m.tur === "yeni_urunler");
+  const urunSayfaBoyu =
+    ((yeniUrunlerModul?.ayarlar ?? {}) as { ogeSayisi?: number }).ogeSayisi ?? 12;
+  const urunLimit = urunSayfaBoyu * sayfaNo;
+
+  const [magazalar, urunlerHam, kategoriCipleri] = await Promise.all([
     prisma.magaza.findMany({
       where: {
         pazarId: pazar.id,
@@ -115,23 +158,41 @@ export default async function PazarSayfasi({
       orderBy: { createdAt: "desc" },
     }),
     prisma.urun.findMany({
-      where: {
-        silindiMi: false,
-        durum: { in: ["sergide", "doldu"] },
-        magaza: { pazarId: pazar.id, silindiMi: false, gizliMi: false, duraklatildiMi: false },
-        ...(arama
-          ? {
-              OR: [
-                { baslik: { contains: arama, mode: "insensitive" } },
-                { aciklama: { contains: arama, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-      },
+      where: pazarUrunFiltresi(pazar.id, arama, secilenKategoriId),
       include: { kategori: true, magaza: { select: { id: true, ad: true, slug: true } } },
       orderBy: { createdAt: "desc" },
+      take: urunLimit + 1, // +1 = "daha var mi" (bkz. sayfaKes)
+    }),
+    // Cipler yuklenen urunlerden DEGIL, bu pazarda gorunur urunu olan tum
+    // kategorilerden (kategori filtresi HARIC - yoksa secilen cip disindaki
+    // cipler kaybolurdu).
+    prisma.kategori.findMany({
+      where: { silindiMi: false, urunler: { some: pazarUrunFiltresi(pazar.id, arama, null) } },
+      orderBy: [{ sira: "asc" }, { ad: "asc" }],
+      select: { id: true, ad: true, sira: true },
     }),
   ]);
+
+  const { ogeler: urunler, dahaVarMi: urunDahaVarMi } = sayfaKes(urunlerHam, urunLimit);
+
+  // Mevcut parametreleri koruyarak tek birini degistirir (ana sayfadaki
+  // anasayfaHref ile ayni desen). slug ONCEDEN yakalanir: `function` bildirimi
+  // hoist edildigi icin TS, yukaridaki notFound() daralmasini closure icinde
+  // koruyamiyor (pazar: Pazar | null gorunuyor).
+  const pazarSlug = pazar.slug;
+  function pazarHref(degisiklik: { kategori?: string | null; sayfa?: number }) {
+    const p = new URLSearchParams();
+    if (arama) p.set("q", arama);
+    const yeniKategori = degisiklik.kategori !== undefined ? degisiklik.kategori : secilenKategoriId;
+    if (yeniKategori) p.set("kategori", yeniKategori);
+    const yeniSayfa = degisiklik.sayfa ?? sayfaNo;
+    if (yeniSayfa > 1) p.set("sayfa", String(yeniSayfa));
+    const qs = p.toString();
+    return qs ? `/pazar/${pazarSlug}?${qs}` : `/pazar/${pazarSlug}`;
+  }
+  // Kategori degisince sayfa 1'e doner.
+  const pazarKategoriHref = (kategoriId: string | null) => pazarHref({ kategori: kategoriId, sayfa: 1 });
+  const pazarSayfaHref = (yeniSayfa: number) => pazarHref({ sayfa: yeniSayfa });
 
   const urunIdler = urunler.map((u) => u.id);
   const magazaIdler = Array.from(
@@ -340,6 +401,9 @@ export default async function PazarSayfasi({
                 <YeniEklenenler
                   girisli={girisli}
                   kullaniciTelefonVar={kullaniciTelefonVar}
+                  kategoriler={kategoriCipleri}
+                  secilenKategoriId={secilenKategoriId}
+                  kategoriHrefUret={pazarKategoriHref}
                   urunler={urunler.map((urun) => ({
                     id: urun.id,
                     baslik: urun.baslik,
@@ -375,6 +439,7 @@ export default async function PazarSayfasi({
                   }))}
                 />
               )}
+              {urunDahaVarMi && <DahaFazlaButonu href={pazarSayfaHref(sayfaNo + 1)} />}
             </div>
           </div>
         )}

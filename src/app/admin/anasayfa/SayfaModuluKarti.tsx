@@ -11,7 +11,8 @@ export type SayfaModuluTuru =
   | "magaza_listesi"
   | "magaza_hero_whatsapp"
   | "magaza_hero_kroki"
-  | "magaza_hero_puan";
+  | "magaza_hero_puan"
+  | "magaza_urun_listesi";
 
 export type SayfaModuluVeri = {
   sayfa: "anasayfa" | "magaza_hero";
@@ -23,8 +24,16 @@ export type SayfaModuluVeri = {
   sonMi: boolean;
   // Sadece urun/magaza izgarasi olan modullerde dolu - haftalik_ritim ve
   // magaza_hero_* turlerinde undefined (kolon/sunum/oge kavrami gecerli degil).
-  ayarlar?: { kolonSayisi: 3 | 4; sunumTipi?: "grid" | "slider"; ogeSayisi?: number };
+  // kolonSayisi opsiyonel: magaza_urun_listesi SADECE sayfa boyu tasir.
+  ayarlar?: { kolonSayisi?: 3 | 4; sunumTipi?: "grid" | "slider"; ogeSayisi?: number };
   sunumSecenegiVar: boolean;
+  // magaza_urun_listesi bir hero BILESENI degil (bkz. sayfa-modulu.ts) - onun
+  // icin "sira" ve "gorunurluk" kavrami yok: kapatilamaz (urun listesi hep
+  // gorunur) ve hero dizilimi icinde gezdirilemez.
+  siraSecenegiVar?: boolean;
+  gorunurlukSecenegiVar?: boolean;
+  kolonSecenegiVar?: boolean;
+  not?: string;
 };
 
 export function SayfaModuluKarti({ modul }: { modul: SayfaModuluVeri }) {
@@ -73,59 +82,65 @@ export function SayfaModuluKarti({ modul }: { modul: SayfaModuluVeri }) {
     <div className={`rounded-2xl bg-white p-4 shadow-sm ${!modul.aktifMi ? "opacity-60" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="flex flex-col">
-            <button
-              type="button"
-              onClick={() => sirala("yukari")}
-              disabled={bekliyor || modul.ilkMi}
-              className="text-neutral-400 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-30"
-              aria-label="Yukarı taşı"
-            >
-              <ChevronUp className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => sirala("asagi")}
-              disabled={bekliyor || modul.sonMi}
-              className="text-neutral-400 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-30"
-              aria-label="Aşağı taşı"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </button>
-          </div>
+          {modul.siraSecenegiVar !== false && (
+            <div className="flex flex-col">
+              <button
+                type="button"
+                onClick={() => sirala("yukari")}
+                disabled={bekliyor || modul.ilkMi}
+                className="text-neutral-400 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label="Yukarı taşı"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => sirala("asagi")}
+                disabled={bekliyor || modul.sonMi}
+                className="text-neutral-400 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label="Aşağı taşı"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <span className="font-semibold text-neutral-900">{modul.baslik}</span>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-600">
-          <input
-            type="checkbox"
-            checked={modul.aktifMi}
-            disabled={bekliyor}
-            onChange={(e) => guncelle({ aktifMi: e.target.checked })}
-            className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-          />
-          {modul.aktifEtiketi}
-        </label>
+        {modul.gorunurlukSecenegiVar !== false && (
+          <label className="flex items-center gap-2 text-sm text-neutral-600">
+            <input
+              type="checkbox"
+              checked={modul.aktifMi}
+              disabled={bekliyor}
+              onChange={(e) => guncelle({ aktifMi: e.target.checked })}
+              className="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+            />
+            {modul.aktifEtiketi}
+          </label>
+        )}
       </div>
 
       {modul.ayarlar && (
         <div className="mt-3 flex flex-wrap items-end gap-3 border-t border-neutral-100 pt-3 text-sm">
-          <label className="text-neutral-700">
-            Kolon
-            <select
-              value={kolonSayisi}
-              disabled={bekliyor}
-              onChange={(e) => {
-                const v = Number(e.target.value) as 3 | 4;
-                setKolonSayisi(v);
-                guncelle({ ayarlar: { kolonSayisi: v } });
-              }}
-              className="ml-1 rounded-md border border-neutral-300 px-2 py-1 text-sm"
-            >
-              <option value={3}>3</option>
-              <option value={4}>4</option>
-            </select>
-          </label>
+          {modul.kolonSecenegiVar !== false && (
+            <label className="text-neutral-700">
+              Kolon
+              <select
+                value={kolonSayisi}
+                disabled={bekliyor}
+                onChange={(e) => {
+                  const v = Number(e.target.value) as 3 | 4;
+                  setKolonSayisi(v);
+                  guncelle({ ayarlar: { kolonSayisi: v } });
+                }}
+                className="ml-1 rounded-md border border-neutral-300 px-2 py-1 text-sm"
+              >
+                <option value={3}>3</option>
+                <option value={4}>4</option>
+              </select>
+            </label>
+          )}
 
           {modul.sunumSecenegiVar && (
             <label className="text-neutral-700">
@@ -164,6 +179,8 @@ export function SayfaModuluKarti({ modul }: { modul: SayfaModuluVeri }) {
           )}
         </div>
       )}
+
+      {modul.not && <p className="mt-2 text-xs text-neutral-500">{modul.not}</p>}
 
       {hata && <p className="mt-2 text-xs text-red-600">{hata}</p>}
     </div>

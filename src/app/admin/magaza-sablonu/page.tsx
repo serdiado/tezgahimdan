@@ -9,6 +9,7 @@ const BILESEN_BASLIGI: Record<string, string> = {
   magaza_hero_whatsapp: "WhatsApp Butonu",
   magaza_hero_kroki: "Kroki / Tezgah Fotoğrafı",
   magaza_hero_puan: "Ortalama Puan Rozeti",
+  magaza_urun_listesi: "Ürün Listesi",
 };
 
 export default async function AdminMagazaSablonuPage() {
@@ -28,17 +29,43 @@ export default async function AdminMagazaSablonuPage() {
   } else {
     const bilesenler = await sayfaModulleriGetir("magaza_hero");
 
-    const bilesenVerileri: SayfaModuluVeri[] = bilesenler.map((b, index) => ({
+    // magaza_urun_listesi bir HERO bileseni degil (bkz. sayfa-modulu.ts) -
+    // sadece urun listesinin sayfa boyunu tasir. Bu yuzden hero dizilimi
+    // (sira oklari) ve gorunurluk kutusu ona uygulanmaz; kapatilamaz.
+    const heroBilesenleri = bilesenler.filter((b) => b.tur !== "magaza_urun_listesi");
+    const urunListesiModulu = bilesenler.find((b) => b.tur === "magaza_urun_listesi");
+
+    const bilesenVerileri: SayfaModuluVeri[] = heroBilesenleri.map((b, index) => ({
       sayfa: "magaza_hero" as const,
       tur: b.tur,
       baslik: BILESEN_BASLIGI[b.tur] ?? b.tur,
       aktifMi: b.aktifMi,
       aktifEtiketi: "Tezgah sayfasında göster",
       ilkMi: index === 0,
-      sonMi: index === bilesenler.length - 1,
+      sonMi: index === heroBilesenleri.length - 1,
       ayarlar: undefined,
       sunumSecenegiVar: false,
     }));
+
+    if (urunListesiModulu) {
+      bilesenVerileri.push({
+        sayfa: "magaza_hero" as const,
+        tur: "magaza_urun_listesi",
+        baslik: BILESEN_BASLIGI.magaza_urun_listesi,
+        aktifMi: urunListesiModulu.aktifMi,
+        aktifEtiketi: "",
+        ilkMi: true,
+        sonMi: true,
+        ayarlar: {
+          ogeSayisi: ((urunListesiModulu.ayarlar ?? {}) as { ogeSayisi?: number }).ogeSayisi ?? 12,
+        },
+        sunumSecenegiVar: false,
+        kolonSecenegiVar: false,
+        siraSecenegiVar: false,
+        gorunurlukSecenegiVar: false,
+        not: "Sayfa boyu: tezgah sayfasında “Daha Fazla Göster” her basışta bu kadar ürün ekler.",
+      });
+    }
 
     icerik = (
       <>

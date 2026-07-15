@@ -1,0 +1,15 @@
+-- Tezgah sayfasindaki urun listesinin sayfa boyunu (ogeSayisi) admin'den
+-- ayarlayabilmek icin yeni modul turu (2026-07-15 vitrin sayfalamasi).
+--
+-- Hero bileseni DEGIL - "magaza_hero" grubunda duruyor cunku admin'de o grubun
+-- ekrani zaten "Tezgah Sayfasi Sablonu" basligiyla sunuluyor. Ayri bir
+-- SayfaModulSayfasi degeri acmak tek modullu bir grup yaratirdi (sira ve
+-- gorunurluk kontrolleri karsiliksiz kalirdi).
+--
+-- DIKKAT: Bu migration YALNIZCA enum degerini ekler, o degeri KULLANAN bir
+-- INSERT icermez. PostgreSQL'de "ALTER TYPE ... ADD VALUE" ile eklenen deger
+-- AYNI transaction icinde kullanilamaz (migration'lar transaction icinde
+-- kosar). Satir tohumlamasi calisma aninda yapiliyor: sayfaModulleriGetir()
+-- grup EKSIK ise (mevcut < beklenen) skipDuplicates ile tamamliyor -
+-- @@unique([sayfa,tur]) sayesinde idempotent.
+ALTER TYPE "SayfaModulTuru" ADD VALUE 'magaza_urun_listesi';

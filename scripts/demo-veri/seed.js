@@ -313,6 +313,13 @@ async function main() {
 
   const sifreHash = await bcrypt.hash(DEMO_SIFRE, 10);
 
+  // --- Demo admin: yerelde admin panelini (sayfa modulleri, moderasyon,
+  // duyurular) gezebilmek icin. Prod'daki gercek admin hesabiyla ilgisi yok -
+  // bu da @demo.tezgahimdan.com uzantili, --sifirla ile temizlenir.
+  await prisma.kullanici.create({
+    data: { ad: "Demo Yönetici", email: `admin${DEMO_DOMAIN}`, sifreHash, rol: "admin" },
+  });
+
   // --- Alicilar
   const alicilar = [];
   for (const a of ALICILAR) {
@@ -583,6 +590,7 @@ async function main() {
   console.log(`Urun    : ${await prisma.urun.count()}`);
   console.log(`Alici   : ${alicilar.length}`);
   console.log(`\nGiris bilgileri (hepsi ayni sifre):`);
+  console.log(`  Admin        : admin${DEMO_DOMAIN}  /  ${DEMO_SIFRE}`);
   console.log(`  Satici ornek : ${TEZGAHLAR[0].email}  /  ${DEMO_SIFRE}`);
   console.log(`  Alici ornek  : ${ALICILAR[0].email}  /  ${DEMO_SIFRE}`);
 }

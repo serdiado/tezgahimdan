@@ -573,6 +573,12 @@ enum SayfaModulTuru {
   magaza_hero_whatsapp
   magaza_hero_kroki
   magaza_hero_puan
+  // Hero BILESENI DEGIL (2026-07-15): tezgah sayfasindaki urun listesinin
+  // sayfa boyu (ogeSayisi). "magaza_hero" grubunda yasar cunku admin'de o
+  // grubun ekrani zaten "Tezgah Sayfasi Sablonu" - ayri bir sayfa degeri
+  // tek modullu bir grup yaratir, sira/gorunurluk karsiliksiz kalirdi.
+  // magaza/[slug] hero dizilimini "magaza_hero_" onekiyle suzer.
+  magaza_urun_listesi
 }
 
 model SayfaModulu {

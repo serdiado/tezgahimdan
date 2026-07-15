@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
+import type { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getMagazaBySlug } from "@/lib/magaza";
+import { sayfaKes, sayfaNoCoz } from "@/lib/vitrin-sayfalama";
 import { begeniSayilariHaritasi, kullaniciFavoriHaritasi } from "@/lib/favori";
 import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi, pasifUrunIdSeti } from "@/lib/rezervasyon";
 import { kullaniciMagazaTakipDurumu } from "@/lib/magaza-takip";
@@ -10,6 +12,7 @@ import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerle
 import { magazaDegerlendirmeOzeti, magazaYorumlariGetir } from "@/lib/magaza-degerlendirme";
 import { sayfaModulleriGetir } from "@/lib/sayfa-modulu";
 import { SiteHeader } from "@/components/SiteHeader";
+import { DahaFazlaButonu } from "@/components/DahaFazlaButonu";
 import { MagazaTakipButonu } from "@/components/MagazaTakipButonu";
 import { MagazaYorumlari } from "@/components/MagazaYorumlari";
 import { MagazaHero } from "./MagazaHero";
@@ -69,12 +72,33 @@ export async function generateMetadata({
   };
 }
 
+// Urun sorgusu ile kategori-cip sorgusu AYNI kurallari paylasmali - tek yerde.
+// DIKKAT: burada 'satildi' de DAHIL (ana sayfadaki vitrin filtresinden bilincli
+// fark - bkz. asagidaki uzun yorum). kategoriId cip sorgusunda gecilmez.
+function magazaUrunFiltresi(magazaId: string, kategoriId: string | null): Prisma.UrunWhereInput {
+  return {
+    magazaId,
+    durum: { in: ["sergide", "doldu", "satildi"] },
+    silindiMi: false,
+    ...(kategoriId ? { kategoriId } : {}),
+  };
+}
+
 export default async function MagazaSayfasi({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  // ?urun= ZATEN vardi (urun paylasim linki / detay modali - bkz.
+  // generateMetadata). ?sayfa= / ?kategori= 2026-07-15'te eklendi; uretilen
+  // linkler ?urun='i KORUR, aksi halde paylasilan bir urun linkinde kategori
+  // degistirince modal kapanirdi.
+  searchParams: Promise<{ urun?: string; sayfa?: string; kategori?: string }>;
 }) {
   const { slug } = await params;
+  const { urun: acikUrunId, sayfa, kategori } = await searchParams;
+  const sayfaNo = sayfaNoCoz(sayfa);
+  const secilenKategoriId = kategori?.trim() || null;
   const magaza = await getMagazaBySlug(slug);
 
   if (!magaza) {
@@ -111,7 +135,7 @@ export default async function MagazaSayfasi({
               },
             }}
             degerlendirme={magazaDegerlendirmeSonucu}
-            bilesenSirasi={heroModulleri.map((m) => ({ tur: m.tur, aktifMi: m.aktifMi }))}
+            bilesenSirasi={heroModulleri.filter((m) => m.tur.startsWith("magaza_hero_")).map((m) => ({ tur: m.tur, aktifMi: m.aktifMi }))}
           />
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             Bu tezgah şu an ara verdi — ürünleri geçici olarak kaldırıldı. Merak ettiklerini
@@ -143,11 +167,51 @@ export default async function MagazaSayfasi({
   // sayfadaki VITRIN_GORUNURLUK_FILTRESI kasitli olarak 'satildi' HARIC tutar
   // - o capraz-magaza kesif akisi, satilmis urunun "yeni/begenilen" gibi
   // yaniltici gorunmesini onler; bu iki filtre BILINCLI olarak farkli.)
-  const urunler = await prisma.urun.findMany({
-    where: { magazaId: magaza.id, durum: { in: ["sergide", "doldu", "satildi"] }, silindiMi: false },
-    include: { kategori: true },
-    orderBy: { createdAt: "desc" },
-  });
+  //
+  // 2026-07-15: liste artik SAYFALI. Sayfa boyu admin'den:
+  // magaza_hero grubundaki magaza_urun_listesi.ogeSayisi (hero bileseni DEGIL,
+  // bkz. lib/sayfa-modulu.ts). heroModulleri asagidaki Promise.all'da zaten
+  // cekiliyor ama sayfa boyu SORGUDAN once lazim - bu yuzden ayri/erken cagri
+  // (sayfaModulleriGetir tek sorgu, ucuz).
+  const urunListesiAyarlari = ((
+    (await sayfaModulleriGetir("magaza_hero")).find((m) => m.tur === "magaza_urun_listesi")?.ayarlar ?? {}
+  ) as { ogeSayisi?: number });
+  const urunLimit = (urunListesiAyarlari.ogeSayisi ?? 12) * sayfaNo;
+
+  const [urunlerHam, kategoriCipleri] = await Promise.all([
+    prisma.urun.findMany({
+      where: magazaUrunFiltresi(magaza.id, secilenKategoriId),
+      include: { kategori: true },
+      orderBy: { createdAt: "desc" },
+      take: urunLimit + 1, // +1 = "daha var mi" (bkz. sayfaKes)
+    }),
+    // Cipler yuklenen urunlerden DEGIL, bu tezgahta urunu olan tum
+    // kategorilerden. Sayfalama oncesi liste tam oldugu icin cipler dogruydu;
+    // take eklenince istemci-turetimi YANLIS olurdu (bkz. YeniEklenenler.tsx).
+    prisma.kategori.findMany({
+      where: { silindiMi: false, urunler: { some: magazaUrunFiltresi(magaza.id, null) } },
+      orderBy: [{ sira: "asc" }, { ad: "asc" }],
+      select: { id: true, ad: true, sira: true },
+    }),
+  ]);
+  const { ogeler: urunler, dahaVarMi: urunDahaVarMi } = sayfaKes(urunlerHam, urunLimit);
+
+  // ?urun= KORUNUR: paylasilan bir urun linkinde kategori/sayfa degistirince
+  // acik modal kapanmamali. slug onceden yakalanir (notFound() daralmasi
+  // hoist edilen function icinde korunmuyor).
+  const magazaSlugSabit = magaza.slug;
+  function magazaHref(degisiklik: { kategori?: string | null; sayfa?: number }) {
+    const p = new URLSearchParams();
+    if (acikUrunId) p.set("urun", acikUrunId);
+    const yeniKategori = degisiklik.kategori !== undefined ? degisiklik.kategori : secilenKategoriId;
+    if (yeniKategori) p.set("kategori", yeniKategori);
+    const yeniSayfa = degisiklik.sayfa ?? sayfaNo;
+    if (yeniSayfa > 1) p.set("sayfa", String(yeniSayfa));
+    const qs = p.toString();
+    return qs ? `/magaza/${magazaSlugSabit}?${qs}` : `/magaza/${magazaSlugSabit}`;
+  }
+  const magazaKategoriHref = (kategoriId: string | null) => magazaHref({ kategori: kategoriId, sayfa: 1 });
+  const magazaSayfaHref = (yeniSayfa: number) => magazaHref({ sayfa: yeniSayfa });
 
   // N+1 onlemek icin TEK toplu sorgu + Map (aliciGuvenilirlikHaritasi ile ayni
   // desen, bkz. rezervasyon.ts). Begeni sayisi herkese acik (girissiz de dahil),
@@ -202,7 +266,7 @@ export default async function MagazaSayfasi({
               },
             }}
             degerlendirme={magazaDegerlendirmeSonucu}
-            bilesenSirasi={heroModulleri.map((m) => ({ tur: m.tur, aktifMi: m.aktifMi }))}
+            bilesenSirasi={heroModulleri.filter((m) => m.tur.startsWith("magaza_hero_")).map((m) => ({ tur: m.tur, aktifMi: m.aktifMi }))}
           />
           <div className="mt-2 flex items-center justify-between">
             <MagazaTakipButonu girisli={girisli} magazaId={magaza.id} benimTakibimVar={benimMagazaTakibimVar} />
@@ -225,6 +289,9 @@ export default async function MagazaSayfasi({
           girisli={girisli}
           kullaniciTelefonVar={kullaniciTelefonVar}
           magazaSlug={magaza.slug}
+          kategoriler={kategoriCipleri}
+          secilenKategoriId={secilenKategoriId}
+          kategoriHrefUret={magazaKategoriHref}
           urunler={urunler.map((urun) => ({
             id: urun.id,
             baslik: urun.baslik,
@@ -252,6 +319,7 @@ export default async function MagazaSayfasi({
             })),
           }))}
         />
+        {urunDahaVarMi && <DahaFazlaButonu href={magazaSayfaHref(sayfaNo + 1)} />}
       </main>
     </div>
   );

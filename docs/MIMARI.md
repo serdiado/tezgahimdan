@@ -20,6 +20,18 @@ Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yön
 
 ---
 
+## Vitrin sayfalama ("Daha Fazla Göster")
+
+Ana sayfa, `/magazalar`, `/magaza/[slug]` ve `/pazar/[slug]` listeleri sayfalı. **URL parametresi + biriken take** (`?sayfa=2` → `take = ogeSayisi * 2`): sunucu bileşeni mevcut toplama mantığını aynen kullanır, yeni API yok; geri tuşu/paylaşılabilirlik/JS'siz çalışma bedava. Sonsuz kaydırma ve sayfa numaraları **bilinçli olarak elendi** (hedef kitle + footer erişimi). Buton görünürlüğü `take: limit+1` ile — `count()` yok. Tavan `MAX_SAYFA=8` (biriken take'te `?sayfa=99999` koruması). Sayfa boyu admin'den: `SayfaModulu.ayarlar.ogeSayisi` (4–24).
+
+Aynı işte iki **mevcut hata** düzeltildi (sayfalamanın ön koşuluydu): (1) admin `ayarlar` JSON'unu **eziyordu** — tek kontrol değişince `ogeSayisi` siliniyordu; (2) `sayfaModulleriGetir` yalnızca grup **boşken** tohumluyordu — sonradan eklenen modül prod'da hiç oluşmazdı. Ayrıca kategori çipleri **sunucuya taşındı**: yüklenen ürünlerden türetildikleri için `take` ile yanıltıcı oluyorlardı.
+
+→ Detay: [`docs/mimari/vitrin-sayfalama.md`](./mimari/vitrin-sayfalama.md)
+
+**Bilinmesi gereken bağımlılık:** Vitrine yeni bir liste yüzeyi eklendiğinde `lib/vitrin-sayfalama.ts` (`sayfaNoCoz` + `sayfaKes`) kullanılmalı ve fazladan okunan `+1`'inci satır **haritalar kurulmadan önce** atılmalı — yoksa gösterilmeyen kaydın verisi payload'a girer.
+
+---
+
 ## Haftalık sıfırlama (otomatik) + satıcı ihmali asla alıcı cezası değil
 
 Pazar **işlem-sonu anında** (admin pazar bazında manuel ayarlayabilir — `Pazar.islemSonGunu/Saati`, boş bırakılırsa kapanış-gününün-gece-yarısı; gece geç saatlere kadar açık pazarlar için düşünüldü) o pazarın bekleyen kuyruğu değerlendirilir (rezervasyon motoruyla **aynı** `FOR UPDATE` kilidi, ama davranış ayrı — motor yükseltir, sıfırlama temizler). **2026-07-09 kararı (önemli):** "pazar başlangıcında zaten aktif olup hâlâ işaretlenmemiş" kayıtlara (satıcının sorumlu olduğu durum) **otomatik `gelmedi` cezası artık UYGULANMAZ** — sistem satıcının mı unuttuğunu yoksa alıcının mı hiç gelmediğini ayırt edemediği için "her satıcı ihmali alıcı lehine çalışmalı" prensibiyle bu kayıtlar `bekliyor` kalır. Bunun yerine satıcı **zorunlu panel kilidiyle** (`/panel` altı hiçbir sayfa açılmaz, `panel/layout.tsx`) + **site geneli uyarı banner'ıyla** (`SiteHeader.tsx`) + tezgahındaki TÜM ürünlerin vitrinde **"Beklemede"** gösterilmesiyle (`pasifUrunIdSeti` — sadece sorunlu ürün değil, panel zaten tamamen kilitli olduğu için mağazanın tamamı pasifleşir) bizzat işaretlemeye zorlanır; 3 gün boyunca hiç giriş yapmazsa admin'e tek seferlik uyarı gider (`saticiIhmalUyarilariGonder`). Sonradan yükselen aktif + yedekler → hâlâ cezasız `iptal` (bu dal değişmedi); `satildi` dokunulmaz. Hatırlatma anı da admin tarafından ayrıca yapılandırılabilir. Harici cron + korumalı API (`/api/cron/pazar-sifirlama`), duruma-bakan (restart'ta kaçmaz), idempotent (`PazarSifirlama` + `PazarHatirlatma` + `Rezervasyon.saticiIhmalUyarisiGonderildi`).

@@ -53,9 +53,22 @@ export default async function AdminAnasayfaPage() {
         aktifEtiketi: "Anasayfada göster",
         ilkMi: index === 0,
         sonMi: index === moduller.length - 1,
-        ayarlar: izgaraModuluMu ? { kolonSayisi: ayarlarRaw.kolonSayisi ?? 3, sunumTipi: ayarlarRaw.sunumTipi, ogeSayisi: ayarlarRaw.ogeSayisi } : undefined,
+        // ogeSayisi input'u ARTIK her izgara modulunde gorunur: `?? 12` olmadan
+        // JSON'da anahtar yoksa input hic cizilmiyordu (kart `!== undefined`
+        // kosuluyla gosteriyor). Eskiden bu, ayarlar JSON'unu ezen update
+        // hatasiyla birlesince ayari kalici olarak kaybettiriyordu (bkz.
+        // api/admin/sayfa-modulu-guncelle route yorumu).
+        ayarlar: izgaraModuluMu
+          ? { kolonSayisi: ayarlarRaw.kolonSayisi ?? 3, sunumTipi: ayarlarRaw.sunumTipi, ogeSayisi: ayarlarRaw.ogeSayisi ?? 12 }
+          : undefined,
         // Mağaza listesinde slider secenegi yok (magaza karti daha genis, grid'de daha iyi durur) - kolon secimi hala var.
         sunumSecenegiVar: m.tur === "yeni_urunler" || m.tur === "en_cok_begenilen",
+        not:
+          m.tur === "magaza_listesi"
+            ? "Bu sayı hem anasayfadaki önizlemede hem “Tüm Tezgahlar” sayfasının sayfa boyunda geçerlidir."
+            : m.tur === "yeni_urunler"
+              ? "Sayfa boyu: “Daha Fazla Göster” her basışta bu kadar ürün ekler. Pazar sayfaları da bu ayarı kullanır."
+              : undefined,
       };
     });
 

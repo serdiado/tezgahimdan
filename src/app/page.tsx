@@ -8,9 +8,11 @@ import { benimRezervasyonlarimHaritasi, kuyrukSayilariHaritasi, pasifUrunIdSeti 
 import { degerlendirmeOzetiHaritasi, urunYorumlariHaritasi } from "@/lib/degerlendirme";
 import { magazaDegerlendirmeOzetiHaritasi } from "@/lib/magaza-degerlendirme";
 import { sayfaModulleriGetir } from "@/lib/sayfa-modulu";
+import { sayfaKes, sayfaNoCoz } from "@/lib/vitrin-sayfalama";
 import { siteIcerikHaritasiGetir } from "@/lib/site-icerik";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { DahaFazlaButonu } from "@/components/DahaFazlaButonu";
 import { AnasayfaHero } from "./AnasayfaHero";
 import { HaftalikRitim } from "./HaftalikRitim";
 import { YeniEklenenler } from "./YeniEklenenler";
@@ -34,10 +36,11 @@ const HERO_ANAHTARLARI = [
 // HaftalikRitim'in ?q= parametresi) verilmisse magazanin pazarina gore de
 // filtreler - anasayfadaki ürün-mağaza filtrelemesi TUTARLI kalsin diye
 // magazalar sorgusuyla (page.tsx asagida) AYNI OR kosulunu kullanir.
-function vitrinGorunurlukFiltresi(arama: string): Prisma.UrunWhereInput {
+function vitrinGorunurlukFiltresi(arama: string, kategoriId?: string | null): Prisma.UrunWhereInput {
   return {
     silindiMi: false,
     durum: { in: ["sergide", "doldu"] },
+    ...(kategoriId ? { kategoriId } : {}),
     magaza: {
       silindiMi: false,
       gizliMi: false,
@@ -62,10 +65,12 @@ type ModulAyarlari = { kolonSayisi?: 3 | 4; sunumTipi?: "grid" | "slider"; ogeSa
 export default async function AnaSayfa({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; sayfa?: string; kategori?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, sayfa, kategori } = await searchParams;
   const arama = q?.trim() || "";
+  const sayfaNo = sayfaNoCoz(sayfa);
+  const secilenKategoriId = kategori?.trim() || null;
   const { session } = await oturumRolOku();
   const girisli = !!session?.user;
 
@@ -95,18 +100,29 @@ export default async function AnaSayfa({
   const enCokBegenilenAyarlari = (enCokBegenilenModul?.ayarlar ?? {}) as ModulAyarlari;
   const magazaListesiAyarlari = (magazaListesiModul?.ayarlar ?? {}) as ModulAyarlari;
 
-  const [yeniUrunler, enCokBegenilenIdler, magazalar] = await Promise.all([
+  // Sayfa boyu admin panelinden (SayfaModulu.ayarlar.ogeSayisi, 4-24).
+  // "Daha Fazla" take'i BIRIKTIREREK buyutur (skip DEGIL): vitrin gezinmesinde
+  // kullaniciya ilk 12'yi kaybettirmek yanlis olur - listeye ekleniyor.
+  const yeniUrunSayfaBoyu = yeniUrunAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT;
+  const yeniUrunLimit = yeniUrunSayfaBoyu * sayfaNo;
+  const magazaSayfaBoyu = magazaListesiAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT;
+
+  const [yeniUrunlerHam, enCokBegenilenIdler, magazalar, yeniUrunToplam, kategoriCipleri] = await Promise.all([
     // Magazalar-arasi "Bu Hafta Eklenenler" seridi - MagazaVitrini'deki ayni
     // gizliMi/silindiMi kurali burada da gecerli, yoksa gizlenmis/kaldirilmis
     // bir magazanin urunu ana sayfada sizar.
     prisma.urun.findMany({
-      where: vitrinGorunurlukFiltresi(arama),
+      where: vitrinGorunurlukFiltresi(arama, secilenKategoriId),
       include: {
         kategori: true,
         magaza: { select: { id: true, ad: true, slug: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: yeniUrunAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT,
+      // +1: "daha var mi" sorusunu EK SORGU OLMADAN cevaplar. count() yerine
+      // bir satir fazla okunur. Fazladan satir asagida slice ile atilir -
+      // haritalara SOKULMAMALI, yoksa gosterilmeyen urunun yorumlari/fotolari
+      // bosuna cekilip payload'a girer.
+      take: yeniUrunLimit + 1,
     }),
     // Sadece begeni-sirali ID listesi - gorunurluk filtresi UYGULANMAZ (bkz.
     // src/lib/favori.ts), asagida ayri bir sorguyla uygulanir.
@@ -149,9 +165,28 @@ export default async function AnaSayfa({
       // Arama aktifken limit UYGULANMAZ: kullanici belirli bir bolge ariyorsa
       // (ör. "Izmir") zaten dar bir kume donuyor, kesip "X sonuc" yazisini
       // yanlis/eksik gostermek yanlis olur - tum eslesenler slider'da kaydirilir.
-      take: arama ? undefined : (magazaListesiAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT),
+      // NOT: ana sayfadaki bu SLIDER sayfalanmaz (bilincli) - "Tum Tezgahlari
+      // Gor" linki /magazalar'a goturur, sayfalama orada. Yani ayni
+      // magaza_listesi.ogeSayisi ayari burada "onizleme uzunlugu", /magazalar'da
+      // "sayfa boyu" anlamina gelir.
+      take: arama ? undefined : magazaSayfaBoyu,
+    }),
+    // "N sonuc" etiketi icin GERCEK toplam - sadece arama varken. Onceden
+    // yeniUrunler.length yazılıyordu, yani take ile kesilmis pencere: 30
+    // eslesmede "12 sonuc" diyordu. "sonuc" kelimesi toplam vaat ediyor.
+    arama ? prisma.urun.count({ where: vitrinGorunurlukFiltresi(arama, secilenKategoriId) }) : Promise.resolve(0),
+    // Cipler YUKLENEN urunlerden degil, gorunur urunu OLAN tum kategorilerden
+    // (bkz. YeniEklenenler.tsx basindaki gerekce). Kategori 7 satir, ucuz.
+    prisma.kategori.findMany({
+      where: { silindiMi: false, urunler: { some: vitrinGorunurlukFiltresi(arama) } },
+      orderBy: [{ sira: "asc" }, { ad: "asc" }],
+      select: { id: true, ad: true, sira: true },
     }),
   ]);
+
+  // +1'inci satiri AT ve "daha var mi"yi ondan turet. Kesme, haritalar
+  // kurulmadan ONCE olmali (bkz. sayfaKes yorumu).
+  const { ogeler: yeniUrunler, dahaVarMi: yeniUrunDahaVarMi } = sayfaKes(yeniUrunlerHam, yeniUrunLimit);
 
   // Iki asamali: once begeni-sirali ID'ler, sonra o ID'lerle gorunurluk
   // filtreli Urun.findMany. findMany({id:{in:...}}) sira garantisi VERMEZ -
@@ -203,6 +238,23 @@ export default async function AnaSayfa({
     // Capraz-magaza vitrin oldugu icin magazaId scope'suz (global) cagrilir.
     pasifUrunIdSeti(),
   ]);
+
+  // URL uretici: mevcut parametreleri KORUYARAK tek birini degistirir
+  // (ör. kategori degisince arama kaybolmamali).
+  function anasayfaHref(degisiklik: { kategori?: string | null; sayfa?: number }) {
+    const p = new URLSearchParams();
+    if (arama) p.set("q", arama);
+    const yeniKategori = degisiklik.kategori !== undefined ? degisiklik.kategori : secilenKategoriId;
+    if (yeniKategori) p.set("kategori", yeniKategori);
+    const yeniSayfa = degisiklik.sayfa ?? sayfaNo;
+    if (yeniSayfa > 1) p.set("sayfa", String(yeniSayfa));
+    const qs = p.toString();
+    return qs ? `/?${qs}` : "/";
+  }
+  // Kategori degisince sayfa 1'e DONER - yoksa "sayfa 3'teyim ama bu
+  // kategoride 1 sayfa var" bosluğu cikar.
+  const anasayfaKategoriHref = (kategoriId: string | null) => anasayfaHref({ kategori: kategoriId, sayfa: 1 });
+  const anasayfaSayfaHref = (yeniSayfa: number) => anasayfaHref({ sayfa: yeniSayfa });
 
   // Hem "Bu Hafta Eklenenler" hem "En Cok Begenilenler" AYNI YeniUrunVeri
   // seklini kurar - kod tekrari yerine tek yardimci.
@@ -276,13 +328,13 @@ export default async function AnaSayfa({
         );
       case "yeni_urunler":
         return (
-          (arama || yeniUrunler.length > 0) && (
+          (arama || secilenKategoriId || yeniUrunler.length > 0) && (
             <div key={tur} className="mt-8">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="text-lg font-bold text-neutral-900">Bu Hafta Eklenenler</h2>
                 {arama && (
                   <p className="text-sm text-neutral-500">
-                    &quot;{arama}&quot; için {yeniUrunler.length} sonuç ·{" "}
+                    &quot;{arama}&quot; için {yeniUrunToplam} sonuç ·{" "}
                     <Link href="/" className="font-medium text-primary-600 hover:underline">
                       Temizle
                     </Link>
@@ -290,24 +342,39 @@ export default async function AnaSayfa({
                 )}
               </div>
               <div className="mt-4">
-                {arama && yeniUrunler.length === 0 ? (
+                {arama && yeniUrunToplam === 0 ? (
                   <p className="text-neutral-500">
                     &quot;{arama}&quot; bölgesinde bu hafta eklenmiş ürün yok.
                   </p>
                 ) : (
-                  <YeniEklenenler
-                    girisli={girisli}
-                    kullaniciTelefonVar={kullaniciTelefonVar}
-                    urunler={yeniUrunler.map(urunKartiVeriYap)}
-                    kolonSayisi={yeniUrunAyarlari.kolonSayisi ?? 3}
-                    sunumTipi={yeniUrunAyarlari.sunumTipi ?? "grid"}
-                  />
+                  <>
+                    <YeniEklenenler
+                      girisli={girisli}
+                      kullaniciTelefonVar={kullaniciTelefonVar}
+                      urunler={yeniUrunler.map(urunKartiVeriYap)}
+                      kategoriler={kategoriCipleri}
+                      secilenKategoriId={secilenKategoriId}
+                      kategoriHrefUret={anasayfaKategoriHref}
+                      kolonSayisi={yeniUrunAyarlari.kolonSayisi ?? 3}
+                      sunumTipi={yeniUrunAyarlari.sunumTipi ?? "grid"}
+                    />
+                    {yeniUrunDahaVarMi && (
+                      <DahaFazlaButonu href={anasayfaSayfaHref(sayfaNo + 1)} />
+                    )}
+                  </>
                 )}
               </div>
             </div>
           )
         );
       case "en_cok_begenilen":
+        // "Daha Fazla" BILEREK YOK (2026-07-15 karari): bu bolum tanimi geregi
+        // bir top-N listesi ("en cok begenilen 12 urun") - sayfalamak anlamsiz.
+        // Ayrica enCokBegenilenUrunIdleriGetir ID'leri gorunurluk filtresinden
+        // ONCE cekiyor, o yuzden sayfalamasi yanlis sayi gosterirdi.
+        // Kategori cipleri de burada gosterilmiyor: filtre sunucuda ve tek
+        // parametreye (?kategori) bagli, iki ayri bolumde ayri secim olamaz -
+        // sayfalanan tek liste "Bu Hafta Eklenenler".
         return (
           enCokBegenilenler.length > 0 && (
             <div key={tur} className="mt-8">
@@ -317,6 +384,9 @@ export default async function AnaSayfa({
                   girisli={girisli}
                   kullaniciTelefonVar={kullaniciTelefonVar}
                   urunler={enCokBegenilenler.map(urunKartiVeriYap)}
+                  kategoriler={[]}
+                  secilenKategoriId={null}
+                  kategoriHrefUret={() => "/"}
                   kolonSayisi={enCokBegenilenAyarlari.kolonSayisi ?? 3}
                   sunumTipi={enCokBegenilenAyarlari.sunumTipi ?? "grid"}
                 />

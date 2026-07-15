@@ -209,8 +209,25 @@ export function UrunKarti({
           onClick={detayTikla}
           className={`absolute inset-0 cursor-pointer ${aktifFoto ? "bg-neutral-100" : renk.bg}`}
         >
+          {/*
+            sizes, tarayiciya "bu gorsel ekranin ne kadarini kaplayacak" der -
+            srcSet'ten hangi genisligin inecegini BU belirler. Eskiden mobilde
+            "100vw" yaziyordu ama izgara mobilde grid-cols-2, yani kart ~50vw:
+            her mobil kart icin GEREKENIN IKI KATI byte iniyordu (2026-07-15).
+            Kart iki baglamda kullaniliyor - izgara (mobil 50vw, tablet 50vw,
+            lg 33vw) ve kaydirmali slider (mobil ~68vw). Tek deger ikisine de
+            hizmet ettigi icin mobilde 70vw: slider'a tam oturur, izgarada
+            hafif comert kalir (eksik istemek bulanik gosterirdi, fazla istemek
+            sadece bir miktar byte).
+          */}
           {aktifFoto ? (
-            <Image src={aktifFoto} alt={urun.baslik} fill className="object-cover" sizes="(max-width: 640px) 100vw, 33vw" />
+            <Image
+              src={aktifFoto}
+              alt={urun.baslik}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 70vw, (max-width: 1024px) 50vw, 33vw"
+            />
           ) : (
             <div className="flex h-full items-center justify-center">
               {createElement(kategoriIkonu, { className: `h-10 w-10 ${renk.text}`, strokeWidth: 1.5 })}
