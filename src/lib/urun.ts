@@ -148,7 +148,12 @@ export async function urunGuncelle(params: {
     return { tur: "gecersiz-fiyat" };
   }
 
-  if (!Number.isInteger(params.stokAdedi) || params.stokAdedi < 1) {
+  // DUZENLEMEDE 0 GECERLI (urunEkle'den farki): stok artik "su an elde kac tane
+  // var" demek ve satis onu 1 azaltiyor, yani tukenmis urunun stogu 0'dir. 0'i
+  // reddetseydik satici tukenmis urununun basligini/fotografini bile
+  // duzenleyemezdi (stok'a >=1 yazmak zorunda kalir, urun istemeden yeniden
+  // satisa acilirdi). 0 yazmak = "kalmadi" demek, urun 'satildi' kalir.
+  if (!Number.isInteger(params.stokAdedi) || params.stokAdedi < 0) {
     return { tur: "gecersiz-stok" };
   }
 
@@ -226,18 +231,36 @@ export async function urunGuncelle(params: {
       async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "Urun" WHERE "id" = ${params.id} FOR UPDATE`;
 
-        // INVARIANT (docs/mimari/rezervasyon-motoru.md): aktif <= stok - satildi.
+        // INVARIANT (docs/mimari/rezervasyon-motoru.md): aktif <= stok.
         // Stok dusurulurken bu hep korunmali, yoksa mevcut aktif hak sahipleri
-        // fazla-satis durumuna duser.
+        // fazla-satis durumuna duser. Gecmis 'satildi' kayitlari ARTIK stogu
+        // isgal etmez (satis aninda stok zaten dusuruldu), o yuzden minStok
+        // sadece aktif hak sahibi sayisidir.
         const aktifSayisi = await tx.rezervasyon.count({
           where: { urunId: params.id, durum: "bekliyor", tip: "aktif" },
         });
-        const satildiSayisi = await tx.rezervasyon.count({
-          where: { urunId: params.id, durum: "satildi" },
-        });
-        const minStok = aktifSayisi + satildiSayisi;
+        const minStok = aktifSayisi;
         if (params.stokAdedi < minStok) {
           return { tur: "stok-yetersiz" as const, minStok };
+        }
+
+        // Durum stoktan TURETILIR - satici stok girince urun kendiliginden
+        // dogru duruma gecer. Bu olmadan: tukenmis (durum='satildi') bir urune
+        // yeni stok girilse bile durum 'satildi' kalir, urun sonsuza kadar
+        // satisa kapali kalirdi (2026-07-15'te canli dogrulanan hata) - haftalik
+        // sifirlama da 'satildi'yi bilerek atladigi icin cikis yolu yoktu.
+        const yedekSayisi = await tx.rezervasyon.count({
+          where: { urunId: params.id, durum: "bekliyor", tip: "yedek" },
+        });
+        const ayarlar = await tx.platformAyarlari.findUnique({ where: { id: "singleton" } });
+        const maxYedek = ayarlar?.maxYedek ?? 5;
+        let yeniDurum: "sergide" | "doldu" | "satildi";
+        if (params.stokAdedi <= 0) {
+          yeniDurum = "satildi";
+        } else if (aktifSayisi + yedekSayisi >= params.stokAdedi + maxYedek) {
+          yeniDurum = "doldu";
+        } else {
+          yeniDurum = "sergide";
         }
 
         const guncellenen = await tx.urun.update({
@@ -249,8 +272,18 @@ export async function urunGuncelle(params: {
             fiyat: params.fiyat,
             stokAdedi: params.stokAdedi,
             fotograflar: yeniFotograflar,
+            durum: yeniDurum,
           },
         });
+        if (yeniDurum !== mevcutUrun.durum) {
+          await tx.durumGecmisi.create({
+            data: {
+              varlikTuru: "Urun",
+              varlikId: params.id,
+              olay: `urun_durum_stok_guncellemesi:${mevcutUrun.durum}->${yeniDurum}`,
+            },
+          });
+        }
         return { tur: "guncellendi" as const, urun: guncellenen };
       },
       { maxWait: 5000, timeout: 15000 },

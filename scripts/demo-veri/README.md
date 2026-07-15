@@ -65,12 +65,14 @@ otomatik "ilk sonucu al" mantığı ürünle alakasız görsel koyar.
 
 `src/lib/rezervasyon.ts` ile tutarlı kalmalı — motor değişirse burası da değişmeli:
 
-- **`kalanBirim = stokAdedi − satildiSayisi`**, ve bu sayım **hafta filtresizdir**.
-  Geçmiş satış eklemek stoğu kalıcı düşürür; bu yüzden `stokAdedi`, katalogdaki
-  "vitrinde kalsın istediğim miktar" **+ satış sayısı** olarak yazılır. Aksi halde
-  `satildiSayisi >= stokAdedi` olur ve ürün `satildi`'ya geçip vitrinden kalkar.
-- Aktif `siraNo` = `1..kalanBirim`, yedek `siraNo` = `1..maxYedek`.
-- `doldu` eşiği = `kalanBirim + maxYedek` (PlatformAyarlari'ndan okunur).
+- **`stokAdedi` = "şu an elde kaç tane var"** (2026-07-15 stok modeli). Satış anında
+  motor stoğu 1 düşürür; kalan birim doğrudan `stokAdedi`'dir. Seed satışları
+  **geçmişe** yazdığı için stoğu ayrıca düşürmez — `stokAdedi` katalogdaki
+  "vitrinde kalsın istediğim miktar"dır.
+  (Eski modelde kalan birim `stok − satildiSayisi` idi ve buraya satış sayısını
+  eklemek zorundaydık; o dayanak kalktı.)
+- Aktif `siraNo` = `1..stokAdedi`, yedek `siraNo` = `1..maxYedek`.
+- `doldu` eşiği = `stokAdedi + maxYedek` (PlatformAyarlari'ndan okunur).
 - Değerlendirme **yalnızca** `Rezervasyon.durum='satildi'` olan alıcıdan gelebilir
   (`degerlendirme.ts` / `magaza-degerlendirme.ts`) — bu kural DB'de zorlanmadığı
   için seed'in kendisi buna uymak zorunda.

@@ -10,11 +10,13 @@ Yeni bir mimari karar alındığında (özellikle eşzamanlılık, veri bütünl
 
 ## Rezervasyon motoru (kilit + kuyruk + kullanıcı/satıcı akışları)
 
-Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yönetimi. Eşzamanlılık riski en yüksek bölüm. Aynı kilit dört akışı serileştirir: **rezervasyon oluştur** (8 paralel istekle test), **Vazgeç** (alıcı), **Satıldı/Gelmedi** (satıcı), **Geri Al** (satıcı yanlış işaretlemeyi geri alır). Satıldı stok-tutarlı: her satış bir birim tüketir, kapasite `stok − satıldı` üzerinden (INVARIANT: `aktif ≤ stok − satıldı`, fazla-satış imkânsız). Geri Al iki durumda reddedilir (`urun_satildi` / `kapasite_dolu`), red nedeni `DurumGecmisi`'ne yazılır.
+Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yönetimi. Eşzamanlılık riski en yüksek bölüm. Aynı kilit dört akışı serileştirir: **rezervasyon oluştur** (8 paralel istekle test), **Vazgeç** (alıcı), **Satıldı/Gelmedi** (satıcı), **Geri Al** (satıcı yanlış işaretlemeyi geri alır). Satıldı stok-tutarlı: her satış bir birim tüketir, kapasite doğrudan `stokAdedi` üzerinden (INVARIANT: `aktif ≤ stok`, fazla-satış imkânsız). Geri Al iki durumda reddedilir (`urun_satildi` / `kapasite_dolu`), red nedeni `DurumGecmisi`'ne yazılır.
+
+**Stok modeli (2026-07-15 değişikliği):** `stokAdedi` = "şu an elde kaç tane var" — satış onu 1 azaltır, satış geri alınırsa 1 artırır. Önceden `stokAdedi` sabit kalıp kalan birim `stok − satildiSayisi` ile hesaplanıyordu ve satış sayımı **hafta filtresizdi**; bu, `stokAdedi`'ni ömür boyu sayaca çevirip ürünü kalıcı olarak `satildi`'ya kilitliyordu (satıcı haftaya yeni mal getirse bile geri getiremiyordu — canlı doğrulanmış hata). `durum` artık stoktan türetilir; ürün düzenlemede stok **0 geçerlidir** (= "kalmadı"). Migration: `20260715210000_stok_satista_azalir`.
 
 → Detay: [`docs/mimari/rezervasyon-motoru.md`](./mimari/rezervasyon-motoru.md)
 
-**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç ✓, Gelmedi ✓, haftalık sıfırlama ✓, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı.
+**Bilinmesi gereken bağımlılık:** Ürünü `doldu` durumuna çeviren tek yer bu akış. Slot boşaltan her yeni özellik (Vazgeç ✓, Gelmedi ✓, haftalık sıfırlama ✓, admin müdahalesi) `doldu → sergide` geri dönüşünü yapmayı unutmamalı. **`satildi` → `sergide` dönüşü ise yalnızca `urunGuncelle`'de** (satıcı stok girer) — haftalık sıfırlama `satildi`'ya bilerek dokunmaz.
 
 ---
 

@@ -355,11 +355,12 @@ async function main() {
     });
 
     for (const u of t.urunler) {
-      // Gecmis satis sayisi: motor satildiSayisi'ni HAFTA FILTRESIZ sayar ve
-      // kalanBirim = stokAdedi - satildiSayisi. Yani gecmis satislar stogu KALICI
-      // dusurur; satildiSayisi >= stokAdedi olursa urun "satildi"ya gecip vitrinden
-      // kalkardi. Bu yuzden stok, katalogdaki "vitrinde gorunsun istedigim kalan"
-      // uzerine satis sayisi EKLENEREK yazilir (kalanBirim = katalog.stok olur).
+      // stokAdedi = "su an elde kac tane var" (2026-07-15 stok modeli). Gecmis
+      // satis kayitlari stogu ARTIK etkilemez - gercek akista satis aninda stok
+      // zaten dusuruluyor, seed ise satisi gecmise yaziyor. Yani stok dogrudan
+      // katalogdaki "vitrinde kalsin istedigim miktar"dir.
+      // (Eski modelde buraya satis sayisi eklemek zorundaydik, yoksa urun
+      // "satildi"ya gecip vitrinden kalkiyordu - o dayanak kalkti.)
       const satisSayisi = aralik(0, 3);
       const fotoUrl = await fotografYukle(u.dosya.replace(/\.[a-z]+$/, ""), URUN_UPLOAD, "/uploads/urunler");
 
@@ -370,7 +371,7 @@ async function main() {
           baslik: u.baslik,
           aciklama: u.aciklama,
           fiyat: u.fiyat,
-          stokAdedi: u.stok + satisSayisi,
+          stokAdedi: u.stok,
           fotograflar: fotoUrl ? [fotoUrl] : [],
           durum: "sergide",
         },

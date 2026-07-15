@@ -185,13 +185,11 @@ export async function rezervasyonOlustur(params: {
 
           // Kapasiteyi sadece 'bekliyor' kayitlar isgal eder - iptal/gelmedi
           // gecmis kayittir, slot acar (vazgec/gelmedi akislarinin temeli).
-          // 'satildi' ise BIRIMI TUKETIR: her satis kalan satilabilir birimi
-          // (kalanBirim) 1 azaltir, yani aktif kapasitesi stokAdedi degil
-          // kalanBirim'dir (satildi=0 iken ikisi esit -> geriye uyumlu).
-          const satildiSayisi = await tx.rezervasyon.count({
-            where: { urunId: urun.id, durum: "satildi" },
-          });
-          const kalanBirim = urun.stokAdedi - satildiSayisi;
+          // 'satildi' ise BIRIMI TUKETIR: satis aninda stokAdedi'nin KENDISI
+          // 1 azalir (bkz. sonuclandir). Yani kalan satilabilir birim dogrudan
+          // stokAdedi'dir - gecmis satis kayitlarini saymaya gerek yok
+          // (2026-07-15 stok modeli degisikligi, bkz. docs/mimari/rezervasyon-motoru.md).
+          const kalanBirim = urun.stokAdedi;
           if (kalanBirim <= 0) return { tur: "satista-degil" };
 
           const aktifSayisi = await tx.rezervasyon.count({
@@ -574,10 +572,16 @@ export async function rezervasyonSonuclandir(params: {
           where: { urunId: rez.urunId, durum: "bekliyor", tip: "aktif", siraNo: { gt: rez.siraNo } },
           data: { siraNo: { decrement: 1 } },
         });
-        const satildiSayisi = await tx.rezervasyon.count({
-          where: { urunId: rez.urunId, durum: "satildi" },
-        });
-        if (satildiSayisi >= (urun?.stokAdedi ?? 0)) {
+        // Birim tuketildi -> stok fiilen 1 azalir (2026-07-15 karari). Eskiden
+        // stokAdedi sabit kalip "toplam satildi >= stok" ile karsilastiriliyordu;
+        // bu, stokAdedi'ni OMUR BOYU sayaca donusturuyor ve satici haftaya yeni
+        // mal getirdiginde urunu geri getirmenin yolu kalmiyordu (kilitli kalir,
+        // bkz. docs/mimari/rezervasyon-motoru.md "Stok modeli"). Artik stokAdedi
+        // "su an elde kac tane var" demek; kilit (FOR UPDATE) zaten alinmis
+        // durumda, okuma-yazma yarisi yok.
+        const yeniStok = (urun?.stokAdedi ?? 0) - 1;
+        await tx.urun.update({ where: { id: rez.urunId }, data: { stokAdedi: yeniStok } });
+        if (yeniStok <= 0) {
           urunTukendi = true;
           const kalanlar = await tx.rezervasyon.findMany({
             where: { urunId: rez.urunId, durum: "bekliyor" },
@@ -716,11 +720,13 @@ export async function rezervasyonGeriAl(params: {
       }
 
       const geriAlinanSatildi = rez.durum === "satildi";
-      const satildiSayisi = await tx.rezervasyon.count({
-        where: { urunId: urun.id, durum: "satildi" },
-      });
-      // satildi geri alinirsa o birim tekrar satilik olur -> kalanBirim +1.
-      const yeniKalanBirim = urun.stokAdedi - (satildiSayisi - (geriAlinanSatildi ? 1 : 0));
+      // satildi geri alinirsa satista tuketilen birim IADE edilir -> stok +1
+      // (satis aninda stok 1 dusuruluyor, bkz. sonuclandir). Gelmedi geri almada
+      // birim hic tuketilmemisti, stok degismez.
+      const yeniKalanBirim = urun.stokAdedi + (geriAlinanSatildi ? 1 : 0);
+      if (geriAlinanSatildi) {
+        await tx.urun.update({ where: { id: urun.id }, data: { stokAdedi: yeniKalanBirim } });
+      }
       const mevcutBekleyen = await tx.rezervasyon.count({
         where: { urunId: urun.id, durum: "bekliyor" },
       });
