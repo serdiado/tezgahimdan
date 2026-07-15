@@ -29,8 +29,8 @@ sana hangilerinin eksik olduğunu söyler.
 
 | kod (dosya adı) | ne göstermeli | tezgah | neden bulamadım |
 |---|---|---|---|
-| `tezgah-elif` | ****Tezgah fotoğrafı** — Minik Adımlar** | Minik Adımlar (Giyim Kuşam) | aramaya müze tekstil yakın çekimleri geldi, hiçbiri bebek kıyafeti değil |
-| `tezgah-zeynep` | ****Tezgah fotoğrafı** — Zeytin Dalı Takı** | Zeytin Dalı Takı (Takı & Aksesuar) | ahşap kuş oymaları ve Bizans altın eserleri geldi, takı yok |
+| `tezgah-elif` | **Tezgah fotoğrafı — Minik Adımlar** | Minik Adımlar (Giyim Kuşam) | aramaya müze tekstil yakın çekimleri geldi, hiçbiri bebek kıyafeti değil |
+| `tezgah-zeynep` | **Tezgah fotoğrafı — Zeytin Dalı Takı** | Zeytin Dalı Takı (Takı & Aksesuar) | ahşap kuş oymaları ve Bizans altın eserleri geldi, takı yok |
 | `urun-mandalina-receli` | **Mandalina Reçeli (450 g)** | Ayşe Teyzenin Mutfağı | tek aday vardı (tezgah fotoğrafı), kavanoz yakın çekimi yok |
 | `urun-yesil-zeytin` | **Kırma Yeşil Zeytin (500 g)** | Sığacık Kileri | salata/hummus/tablo geldi; 'green olives' araması zeytin AĞACI getiriyor |
 | `urun-ot-kurabiyesi` | **Zeytinyağlı Ot Kurabiyesi (300 g)** | Sığacık Kileri | ticari kraker paketleri ve bir klasik otomobil geldi |
@@ -50,18 +50,18 @@ sana hangilerinin eksik olduğunu söyler.
 
 | kod (dosya adı) | ne göstermeli | tezgah |
 |---|---|---|
-| `tezgah-ayse` | **Tezgah fotoğrafı** — Ayşe Teyzenin Mutfağı | Ayşe Teyzenin Mutfağı (Mutfaktan) |
-| `tezgah-hatice` | **Tezgah fotoğrafı** — Sığacık Kileri | Sığacık Kileri (Mutfaktan) |
-| `tezgah-nazli` | **Tezgah fotoğrafı** — Nazlı'nın İğne Oyası | Nazlı'nın İğne Oyası (El Emeği) |
-| `tezgah-sevgi` | **Tezgah fotoğrafı** — Düğüm Düğüm Atölye | Düğüm Düğüm Atölye (El Emeği) |
-| `tezgah-fatma` | **Tezgah fotoğrafı** — Örgü Sepeti | Örgü Sepeti (Giyim Kuşam) |
-| `tezgah-meryem` | **Tezgah fotoğrafı** — Boncuk Boncuk | Boncuk Boncuk (Takı & Aksesuar) |
-| `tezgah-gulten` | **Tezgah fotoğrafı** — Sabun Kokusu | Sabun Kokusu (Bakım & Kozmetik) |
-| `tezgah-emine` | **Tezgah fotoğrafı** — Lavanta Bahçesi | Lavanta Bahçesi (Bakım & Kozmetik) |
-| `tezgah-husniye` | **Tezgah fotoğrafı** — Toprak & Çamur | Toprak & Çamur (Ev & Dekorasyon) |
-| `tezgah-sultan` | **Tezgah fotoğrafı** — Mum Işığı Atölye | Mum Işığı Atölye (Ev & Dekorasyon) |
-| `tezgah-hacer` | **Tezgah fotoğrafı** — Tohum Sepeti | Tohum Sepeti (Diğer) |
-| `tezgah-serife` | **Tezgah fotoğrafı** — Sepet & Hasır | Sepet & Hasır (Diğer) |
+| `tezgah-ayse` | Tezgah fotoğrafı — Ayşe Teyzenin Mutfağı | Ayşe Teyzenin Mutfağı (Mutfaktan) |
+| `tezgah-hatice` | Tezgah fotoğrafı — Sığacık Kileri | Sığacık Kileri (Mutfaktan) |
+| `tezgah-nazli` | Tezgah fotoğrafı — Nazlı'nın İğne Oyası | Nazlı'nın İğne Oyası (El Emeği) |
+| `tezgah-sevgi` | Tezgah fotoğrafı — Düğüm Düğüm Atölye | Düğüm Düğüm Atölye (El Emeği) |
+| `tezgah-fatma` | Tezgah fotoğrafı — Örgü Sepeti | Örgü Sepeti (Giyim Kuşam) |
+| `tezgah-meryem` | Tezgah fotoğrafı — Boncuk Boncuk | Boncuk Boncuk (Takı & Aksesuar) |
+| `tezgah-gulten` | Tezgah fotoğrafı — Sabun Kokusu | Sabun Kokusu (Bakım & Kozmetik) |
+| `tezgah-emine` | Tezgah fotoğrafı — Lavanta Bahçesi | Lavanta Bahçesi (Bakım & Kozmetik) |
+| `tezgah-husniye` | Tezgah fotoğrafı — Toprak & Çamur | Toprak & Çamur (Ev & Dekorasyon) |
+| `tezgah-sultan` | Tezgah fotoğrafı — Mum Işığı Atölye | Mum Işığı Atölye (Ev & Dekorasyon) |
+| `tezgah-hacer` | Tezgah fotoğrafı — Tohum Sepeti | Tohum Sepeti (Diğer) |
+| `tezgah-serife` | Tezgah fotoğrafı — Sepet & Hasır | Sepet & Hasır (Diğer) |
 | `urun-tarhana` | Ev Yapımı Tarhana (1 kg) | Ayşe Teyzenin Mutfağı |
 | `urun-kuru-domates` | Kuru Domates (250 g) | Ayşe Teyzenin Mutfağı |
 | `urun-zeytinyagi` | Soğuk Sıkım Zeytinyağı (1 L) | Sığacık Kileri |

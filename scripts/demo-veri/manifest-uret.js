@@ -18,7 +18,7 @@ async function main() {
   for (const t of TEZGAHLAR) {
     ogeler.push({
       taban: t.dosya.replace(/\.[a-z]+$/, ""),
-      ne: `**Tezgah fotoğrafı** — ${t.magazaAd}`,
+      ne: `Tezgah fotoğrafı — ${t.magazaAd}`,
       ipucu: t.foto,
       kim: `${t.magazaAd} (${t.kategori})`,
     });
