@@ -25,9 +25,10 @@ const VARSAYILAN_MODULLER: Record<SayfaAdi, { tur: ModulTuru; sira: number; ayar
   // Admin bu sirayi panelden degistirebilir; burasi yalnizca ilk kurulum.
   anasayfa: [
     { tur: "haftalik_ritim", sira: 1, ayarlar: {} },
-    // ogeSayisi burada IKI ise yarar (2026-07-15): ana sayfadaki tezgah
-    // onizlemesinin uzunlugu VE /magazalar sayfasinin sayfa boyu. Iki sayfa
-    // zaten AYNI bileseni (MagazaVitrini) render ediyor, ayar da ortak.
+    // ogeSayisi = ana sayfadaki tezgah ONIZLEMESININ uzunlugu. (Kisa omurlu
+    // bir donemde /magazalar sayfasinin da sayfa boyuydu; o route 2026-07-15'te
+    // kaldirildi - capraz-pazar "tum tezgahlar" listesi olcekte coplup olur,
+    // tezgah her zaman BIR pazarin baglaminda anlamli.)
     { tur: "magaza_listesi", sira: 2, ayarlar: { kolonSayisi: 3, ogeSayisi: 12 } },
     { tur: "yeni_urunler", sira: 3, ayarlar: { kolonSayisi: 3, sunumTipi: "grid", ogeSayisi: 12 } },
     { tur: "en_cok_begenilen", sira: 4, ayarlar: { kolonSayisi: 3, sunumTipi: "grid", ogeSayisi: 12 } },

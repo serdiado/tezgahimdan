@@ -139,9 +139,11 @@ export default async function AnaSayfa({
     // Sadece begeni-sirali ID listesi - gorunurluk filtresi UYGULANMAZ (bkz.
     // src/lib/favori.ts), asagida ayri bir sorguyla uygulanir.
     enCokBegenilenUrunIdleriGetir(enCokBegenilenAyarlari.ogeSayisi ?? VARSAYILAN_URUN_LIMIT),
-    // 2026-07-14: ana sayfada artik TUM magazalar degil, sinirli bir "en yeni
-    // tezgahlar" onizlemesi (slider) - tam liste /magazalar sayfasinda (bkz.
-    // "Tum Tezgahlari Gor" linki asagida). magazaListesiAyarlari, moduller
+    // 2026-07-14: ana sayfada TUM magazalar degil, sinirli bir "en yeni
+    // tezgahlar" ONIZLEMESI (slider). Tam liste 2026-07-15'e kadar
+    // /magazalar'daydi; o route kaldirildi - tam liste artik PAZARIN kendi
+    // sayfasinda ("Bu Pazardaki Tezgahlar", bkz. asagidaki link ve
+    // docs/mimari/anasayfa-kapsam-ekseni.md). magazaListesiAyarlari, moduller
     // cozulmeden bu Promise.all'a giremeyecegi icin sorgu BILEREK burada
     // (yeniUrunler/enCokBegenilenIdler ile AYNI asamada) - yeniUrunAyarlari
     // ile ayni desen.
@@ -177,10 +179,9 @@ export default async function AnaSayfa({
       // Arama aktifken limit UYGULANMAZ: kullanici belirli bir bolge ariyorsa
       // (ör. "Izmir") zaten dar bir kume donuyor, kesip "X sonuc" yazisini
       // yanlis/eksik gostermek yanlis olur - tum eslesenler slider'da kaydirilir.
-      // NOT: ana sayfadaki bu SLIDER sayfalanmaz (bilincli) - "Tum Tezgahlari
-      // Gor" linki /magazalar'a goturur, sayfalama orada. Yani ayni
-      // magaza_listesi.ogeSayisi ayari burada "onizleme uzunlugu", /magazalar'da
-      // "sayfa boyu" anlamina gelir.
+      // NOT: ana sayfadaki bu SLIDER sayfalanmaz (bilincli) - "Bu Pazardaki Tum
+      // Tezgahlar" linki pazarin sayfasina goturur, tam liste orada. Yani
+      // magaza_listesi.ogeSayisi artik SADECE "onizleme uzunlugu" demek.
       take: arama ? undefined : magazaSayfaBoyu,
     }),
     // "N sonuc" etiketi icin GERCEK toplam - sadece arama varken. Onceden
@@ -477,15 +478,26 @@ export default async function AnaSayfa({
                       degerlendirmeSayisi: magazaDegerlendirmeOzeti.get(magaza.id)?.sayi ?? 0,
                     }))}
                   />
-                  {/* Arama aktifken zaten TUM eslesenler gosteriliyor (take
-                      yok) - "Tumunu Gor" o durumda anlamsiz, sadece varsayilan
-                      (sinirli) onizlemede gorunur. */}
-                  {!arama && (
+                  {/*
+                    Hedef ARTIK /magazalar DEGIL, pazarin kendi sayfasi
+                    (2026-07-15 kullanici karari, bkz. docs/mimari/anasayfa-kapsam-ekseni.md).
+                    Gerekce: "tum tezgahlar" listesi olcekte birbirine karismis
+                    yuzlerce tezgah demek - kimsenin isine yaramayan bir coplup.
+                    Tezgah her zaman BIR pazarin baglaminda anlamli ("bu carsamba
+                    su pazarda"), o yuzden dogru hedef o pazarin sayfasindaki
+                    "Bu Pazardaki Tezgahlar" bolumu. /magazalar route'u kaldirildi.
+
+                    tekPazar kosulu: coklu pazarda "bu pazar" ifadesi anlamsiz -
+                    baglam satiri ve "Bu Pazardaki Tum Urunler" ile AYNI kural.
+                    Arama aktifken de gizli: o durumda zaten TUM eslesenler
+                    gosteriliyor (take yok), "tumunu gor" anlamsiz.
+                  */}
+                  {!arama && tekPazar && (
                     <Link
-                      href="/magazalar"
+                      href={`/pazar/${tekPazar.slug}#tezgahlar`}
                       className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary-600 hover:underline"
                     >
-                      Tüm Tezgahları Gör
+                      Bu Pazardaki Tüm Tezgahlar
                       <ArrowRight className="h-4 w-4" strokeWidth={2} />
                     </Link>
                   )}

@@ -65,7 +65,7 @@ export default async function AdminAnasayfaPage() {
         sunumSecenegiVar: m.tur === "yeni_urunler" || m.tur === "en_cok_begenilen",
         not:
           m.tur === "magaza_listesi"
-            ? "Bu sayı hem anasayfadaki önizlemede hem “Tüm Tezgahlar” sayfasının sayfa boyunda geçerlidir."
+            ? "Anasayfadaki tezgah önizlemesinde kaç tezgah gösterileceği. Tam liste pazarın kendi sayfasındadır."
             : m.tur === "yeni_urunler"
               ? "Sayfa boyu: “Daha Fazla Göster” her basışta bu kadar ürün ekler. Pazar sayfaları da bu ayarı kullanır."
               : undefined,

@@ -1,6 +1,8 @@
 # Vitrin sayfalama — "Daha Fazla Göster"
 
-2026-07-15 kararı. Vitrindeki dört ürün/tezgah listesi de artık sayfalı: **ana sayfa** ("Yeni Ürünler"), **/magazalar**, **/magaza/[slug]**, **/pazar/[slug]**.
+2026-07-15 kararı. Vitrindeki ürün/tezgah listeleri sayfalı: **ana sayfa** ("Yeni Ürünler"), **/magaza/[slug]**, **/pazar/[slug]**.
+
+> **Sonradan not (aynı gün):** `/magazalar` da bu işte sayfalanmıştı, ama route **kaldırıldı** — çapraz-pazar "tüm tezgahlar" listesi ölçekte birbirine karışmış yüzlerce tezgah demekti. Bkz. [`anasayfa-kapsam-ekseni.md`](./anasayfa-kapsam-ekseni.md). Aşağıdaki desen (URL param + biriken take + `sayfaKes`) kalan üç yüzeyde aynen geçerli.
 
 ## Sorun neydi
 
@@ -9,7 +11,7 @@
 | Yüzey | Durum |
 |---|---|
 | Ana sayfa | `ogeSayisi=12` ile **zaten sınırlıydı** — ama 12'den fazlasını görmenin **hiçbir yolu yoktu**. 37 ürünün 25'i ulaşılamazdı. |
-| `/magazalar` | **Sınırsız** — "bu sayfanın tek işi tam listeyi göstermek" |
+| `/magazalar` | **Sınırsız** — "bu sayfanın tek işi tam listeyi göstermek" *(route sonradan kaldırıldı)* |
 | `/magaza/[slug]` | **Sınırsız** |
 | `/pazar/[slug]` | **Sınırsız** — "tek pazarın ürün sayısı küçük kalır" varsayımı |
 
@@ -47,7 +49,7 @@ Hedef kitle teknolojiyle arası iyi olmayan yerel alıcılar (CLAUDE.md).
 |---|---|
 | Ana sayfa "Yeni Ürünler" | `anasayfa / yeni_urunler.ogeSayisi` |
 | `/pazar/[slug]` ürünleri | **aynı** `yeni_urunler.ogeSayisi` — burası da mağazalar-arası bir ürün ızgarası; ayrı ayar admin'e karşılıksız bir kontrol daha koymak olurdu |
-| `/magazalar` | **`anasayfa / magaza_listesi.ogeSayisi`** — iki sayfa zaten AYNI bileşeni (`MagazaVitrini`) render ediyor: ana sayfada "önizleme uzunluğu", `/magazalar`'da "sayfa boyu" |
+| Ana sayfa tezgah önizlemesi | `anasayfa / magaza_listesi.ogeSayisi` — *(kısa bir dönem `/magazalar`'ın da sayfa boyuydu; o route kaldırıldı, ayar artık yalnızca "önizleme uzunluğu" demek)* |
 | `/magaza/[slug]` ürünleri | **yeni** `magaza_hero / magaza_urun_listesi.ogeSayisi` |
 
 `magaza_urun_listesi` bir **hero bileşeni değil** — `magaza_hero` grubunda yaşıyor çünkü admin'de o grubun ekranı zaten "Tezgah Sayfası Şablonu" başlığıyla sunuluyor ve o sayfa `sayfaModulleriGetir("magaza_hero")`'yu zaten çağırıyor (**ek sorgu yok**). Ayrı bir `SayfaModulSayfasi` değeri tek modüllü bir grup yaratır, sıra/görünürlük kontrolleri karşılıksız kalırdı. `MagazaHero`'ya sızmaması için `magaza/[slug]` hero listesini `tur.startsWith("magaza_hero_")` ile süzer; admin kartında sıra/görünürlük kontrolleri kapalı.
@@ -72,7 +74,7 @@ Doğrulandı: ana sayfada çipler önce 3 kategori gösteriyordu, şimdi 7'sini 
 ## Yapılmayanlar / bilinen kısıtlar
 
 - **"En Çok Beğenilenler"e "Daha Fazla" konmadı.** Tanımı gereği top-N listesi. Ayrıca `enCokBegenilenUrunIdleriGetir` ID'leri **görünürlük filtresinden önce** çekiyor (`lib/favori.ts`), yani sayfalaması yapısal olarak yanlış sayı gösterirdi. Aynı sebeple `ogeSayisi=12` istense de 8 kart çıkabilir — bu bugün de böyle.
-- **Ana sayfadaki tezgah slider'ı sayfalanmadı** — "Tüm Tezgahları Gör" linki `/magazalar`'a götürür, sayfalama orada. Arama aktifken slider limitsiz kalır (bilinçli, mevcut karar).
+- **Ana sayfadaki tezgah slider'ı sayfalanmadı** — "Bu Pazardaki Tüm Tezgahlar" linki pazarın kendi sayfasına götürür, tam liste orada. Arama aktifken slider limitsiz kalır (bilinçli, mevcut karar).
 - **`/pazar/[slug]`'de tezgah listesi sayfalanmadı** — bir pazarın tezgah sayısı doğal olarak küçük.
 - **`urunYorumlariHaritasi` limitsiz kaldı.** "Kart zaten tüm yorumları göstermiyor, `slice(0,2)` güvenli" önerisi **doğrulamada düştü**: `UrunDetayModal` ürünün BÜTÜN yorumlarını listeliyor ve içinde "tümünü gör" yok — kesmek modalda yorumları sessizce gizlerdi. Payload'u küçültmek isteniyorsa önce modale bir "tüm yorumlar" akışı gerekir; ayrı iş.
 - **`pasifUrunIdSeti()` scope'suz** (`rezervasyon.ts`) — tüm platformun bekleyen rezervasyonlarını tarar. Sayfa boyutundan bağımsız ama sayfanın en pahalı çağrısı; "sayfa yavaş" şikayeti gelirse ilk bakılacak yer.
@@ -83,7 +85,7 @@ Doğrulandı: ana sayfada çipler önce 3 kategori gösteriyordu, şimdi 7'sini 
 `ogeSayisi=12` ile, 37 ürün / 14 tezgahlık demo veride:
 
 - Ana sayfa: 12 kart + buton → tıkla → **24 kart**, `scrollY` korundu, buton `?sayfa=3`'e döndü ✓
-- `/magazalar`: sayfa 1'de buton **var**, sayfa 2'de **yok** (14 ≤ 24) ✓
+- `/magazalar`: sayfa 1'de buton **var**, sayfa 2'de **yok** (14 ≤ 24) ✓ *(route sonradan kaldırıldı)*
 - `/magaza/ayse-teyzenin-mutfagi`: 3 ürün → buton yok ✓
 - `/pazar/seferihisar-pazari`: 12 + buton ✓
 - `?kategori=<Mutfaktan>` → 6 ürün; psql ile bağımsız doğrulandı: DB'de tam 6 ✓

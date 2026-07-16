@@ -32,10 +32,15 @@ export async function SiteFooter() {
           <span className="text-sm text-primary-100">{icerik.get("footer_slogan") ?? VARSAYILAN_SLOGAN}</span>
         </div>
 
+        {/*
+          "Tezgahlar" linki KALDIRILDI (2026-07-15): /magazalar route'u ile
+          birlikte. Capraz-pazar "tum tezgahlar" listesi olcekte birbirine
+          karismis yuzlerce tezgah demekti; tezgah her zaman BIR pazarin
+          baglaminda anlamli. Yerine ayri bir link KONMADI - kullanici karari:
+          "gereksiz, boyle bir linke ihtiyac yok". Tezgahlara erisim pazar
+          sayfasindan (bkz. docs/mimari/anasayfa-kapsam-ekseni.md).
+        */}
         <nav className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
-          <Link href="/magazalar" className="text-white hover:text-primary-100">
-            Tezgahlar
-          </Link>
           {/* prefetch={false}: bu sayfa giris-gerektiren. Cikis yapilmisken
               onceden yuklenirse (prefetch), tarayici "login'e yonlendir"
               kopyasini router onbellegine alir; kullanici sonradan giris yapsa

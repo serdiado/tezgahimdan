@@ -20,9 +20,21 @@ Pesimistik satır kilidi (`SELECT ... FOR UPDATE`) ile aktif+yedek kuyruğu yön
 
 ---
 
+## Ana sayfa kapsam ekseni ("20 pazar olunca `/` ne olacak?")
+
+Ana sayfa bugün **fiilen Seferihisar sayfası** (ölçüldü: tek pazar, ana sayfadaki tüm ürünler oradan). Bu N=1'de doğru ama gizli bir varsayım taşıyor — ikinci pazarda yalana döner, çünkü **kargo yok**: her ürün kartı "bu çarşamba ŞU tezgahtan al" vaat ediyor, çapraz ızgara Seferihisarlıya Ankara reçeli gösterir. Karar: `/` **iki katmanlı** olur — üst katman kalıcı/çapraz ama **ürün göstermez** (Haftalık Ritim, arama), alt katman **kapsama tabi**. Tek kural: *ana sayfada ürün kartı gösteren her modül kapsama tabidir.* **20 sayfa yazılmayacak** — `/pazar/[slug]` zaten o dinamik route.
+
+Sabitlenen sözleşmeler: kapsam bir **filtre**'dir (route değil) ve **çoğul**dur; URL asıl, çerez tercih; `/` platform yüzü değildir (belediyeye kendi `/pazar/[slug]`'ı gösterilir). Tetikleyici **tarih değil olay**: ikinci pazar sözleşmesi. N=1 adımı yapıldı — bağlam satırı (tek pazar yoksa **kendiliğinden kaybolur**) + `/magazalar`'ın kaldırılması (çapraz "tüm tezgahlar" listesi ölçekte çöplük; tezgah her zaman bir pazarın bağlamında anlamlı).
+
+→ Detay: [`docs/mimari/anasayfa-kapsam-ekseni.md`](./mimari/anasayfa-kapsam-ekseni.md)
+
+**Bilinmesi gereken bağımlılık:** Bu, [`coklu-pazar-ve-coklu-gun.md`](./mimari/coklu-pazar-ve-coklu-gun.md)'ün **bilgi mimarisi** karşılığı — o dosya motoru/veri modelini planlar, bu dosya `/`'in ne olacağını. İkisi N=2'de birlikte uygulanır.
+
+---
+
 ## Vitrin sayfalama ("Daha Fazla Göster")
 
-Ana sayfa, `/magazalar`, `/magaza/[slug]` ve `/pazar/[slug]` listeleri sayfalı. **URL parametresi + biriken take** (`?sayfa=2` → `take = ogeSayisi * 2`): sunucu bileşeni mevcut toplama mantığını aynen kullanır, yeni API yok; geri tuşu/paylaşılabilirlik/JS'siz çalışma bedava. Sonsuz kaydırma ve sayfa numaraları **bilinçli olarak elendi** (hedef kitle + footer erişimi). Buton görünürlüğü `take: limit+1` ile — `count()` yok. Tavan `MAX_SAYFA=8` (biriken take'te `?sayfa=99999` koruması). Sayfa boyu admin'den: `SayfaModulu.ayarlar.ogeSayisi` (4–24).
+Ana sayfa, `/magaza/[slug]` ve `/pazar/[slug]` listeleri sayfalı. **URL parametresi + biriken take** (`?sayfa=2` → `take = ogeSayisi * 2`): sunucu bileşeni mevcut toplama mantığını aynen kullanır, yeni API yok; geri tuşu/paylaşılabilirlik/JS'siz çalışma bedava. Sonsuz kaydırma ve sayfa numaraları **bilinçli olarak elendi** (hedef kitle + footer erişimi). Buton görünürlüğü `take: limit+1` ile — `count()` yok. Tavan `MAX_SAYFA=8` (biriken take'te `?sayfa=99999` koruması). Sayfa boyu admin'den: `SayfaModulu.ayarlar.ogeSayisi` (4–24).
 
 Aynı işte iki **mevcut hata** düzeltildi (sayfalamanın ön koşuluydu): (1) admin `ayarlar` JSON'unu **eziyordu** — tek kontrol değişince `ogeSayisi` siliniyordu; (2) `sayfaModulleriGetir` yalnızca grup **boşken** tohumluyordu — sonradan eklenen modül prod'da hiç oluşmazdı. Ayrıca kategori çipleri **sunucuya taşındı**: yüklenen ürünlerden türetildikleri için `take` ile yanıltıcı oluyorlardı.
 

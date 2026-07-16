@@ -444,7 +444,13 @@ export default async function PazarSayfasi({
           </div>
         )}
 
-        <div className="mt-8">
+        {/*
+          id="tezgahlar": ana sayfadaki "Bu Pazardaki Tüm Tezgahlar" linkinin
+          inis noktasi (/magazalar kaldirildi, bkz. docs/mimari/anasayfa-kapsam-ekseni.md).
+          scroll-mt: sabit baslik altinda kalmasin. Ana sayfadaki magaza_listesi
+          bolumunun id="magazalar" deseniyle ayni.
+        */}
+        <div id="tezgahlar" className="mt-8 scroll-mt-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-bold text-neutral-900">Bu Pazardaki Tezgahlar</h2>
             {arama && (
