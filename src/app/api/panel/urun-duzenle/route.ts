@@ -88,13 +88,13 @@ export async function POST(request: Request) {
     case "gecersiz-fiyat":
       return NextResponse.json({ hata: "gecerli bir fiyat girilmeli" }, { status: 400 });
     case "gecersiz-stok":
-      return NextResponse.json({ hata: "stok adedi en az 1 olmali" }, { status: 400 });
+      return NextResponse.json({ hata: "stok adedi 0 veya daha büyük bir tam sayı olmalı" }, { status: 400 });
     case "gecersiz-fotograf":
       return NextResponse.json({ hata: sonuc.mesaj }, { status: 400 });
     case "stok-yetersiz":
       return NextResponse.json(
         {
-          hata: `stok, ${sonuc.minStok} bekleyen/satılmış hak sahibinin altına düşürülemez`,
+          hata: `stok, ${sonuc.minStok} bekleyen hak sahibinin altına düşürülemez`,
           minStok: sonuc.minStok,
         },
         { status: 409 },

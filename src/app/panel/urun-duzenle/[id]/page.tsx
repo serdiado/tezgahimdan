@@ -47,10 +47,12 @@ export default async function UrunDuzenlePage({ params }: { params: Promise<{ id
   // Kaldirilmis (silindiMi=true) kategoriler secenek olarak sunulmaz. Urunun
   // MEVCUT kategorisi kaldirilmissa listede gorunmez - satici baska bir kategori
   // secmek zorunda kalir (kaldirilmis kategoriyle devam edilmesi tutarsiz olurdu).
-  const [kategoriler, aktifSayisi, satildiSayisi] = await Promise.all([
+  // minStok = sadece bekleyen (aktif, sonuclanmamis) rezervasyon sayisi -
+  // gecmis 'satildi' kayitlari satis aninda zaten stogu dusurdugu icin ayrica
+  // yer kaplamaz (bkz. src/lib/urun.ts urunGuncelle, ayni invariant).
+  const [kategoriler, aktifSayisi] = await Promise.all([
     prisma.kategori.findMany({ where: { silindiMi: false }, orderBy: [{ sira: "asc" }, { ad: "asc" }] }),
     prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "bekliyor", tip: "aktif" } }),
-    prisma.rezervasyon.count({ where: { urunId: urun.id, durum: "satildi" } }),
   ]);
 
   return (
@@ -75,7 +77,7 @@ export default async function UrunDuzenlePage({ params }: { params: Promise<{ id
               fotograflar: urun.fotograflar,
             }}
             kategoriler={kategoriler.map((k) => ({ id: k.id, ad: k.ad }))}
-            minStok={aktifSayisi + satildiSayisi}
+            minStok={aktifSayisi}
           />
         </div>
       </main>

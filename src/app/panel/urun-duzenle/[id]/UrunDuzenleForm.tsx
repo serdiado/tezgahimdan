@@ -136,17 +136,19 @@ export function UrunDuzenleForm({
             name="stokAdedi"
             type="number"
             step="1"
-            min={minStok || 1}
+            min={minStok}
             required
             inputMode="numeric"
             defaultValue={urun.stokAdedi}
             className={inputClass}
           />
         </label>
-        {minStok > 0 && (
+        {minStok > 0 ? (
           <p className="mt-1 text-xs text-neutral-400">
-            {minStok} bekleyen/satılmış hak sahibi olduğu için stok bunun altına düşürülemez.
+            {minStok} bekleyen hak sahibi olduğu için stok bunun altına düşürülemez.
           </p>
+        ) : (
+          <p className="mt-1 text-xs text-neutral-400">0 yazarsan ürün &quot;tükendi&quot; olarak işaretlenir.</p>
         )}
       </div>
 
